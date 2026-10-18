@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{% if sample %}Edit {{ sample.name }}{% else %}New Sample{% endif %} — Logbook{% endblock %}
+{% block content %}
+<div class="max-w-xl">
+  <h1 class="text-2xl font-bold mb-6">{% if sample %}Edit {{ sample.name }}{% else %}New Sample{% endif %}</h1>
+
+  <form method="post" action="{% if sample %}/samples/{{ sample.id }}/edit{% else %}/samples/new{% endif %}"
+        class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Sample ID / Name <span class="text-red-500">*</span></label>
+      <input name="name" type="text" required
+             value="{{ sample.name if sample else '' }}"
+             placeholder="e.g. TF-001, S-2024-03"
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Film Material</label>
+        <input name="film_material" type="text"
+               value="{{ sample.film_material or '' if sample else '' }}"
+               placeholder="e.g. TiN, ZnO, a-Si"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Substrate Material</label>
+        <input name="substrate_material" type="text"
+               value="{{ sample.substrate_material or '' if sample else '' }}"
+               placeholder="e.g. Si(100), glass, Al2O3"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Substrate Dimensions</label>
+      <input name="substrate_dimensions" type="text"
+             value="{{ sample.substrate_dimensions or '' if sample else '' }}"
+             placeholder="e.g. 10×10 mm, 2-inch wafer"
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+
+    {% if not sample %}
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Created by</label>
+      <input name="created_by" type="text"
+             placeholder="Your name"
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+    {% endif %}
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Description / Notes</label>
+      <textarea name="description" rows="3"
+                placeholder="Optional free-text description"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">{{ sample.description or '' if sample else '' }}</textarea>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit"
+              class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">
+        {% if sample %}Save changes{% else %}Create sample{% endif %}
+      </button>
+      <a href="{% if sample %}/samples/{{ sample.id }}{% else %}/samples/{% endif %}"
+         class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

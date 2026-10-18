@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}{{ sample.name }} — Logbook{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="flex items-start justify-between mb-8">
+  <div>
+    <div class="text-xs text-gray-400 mb-1">
+      <a href="/samples/" class="hover:underline">Samples</a> / {{ sample.name }}
+    </div>
+    <h1 class="text-2xl font-bold text-gray-900">{{ sample.name }}</h1>
+    <div class="flex flex-wrap gap-3 mt-2 text-sm text-gray-600 items-center">
+      {% if sample.film_material %}
+        <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{{ sample.film_material }}</span>
+      {% endif %}
+      {% if sample.substrate_material %}
+        <span>on {{ sample.substrate_material }}{% if sample.substrate_dimensions %} ({{ sample.substrate_dimensions }}){% endif %}</span>
+      {% endif %}
+      {% if sample.created_by %}
+        <span class="text-gray-400">by {{ sample.created_by }}</span>
+      {% endif %}
+      <span class="text-gray-400">{{ sample.created_at.strftime('%Y-%m-%d') }}</span>
+    </div>
+    {% if sample.description %}
+      <p class="mt-2 text-sm text-gray-600 max-w-2xl">{{ sample.description }}</p>
+    {% endif %}
+  </div>
+  {% if can_edit %}
+  <div class="flex gap-2 shrink-0">
+    <a href="/samples/{{ sample.id }}/edit"
+       class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">Edit</a>
+    <form method="post" action="/samples/{{ sample.id }}/delete"
+          onsubmit="return confirm('Delete this sample and all its data?')">
+      <button class="text-sm border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">Delete</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add buttons -->
+{% if current_user %}
+<div class="flex gap-3 mb-8">
+  <a href="/samples/{{ sample.id }}/steps/new"
+     class="inline-flex items-center gap-1.5 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Add Process Step
+  </a>
+  <a href="/samples/{{ sample.id }}/analyses/new"
+     class="inline-flex items-center gap-1.5 text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 shadow-sm">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Add Analysis
+  </a>
+</div>
+{% endif %}
+
+<!-- ═══ UNIFIED TIMELINE ══════════════════════════════════════════════════ -->
+{% if timeline %}
+<div class="relative">
+  <!-- Vertical spine -->
+  <div class="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200" aria-hidden="true"></div>
+
+  <div class="space-y-6">
+    {% for entry in timeline %}
+    {% set is_process = entry.kind == "process" %}
+
+    <div class="relative pl-14">
+      <!-- Dot on the spine -->
+      <div class="absolute left-0 top-4 flex items-center justify-center w-10 h-10 rounded-full border-2
+                  {% if is_process %}bg-blue-50 border-blue-300{% else %}bg-emerald-50 border-emerald-300{% endif %}">
+        {% if is_process %}
+        <!-- cog icon for process -->
+        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        {% else %}
+        <!-- chart icon for analysis -->
+        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        {% endif %}
+      </div>
+
+      <!-- Card -->
+      <div class="bg-white rounded-xl border shadow-sm overflow-hidden
+                  {% if is_process %}border-blue-100{% else %}border-emerald-100{% endif %}">
+
+        <!-- Card header -->
+        <div class="flex items-center gap-3 px-5 py-3
+                    {% if is_process %}bg-blue-50 border-b border-blue-100{% else %}bg-emerald-50 border-b border-emerald-100{% endif %}">
+          <!-- Kind badge -->
+          <span class="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded
+                       {% if is_process %}bg-blue-100 text-blue-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">
+            {{ "Process" if is_process else "Analysis" }}
+          </span>
+          <span class="font-semibold text-gray-900 flex-1">{{ entry.type_name }}</span>
+          <div class="flex items-center gap-3 text-xs text-gray-400 shrink-0">
+            {% if entry.performed_at %}
+              <span>{{ entry.performed_at.strftime('%Y-%m-%d') }}{% if entry.performed_at.hour or entry.performed_at.minute %} {{ entry.performed_at.strftime('%H:%M') }}{% endif %}</span>
+            {% endif %}
+            {% if entry.performed_by %}
+              <span>by {{ entry.performed_by }}</span>
+            {% endif %}
+          </div>
+          {% if current_user %}
+          <div class="flex items-center gap-1 shrink-0 ml-2">
+            <a href="{{ entry.edit_url }}"
+               class="p-1 text-gray-400 hover:text-blue-600" title="Edit">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+            </a>
+            <form method="post" action="{{ entry.delete_url }}"
+                  onsubmit="return confirm('Delete this {{ 'step' if is_process else 'analysis' }}?')">
+              <button class="p-1 text-gray-400 hover:text-red-500" title="Delete">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Parameters grid -->
+        {% if entry.parameters %}
+        <div class="px-5 py-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
+          {% for k, v in entry.parameters.items() %}
+          <div>
+            <div class="text-xs text-gray-400">{{ k }}</div>
+            <div class="text-sm font-medium text-gray-800">{{ v }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Notes -->
+        {% if entry.notes %}
+        <div class="px-5 pb-3 {% if entry.parameters %}border-t border-gray-50 pt-2{% endif %} text-sm text-gray-600 italic">
+          {{ entry.notes }}
+        </div>
+        {% endif %}
+
+        <!-- Attachments -->
+        {% if entry.attachments %}
+        <div class="px-5 pb-3 border-t border-gray-100 pt-2">
+          <div class="text-xs text-gray-400 mb-1.5">Attachments</div>
+          <div class="flex flex-wrap gap-2">
+            {% for att in entry.attachments %}
+            <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
+              <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
+              <span class="text-gray-400">({{ (att.file_size / 1024)|round(1) }} KB)</span>
+              {% if current_user %}
+              <form method="post" action="/files/{{ att.id }}/delete" class="inline">
+                <input type="hidden" name="sample_id" value="{{ sample.id }}">
+                <button class="text-gray-300 hover:text-red-400 ml-1" title="Remove">×</button>
+              </form>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- File upload -->
+        {% if current_user %}
+        <div class="px-5 pb-3 border-t border-gray-50 pt-2">
+          <form method="post" action="/files/upload/{{ sample.id }}" enctype="multipart/form-data"
+                class="flex items-center gap-2">
+            <input type="hidden" name="entity_type" value="{{ 'step' if is_process else 'analysis' }}">
+            <input type="hidden" name="entity_id" value="{{ entry.id }}">
+            <input type="file" name="file"
+                   class="text-xs text-gray-500
+                          file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs
+                          {% if is_process %}file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100
+                          {% else %}file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100{% endif %}">
+            <button type="submit"
+                    class="text-xs {% if is_process %}text-blue-600{% else %}text-emerald-600{% endif %} hover:underline">
+              Upload
+            </button>
+          </form>
+        </div>
+        {% endif %}
+
+      </div><!-- /card -->
+    </div><!-- /entry -->
+    {% endfor %}
+  </div><!-- /space-y-6 -->
+</div><!-- /relative -->
+
+{% else %}
+<!-- Empty state -->
+<div class="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center">
+  <p class="text-gray-400 text-sm mb-4">No steps or analyses recorded yet.</p>
+  {% if current_user %}
+  <div class="flex justify-center gap-3">
+    <a href="/samples/{{ sample.id }}/steps/new"
+       class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+      Add Process Step
+    </a>
+    <a href="/samples/{{ sample.id }}/analyses/new"
+       class="text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+      Add Analysis
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

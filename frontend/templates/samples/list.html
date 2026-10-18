@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Samples — Logbook{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Samples</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ samples|length }} sample{{ 's' if samples|length != 1 }}</p>
+  </div>
+  <a href="/samples/new"
+     class="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    New Sample
+  </a>
+</div>
+
+{% if samples %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="bg-gray-50 border-b border-gray-200">
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">ID</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">Name</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">Film</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">Substrate</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">Created by</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for s in samples %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3 text-gray-400 font-mono text-xs">#{{ s.id }}</td>
+        <td class="px-5 py-3">
+          <a href="/samples/{{ s.id }}" class="font-semibold text-blue-600 hover:underline">{{ s.name }}</a>
+        </td>
+        <td class="px-5 py-3 text-gray-600">{{ s.film_material or '—' }}</td>
+        <td class="px-5 py-3 text-gray-600">{{ s.substrate_material or '—' }}</td>
+        <td class="px-5 py-3 text-gray-600">{{ s.created_by or '—' }}</td>
+        <td class="px-5 py-3 text-gray-400 text-xs">{{ s.created_at.strftime('%Y-%m-%d') }}</td>
+        <td class="px-5 py-3 text-right">
+          <a href="/samples/{{ s.id }}" class="text-blue-500 hover:underline text-xs">View →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+  <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+  </svg>
+  <p class="text-gray-500 mb-4">No samples yet.</p>
+  <a href="/samples/new" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">Create your first sample</a>
+</div>
+{% endif %}
+{% endblock %}

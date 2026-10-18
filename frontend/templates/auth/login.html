@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Login — Logbook{% endblock %}
+{% block content %}
+<div class="max-w-sm mx-auto mt-16">
+  <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">Sign in</h1>
+
+  {% if error %}
+  <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/login" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1" for="username">Username</label>
+      <input id="username" name="username" type="text" required autofocus
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1" for="password">
+        Password
+        <a href="/forgot-password"
+           class="float-right font-normal text-blue-600 hover:underline text-xs mt-0.5">
+          Forgot password?
+        </a>
+      </label>
+      <input id="password" name="password" type="password" required
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+
+    <button type="submit"
+            class="w-full bg-blue-600 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
+      Sign in
+    </button>
+  </form>
+</div>
+{% endblock %}

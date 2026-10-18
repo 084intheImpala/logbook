@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Thin Film Logbook{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .step-badge { @apply inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+  <!-- Sidebar -->
+  <div class="flex">
+    <nav class="w-56 min-h-screen bg-gray-900 text-gray-100 flex flex-col fixed top-0 left-0 z-10">
+      <div class="px-5 py-5 border-b border-gray-700">
+        <div class="text-xs uppercase tracking-widest text-gray-400 mb-1">CTN Logbook</div>
+        <div class="text-lg font-semibold">Thin Films</div>
+      </div>
+      <div class="flex-1 py-4">
+        <a href="/samples/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/samples') and 'admin' not in request.url.path %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Samples
+        </a>
+        {% if current_user %}
+        <a href="/samples/new" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 text-gray-300">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          New Sample
+        </a>
+        {% endif %}
+        {% if current_user and current_user.is_admin %}
+        <a href="/admin/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if 'admin' in request.url.path %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Configurations
+        </a>
+        {% endif %}
+      </div>
+      <!-- User section -->
+      <div class="px-5 py-4 border-t border-gray-700">
+        {% if current_user %}
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+            {{ current_user.username[0].upper() }}
+          </div>
+          <span class="text-sm text-gray-200 truncate">{{ current_user.username }}</span>
+          {% if current_user.is_admin %}<span class="text-xs text-yellow-400">admin</span>{% endif %}
+        </div>
+        <form method="post" action="/logout">
+          <button class="text-xs text-gray-400 hover:text-gray-200">Sign out</button>
+        </form>
+        {% else %}
+        <a href="/login" class="text-xs text-gray-400 hover:text-gray-200">Sign in</a>
+        {% endif %}
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="ml-56 flex-1 p-8">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>
