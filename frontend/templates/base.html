@@ -177,6 +177,16 @@
     </nav>
 
     <script>
+      // "Today" next to a date field: today's date by this computer's clock
+      // (not UTC, so it's right just after midnight too).
+      document.addEventListener('click', e => {
+        const button = e.target.closest && e.target.closest('[data-set-today]');
+        if (!button) return;
+        const now = new Date(), pad = n => String(n).padStart(2, '0');
+        button.parentElement.querySelector('input[type="date"]').value =
+          `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      });
+
       // Dropdowns from shared lists (_params.html): "+ Add new…" swaps in a
       // text box that's submitted under the dropdown's name instead.
       document.addEventListener('change', e => {

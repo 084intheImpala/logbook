@@ -361,7 +361,8 @@ calibration sample tick box with details), Annealing, Ion
 Implantation, Lithography (optical or e-beam), Etching (dry or wet), Cut and
 Other Process. The analysis types are XRD / HRXRD, XPS, SEM (the equipment,
 e.g. Hitachi S-2500), TEM, RBS, AFM, Raman, Hall / 4-probe, Ellipsometry
-(angles of incidence, and a large box for the optical model) and Other
+(angles of incidence, and a large box for the optical model), Profilometry
+(step height, scan length, stylus force, scan speed, roughness) and Other
 Analysis. On the sample page parameters are shown with their labels and
 units, and the CSV has one `param:` column per parameter (modes as
 `param:modes/Rocking curve/range`).
@@ -370,11 +371,14 @@ units, and the CSV has one `param:` column per parameter (modes as
 
 Things done in parallel (one deposition run, one XRD session) can be
 recorded once: **Also add to other samples** on the form lists the samples
-you can edit. Each gets its own copy, linked as a run ("Also on: …" on the
-sample page), and files uploaded with it are stored once and shared.
-Editing one copy offers to apply the changes to the others (not the files),
-and each copy keeps its own place in its sample's timeline and can get its
-own data files afterwards. Deleting a copy only removes it from that sample.
+you can edit, both when adding an entry and when editing one later. Each
+ticked sample gets its own copy, linked as a run ("Also on: …" on the
+sample page), and a file field appears next to it for that sample's own
+files (e.g. its data). On a new entry, the main photo and file fields go to
+every sample (stored once). Editing one copy lists the others, each with its
+own file field, and offers to apply the changes to them (not the files);
+each copy keeps its own place in its sample's timeline. Deleting a copy only
+removes it from that sample.
 
 ---
 

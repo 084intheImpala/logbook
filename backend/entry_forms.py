@@ -2,9 +2,10 @@
 
 Parameters follow the chosen type's schema (backend/params.py); dropdown
 values come from the shared lists (backend/choices.py). An entry can be added
-to several samples at once: the copies share a `run_id`, and editing one can
-update the others. Files uploaded with a run are stored once and attached to
-every copy.
+to several samples, when it's created or later: the copies share a `run_id`,
+and editing one can update the others. Files from the main fields of a new
+entry are stored once and attached to every copy; each sample in the run also
+has its own file field, for its own data.
 """
 import uuid
 from dataclasses import dataclass
@@ -61,10 +62,12 @@ async def run_entries(db: AsyncSession, kind: Kind, entry) -> list[tuple]:
     return list(rows.all())
 
 
-async def _run_candidates(db: AsyncSession, user, sample) -> list[Sample]:
-    """Samples the user could add the same entry to (they need edit access)."""
-    samples = (await db.execute(select(Sample).where(Sample.id != sample.id).order_by(Sample.code.desc()))).scalars()
-    return [s for s in samples if can_edit(user, s)]
+async def _run_candidates(db: AsyncSession, user, sample, run) -> list[Sample]:
+    """Samples the user could add the same entry to (they need edit access),
+    leaving out those already in its run."""
+    taken = {sample.id} | {s.id for _, s in run}
+    samples = (await db.execute(select(Sample).order_by(Sample.code.desc()))).scalars()
+    return [s for s in samples if s.id not in taken and can_edit(user, s)]
 
 
 async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entry, user,
@@ -72,6 +75,7 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
     types = (await db.execute(select(kind.type_model).order_by(kind.type_model.name))).scalars().all()
     current_type = next((ty for ty in types if entry and ty.id == getattr(entry, kind.type_field)), None)
     options = await option_lists(db)
+    run = await run_entries(db, kind, entry) if entry else []
     attachments = []
     if entry:
         attachments = (await db.execute(
@@ -95,8 +99,8 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
         "location": entry.location if entry else DEFAULT_LOCATION if DEFAULT_LOCATION in options.get(LOCATION_LIST, []) else None,
         "users": await users_for_form(db),
         "attachments": attachments,
-        "run": await run_entries(db, kind, entry) if entry else [],
-        "run_candidates": await _run_candidates(db, user, sample) if not entry else [],
+        "run": run,
+        "run_candidates": await _run_candidates(db, user, sample, run),
         "photo_max_px": settings.PHOTO_MAX_PX,
         "error": error,
     }, status_code=status_code)
@@ -144,39 +148,49 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         return newly
 
     newly_told = {}   # performer id → (user, [samples])
-    if entry is None:
-        # Add to this sample and any others picked for the same run
-        others = [int(i) for i in form.getlist("run_samples") if i.isdigit() and int(i) != sample.id]
-        targets = [sample] + [s for s in (await db.execute(select(Sample).where(Sample.id.in_(others)))).scalars()
-                              if can_edit(user, s)] if others else [sample]
-        run_id = uuid.uuid4().hex if len(targets) > 1 else None
-        created = []
-        for target_sample in targets:
-            new = kind.model(sample_id=target_sample.id, run_id=run_id)
-            db.add(new)
-            newly = await apply(new)   # fills it in, then flushes and slots it into the timeline
-            if newly:
-                newly_told.setdefault(newly.id, (newly, []))[1].append(target_sample)
-            created.append(new)
-        attach_to = created
-        entry = created[0]
-    else:
-        newly = await apply(entry)
-        if newly:
-            newly_told.setdefault(newly.id, (newly, []))[1].append(sample)
-        if form.get("apply_to_run"):
-            for other, other_sample in await run_entries(db, kind, entry):
-                if can_edit_entry(user, other_sample, other):
-                    newly = await apply(other)
-                    if newly:
-                        newly_told.setdefault(newly.id, (newly, []))[1].append(other_sample)
-        attach_to = [entry]
 
+    def tell(newly, on_sample):
+        if newly:
+            newly_told.setdefault(newly.id, (newly, []))[1].append(on_sample)
+
+    # Other samples ticked to get a copy too (for a new entry, or to extend a run)
+    others = [int(i) for i in form.getlist("run_samples") if i.isdigit() and int(i) != sample.id]
+    extra_samples = [s for s in (await db.execute(select(Sample).where(Sample.id.in_(others)))).scalars()
+                     if can_edit(user, s)] if others else []
+
+    is_new = entry is None
+    if is_new:
+        entry = kind.model(sample_id=sample.id)
+        db.add(entry)
+        tell(await apply(entry), sample)   # fills it in, then flushes and slots it into the timeline
+        members = [(entry, sample)]
+    else:
+        tell(await apply(entry), sample)
+        members = [(entry, sample)] + [(o, s) for o, s in await run_entries(db, kind, entry)
+                                       if can_edit_entry(user, s, o)]
+        if form.get("apply_to_run"):
+            for other, other_sample in members[1:]:
+                tell(await apply(other), other_sample)
+    if extra_samples:
+        entry.run_id = entry.run_id or uuid.uuid4().hex
+        for target_sample in extra_samples:
+            copy = kind.model(sample_id=target_sample.id, run_id=entry.run_id)
+            db.add(copy)
+            tell(await apply(copy), target_sample)
+            members.append((copy, target_sample))
+
+    # Photos/files from the main fields: on a new entry they go to every copy
+    # (stored once); when editing, to this sample's entry only.
+    shared_to = [e for e, _ in members] if is_new else [entry]
     for upload_name, photo in (("photos", True), ("files", False)):
         for f in _uploads(form, upload_name):
-            att = await save_upload(f, kind.name, attach_to[0].id, db, uploaded_by=user.username, photo=photo)
-            for other in attach_to[1:]:
+            att = await save_upload(f, kind.name, shared_to[0].id, db, uploaded_by=user.username, photo=photo)
+            for other in shared_to[1:]:
                 copy_attachment(att, kind.name, other.id, db)
+    # Files for one sample only (the field next to each sample of the run)
+    for member, member_sample in members:
+        for f in _uploads(form, f"files_for_{member_sample.id}"):
+            await save_upload(f, kind.name, member.id, db, uploaded_by=user.username)
 
     await remember(db, picked, user.id, location, located_lists(entry_type.parameter_schema))
     await db.commit()

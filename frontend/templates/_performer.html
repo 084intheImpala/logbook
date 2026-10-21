@@ -35,8 +35,11 @@
     {{ _("Date") }}
     <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("optional") }}</span>
   </label>
-  <input name="performed_at" type="date"
-         value="{% if entry and entry.performed_at %}{{ entry.performed_at.strftime('%Y-%m-%d') }}{% endif %}"
-         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 {{ ring }}">
+  <div class="flex gap-2">
+    <input name="performed_at" type="date"
+           value="{% if entry and entry.performed_at %}{{ entry.performed_at.strftime('%Y-%m-%d') }}{% endif %}"
+           class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 {{ ring }}">
+    <button type="button" data-set-today class="shrink-0 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">{{ _("Today") }}</button>
+  </div>
 </div>
 {% endmacro %}

@@ -83,35 +83,54 @@
         <p class="text-xs text-gray-400 mt-1">{{ _("Data, spectra, PDFs, raw images… stored unchanged.") }}</p>
       </div>
     </div>
-
-    <!-- Several samples at once -->
-    {% if run_candidates %}
-    <details class="border-t border-gray-100 pt-4 text-sm" id="run-picker">
-      <summary class="cursor-pointer font-medium text-gray-700">{{ _("Also add to other samples") }}
-        <span id="run-count" class="font-normal text-gray-400"></span></summary>
-      <p class="text-xs text-gray-400 my-1.5">{{ _("For things done in parallel. Each sample gets its own copy with these details and files; editing one can update the others.") }}</p>
-      <input type="text" id="run-filter" placeholder="{{ _("Filter by ID or label") }}" class="{{ input_cls }} mb-2">
-      <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
-        {% for s in run_candidates %}
-        <label class="run-option flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-50" data-search="{{ (s.title ~ ' ' ~ (s.label or ''))|lower }}">
-          <input type="checkbox" name="run_samples" value="{{ s.id }}">
-          <span class="font-mono text-xs">{{ s.title }}</span>
-          {% if s.label %}<span class="text-xs text-gray-500">{{ s.label }}</span>{% endif %}
-        </label>
-        {% endfor %}
-      </div>
-    </details>
+    {% if not entry and run_candidates %}
+    <p class="text-xs text-gray-400 -mt-2">{{ _("If you add this to other samples below, these photos and files go to all of them.") }}</p>
     {% endif %}
+
+    <!-- Several samples at once: the run, its per-sample files, and adding samples -->
     {% if run %}
     <div class="border-t border-gray-100 pt-4 text-sm">
-      <div class="text-gray-700">{{ _("Also recorded on:") }}
-        {% for other, other_sample in run %}<a href="/samples/{{ other_sample.id }}" class="font-mono text-blue-600 hover:underline">{{ other_sample.title }}</a>{{ ", " if not loop.last }}{% endfor %}
+      <div class="text-gray-700 font-medium">{{ _("Also recorded on:") }}</div>
+      <p class="text-xs text-gray-400 mb-1.5">{{ _("Files for one sample only go in the field next to it.") }}</p>
+      <div class="border border-gray-200 rounded-lg divide-y divide-gray-100">
+        {% for other, other_sample in run %}
+        <div class="flex items-center gap-3 px-3 py-1.5">
+          <a href="/samples/{{ other_sample.id }}" class="font-mono text-xs text-blue-600 hover:underline w-36 shrink-0">{{ other_sample.title }}</a>
+          <input type="file" name="files_for_{{ other_sample.id }}" multiple class="min-w-0 text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 cursor-pointer">
+        </div>
+        {% endfor %}
       </div>
-      <label class="flex items-center gap-2 mt-1.5 text-gray-600 cursor-pointer">
+      <label class="flex items-center gap-2 mt-2 text-gray-600 cursor-pointer">
         <input type="checkbox" name="apply_to_run" value="1" checked>
         {{ _("Apply these changes to them too (not the files)") }}
       </label>
     </div>
+    {% endif %}
+    {% if run_candidates %}
+    <details class="border-t border-gray-100 pt-4 text-sm" id="run-picker">
+      <summary class="cursor-pointer font-medium text-gray-700">{{ _("Also add to other samples") }}
+        <span id="run-count" class="font-normal text-gray-400"></span></summary>
+      <p class="text-xs text-gray-400 my-1.5">{{ _("For things done in parallel. Each ticked sample gets its own copy with the details above; files for one sample only go in the field that appears next to it.") }}</p>
+      {% if not entry %}
+      <div class="flex items-center gap-3 mb-2 text-xs">
+        <span class="text-gray-600">{{ _("Files only for {title}", title=sample.title) }}</span>
+        <input type="file" name="files_for_{{ sample.id }}" multiple class="min-w-0 text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 cursor-pointer">
+      </div>
+      {% endif %}
+      <input type="text" id="run-filter" placeholder="{{ _("Filter by ID or label") }}" class="{{ input_cls }} mb-2">
+      <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+        {% for s in run_candidates %}
+        <div class="run-option flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50" data-search="{{ (s.title ~ ' ' ~ (s.label or ''))|lower }}">
+          <label class="flex items-center gap-2 cursor-pointer w-56 shrink-0">
+            <input type="checkbox" name="run_samples" value="{{ s.id }}" class="run-check">
+            <span class="font-mono text-xs">{{ s.title }}</span>
+            {% if s.label %}<span class="text-xs text-gray-500 truncate">{{ s.label }}</span>{% endif %}
+          </label>
+          <input type="file" name="files_for_{{ s.id }}" multiple disabled class="run-files hidden min-w-0 text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 cursor-pointer">
+        </div>
+        {% endfor %}
+      </div>
+    </details>
     {% endif %}
 
     <!-- Existing attachments (edit only) -->
@@ -223,7 +242,12 @@
     // Enter in the filter box shouldn't submit the form
     filter.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
     const count = document.getElementById('run-count');
-    document.getElementById('run-picker').addEventListener('change', () => {
+    document.getElementById('run-picker').addEventListener('change', e => {
+      if (e.target.classList.contains('run-check')) {   // the sample's own file field shows once it's ticked
+        const files = e.target.closest('.run-option').querySelector('.run-files');
+        files.classList.toggle('hidden', !e.target.checked);
+        files.disabled = !e.target.checked;
+      }
       const n = document.querySelectorAll('input[name="run_samples"]:checked').length;
       count.textContent = n ? `· ${n}` : '';
     });

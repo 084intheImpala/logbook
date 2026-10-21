@@ -249,6 +249,18 @@ ANALYSIS_TYPES = [
         ],
     },
     {
+        "name": "Profilometry",
+        "description": "Stylus profilometry: step height (film thickness) and roughness",
+        "parameter_schema": [
+            num("thickness", "Step height / thickness", "nm"),
+            num("scan_length", "Scan length", "µm"),
+            num("stylus_force", "Stylus force", "mg"),
+            num("scan_speed", "Scan speed", "µm/s"),
+            num("roughness", "Roughness (Ra)", "nm"),
+            text("positions", "Measurement positions", placeholder="e.g. 3 steps across the sample"),
+        ],
+    },
+    {
         "name": "Other Analysis",
         "description": "Any other analysis technique",
         "parameter_schema": [

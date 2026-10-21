@@ -64,8 +64,12 @@ PT = {
     "Anything the fields above don't cover, one per line:": "O que os campos acima não cobrem, um por linha:",
     "Choose a type.": "Escolha um tipo.",
     "Also add to other samples": "Adicionar também a outras amostras",
-    "For things done in parallel. Each sample gets its own copy with these details and files; editing one can update the others.":
-        "Para o que foi feito em paralelo. Cada amostra recebe a sua cópia com estes dados e ficheiros; editar uma pode atualizar as outras.",
+    "For things done in parallel. Each ticked sample gets its own copy with the details above; files for one sample only go in the field that appears next to it.":
+        "Para o que foi feito em paralelo. Cada amostra assinalada recebe a sua cópia com os dados acima; os ficheiros só de uma amostra vão no campo que aparece ao lado dela.",
+    "Files only for {title}": "Ficheiros só para {title}",
+    "Files for one sample only go in the field next to it.": "Os ficheiros só de uma amostra vão no campo ao lado dela.",
+    "If you add this to other samples below, these photos and files go to all of them.":
+        "Se adicionar isto a outras amostras abaixo, estas fotografias e ficheiros vão para todas.",
     "Filter by ID or label": "Filtrar por ID ou rótulo",
     "Also recorded on:": "Registado também em:",
     "Apply these changes to them too (not the files)": "Aplicar estas alterações também a essas (exceto ficheiros)",
@@ -83,4 +87,5 @@ PT = {
         'Tipos de campo: number (com unidade), duration, text, longtext, choice (uma lista de opções, "list"), variant ("options", cada uma com os seus campos), check (uma caixa com "fields" que aparecem quando assinalada), modes (assinalar vários de uma lista, cada um com "fields"). Ver o README.',
     "Where it is": "Onde está",
     "place": "local",
+    "Today": "Hoje",
 }
