@@ -20,6 +20,8 @@ def _upgrade_schema(conn):
     add_column("samples", "tags", "JSON")
     add_column("process_steps", "position", "INTEGER")
     add_column("analyses", "position", "INTEGER")
+    add_column("samples", "cut_step_id", "INTEGER REFERENCES process_steps(id)")
+    add_column("samples", "is_reference", "BOOLEAN NOT NULL DEFAULT false")
 
     # Sample names used to be unique; the id is now the only unique identifier.
     for uc in insp.get_unique_constraints("samples"):
@@ -27,6 +29,8 @@ def _upgrade_schema(conn):
             conn.execute(text(f'ALTER TABLE samples DROP CONSTRAINT "{uc["name"]}"'))
     if "ix_samples_name" not in {ix["name"] for ix in insp.get_indexes("samples")}:
         conn.execute(text("CREATE INDEX ix_samples_name ON samples (name)"))
+    if "ix_samples_cut_step_id" not in {ix["name"] for ix in insp.get_indexes("samples")}:
+        conn.execute(text("CREATE INDEX ix_samples_cut_step_id ON samples (cut_step_id)"))
 
 
 async def run_migrations(session: AsyncSession):

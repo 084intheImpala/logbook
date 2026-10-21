@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Cut {{ sample.name }} — Logbook{% endblock %}
+{% block content %}
+<div class="max-w-2xl">
+  <div class="text-xs text-gray-400 mb-4">
+    <a href="/samples/" class="hover:underline">Samples</a> /
+    <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.name }}</a> / Cut into pieces
+  </div>
+  <h1 class="text-2xl font-bold mb-2">Cut {{ sample.name }} into pieces</h1>
+  <p class="text-sm text-gray-500 mb-6">
+    Each piece becomes its own sample and inherits {{ sample.name }}'s history up to this cut.
+    {{ sample.name }} itself stays in the logbook and can keep getting new steps.
+  </p>
+
+  {% if flash_error %}
+  <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ flash_error }}</div>
+  {% endif %}
+
+  <form method="post" action="/samples/{{ sample.id }}/cut"
+        class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Number of pieces</label>
+        <input id="piece-count" type="number" min="1" max="50" value="2"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Method</label>
+        <input name="method" type="text" placeholder="e.g. diamond scribe"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Date &amp; Time <span class="font-normal text-gray-400 text-xs">— optional</span></label>
+        <input name="performed_at" type="datetime-local"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+    </div>
+
+    <div>
+      <div class="grid grid-cols-2 gap-3 text-xs font-medium text-gray-600 mb-1">
+        <span>Piece name</span><span>Dimensions</span>
+      </div>
+      <div id="piece-rows" class="space-y-2"></div>
+    </div>
+
+    <div class="border-t border-gray-100 pt-4 space-y-2">
+      <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <input id="keep-reference" type="checkbox" name="keep_reference" class="rounded">
+        Also keep a reference piece
+        <span class="text-xs text-gray-400">— listed with the other pieces, marked as Reference</span>
+      </label>
+      <div id="reference-row" class="grid grid-cols-2 gap-3 hidden">
+        <input name="reference_name" value="{{ sample.name }}-REF"
+               class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+        <input name="reference_dimensions" placeholder="e.g. 5×5 mm"
+               class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+      <textarea name="notes" rows="2" placeholder="Optional"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+    </div>
+
+    <p class="text-xs text-gray-400">
+      Pieces copy the film, substrate and tags, keep the same owner, and are shared with the same people as {{ sample.name }}.
+    </p>
+
+    <div class="flex gap-3 pt-1">
+      <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">Cut</button>
+      <a href="/samples/{{ sample.id }}" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const base = {{ sample.name|tojson }};
+  const rows = document.getElementById('piece-rows');
+  const count = document.getElementById('piece-count');
+  const letter = i => i < 26 ? String.fromCharCode(65 + i) : String(i + 1);
+
+  // Keep what the user typed in existing rows; only add or remove rows at the end.
+  function render() {
+    const n = Math.max(1, Math.min(50, parseInt(count.value) || 1));
+    while (rows.children.length < n) {
+      const i = rows.children.length;
+      const row = document.createElement('div');
+      row.className = 'grid grid-cols-2 gap-3';
+      row.innerHTML =
+        '<input name="piece_names" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">' +
+        '<input name="piece_dimensions" placeholder="e.g. 5×5 mm" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">';
+      row.firstChild.value = base + '-' + letter(i);
+      rows.appendChild(row);
+    }
+    while (rows.children.length > n) rows.lastChild.remove();
+  }
+  count.addEventListener('input', render);
+  render();
+
+  document.getElementById('keep-reference').addEventListener('change', function () {
+    document.getElementById('reference-row').classList.toggle('hidden', !this.checked);
+  });
+})();
+</script>
+{% endblock %}

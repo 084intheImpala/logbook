@@ -15,7 +15,8 @@ from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis,
 from backend.auth import require_login, hash_password
 from backend.email_utils import send_welcome_email
 from backend.config import settings
-from backend.export import load_samples_full, samples_csv
+from backend.export import samples_csv
+from backend.lineage import Family, load_samples_full
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="frontend/templates")
@@ -77,7 +78,7 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
 @router.get("/export.csv")
 async def export_database(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
     samples = await load_samples_full(db)
-    return await samples_csv(db, samples, f"logbook_full_{date.today():%Y%m%d}.csv")
+    return await samples_csv(db, samples, Family(samples), f"logbook_full_{date.today():%Y%m%d}.csv")
 
 
 # ── User management ──────────────────────────────────────────────────────────

@@ -67,6 +67,14 @@ PROCESS_STEP_TYPES = [
         ],
     },
     {
+        "name": "Cut",
+        "description": "Cutting the sample into pieces (each piece becomes its own sample)",
+        "parameter_schema": [
+            {"key": "method",         "label": "Method",           "type": "text",   "unit": "",    "required": False, "placeholder": "e.g. diamond scribe, dicing saw"},
+            {"key": "pieces",         "label": "Pieces",           "type": "number", "unit": "",    "required": False},
+        ],
+    },
+    {
         "name": "Other Process",
         "description": "Any other process step",
         "parameter_schema": [

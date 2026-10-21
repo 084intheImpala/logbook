@@ -10,6 +10,7 @@ from backend.database import get_db
 from backend.models import Attachment, ProcessStep, Analysis, User
 from backend.config import settings
 from backend.auth import require_login, load_sample
+from backend.lineage import can_view_entry
 
 router = APIRouter(prefix="/files", tags=["files"], dependencies=[Depends(require_login)])
 
@@ -78,7 +79,10 @@ async def download_file(attachment_id: int, db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_login)):
     attachment = await _attachment(db, attachment_id)
     sample_id = await _entity_sample_id(db, attachment.entity_type, attachment.entity_id)
-    await load_sample(db, sample_id, current_user, "view")
+    sample = await load_sample(db, sample_id, current_user, "summary")
+    entry = await db.get(ENTITY_MODELS[attachment.entity_type], attachment.entity_id)
+    if not await can_view_entry(db, current_user, sample, entry):
+        raise HTTPException(status_code=403, detail="You don't have access to this file.")
 
     path = settings.UPLOAD_DIR / attachment.stored_filename
     if not path.exists():

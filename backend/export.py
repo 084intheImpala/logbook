@@ -1,40 +1,21 @@
-"""Loading samples with their full timeline, and flattening them to CSV."""
+"""Flattening samples and their timelines (inherited entries included) to CSV."""
 import csv
 import io
 from datetime import datetime
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from backend.models import Sample, ProcessStep, Analysis, Attachment
+from backend.models import Sample, Attachment
+from backend.lineage import Family
 
 SAMPLE_COLUMNS = [
-    "sample_id", "sample_name", "tags", "film_material", "substrate_material",
+    "sample_id", "sample_name", "cut_from", "is_reference", "tags", "film_material", "substrate_material",
     "substrate_dimensions", "description", "created_by", "created_at",
 ]
 ENTRY_COLUMNS = [
-    "entry_order", "entry_kind", "technique", "performed_at", "performed_by", "notes", "attachments",
+    "entry_order", "entry_kind", "technique", "inherited_from", "performed_at", "performed_by", "notes", "attachments",
 ]
-
-
-async def load_samples_full(db: AsyncSession) -> list[Sample]:
-    result = await db.execute(
-        select(Sample)
-        .options(
-            selectinload(Sample.process_steps).selectinload(ProcessStep.step_type),
-            selectinload(Sample.analyses).selectinload(Analysis.analysis_type),
-        )
-        .order_by(Sample.id)
-    )
-    return list(result.scalars())
-
-
-def timeline_of(sample: Sample) -> list[tuple[str, str, ProcessStep | Analysis]]:
-    """(kind, technique name, entry) for each step/analysis, in timeline order."""
-    entries = [("process", s.step_type.name, s) for s in sample.process_steps]
-    entries += [("analysis", a.analysis_type.name, a) for a in sample.analyses]
-    return sorted(entries, key=lambda e: (e[2].position is None, e[2].position or 0, e[2].id))
 
 
 def _fmt(value) -> str:
@@ -45,9 +26,11 @@ def _fmt(value) -> str:
     return str(value)
 
 
-async def samples_csv(db: AsyncSession, samples: list[Sample], filename: str,
+async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, filename: str,
                       show_details=lambda sample: True) -> Response:
     """One row per timeline entry (a sample with no entries gets one row).
+    A piece's rows start with the entries it inherits from its parent(s),
+    marked in `inherited_from`; `family` must cover all their ancestors.
     Each parameter key gets its own `param:<key>` column. For samples where
     `show_details(sample)` is false, only the summary columns are filled."""
     att_rows = (await db.execute(select(Attachment))).scalars().all()
@@ -58,17 +41,22 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], filename: str,
     rows, param_keys = [], {}
     for s in samples:
         details = show_details(s)
+        parent, _ = family.parent_and_cut(s)
         base = {
-            "sample_id": s.id, "sample_name": s.name, "tags": ", ".join(s.tags or []),
+            "sample_id": s.id, "sample_name": s.name,
+            "cut_from": f"{parent.name} #{parent.id}" if parent else None,
+            "is_reference": "yes" if s.is_reference else None, "tags": ", ".join(s.tags or []),
             "film_material": s.film_material, "substrate_material": s.substrate_material,
             "substrate_dimensions": s.substrate_dimensions, "description": s.description if details else None,
             "created_by": s.created_by, "created_at": s.created_at,
         }
-        entries = timeline_of(s)
-        if not entries:
+        items = family.timeline(s)
+        if not items:
             rows.append(base)
-        for i, (kind, technique, e) in enumerate(entries, 1):
-            row = {**base, "entry_order": i, "entry_kind": kind, "technique": technique}
+        for i, item in enumerate(items, 1):
+            kind, e = item.kind, item.entry
+            row = {**base, "entry_order": i, "entry_kind": kind, "technique": item.technique,
+                   "inherited_from": f"{item.source.name} #{item.source.id}" if item.source is not s else None}
             if not details:
                 rows.append(row)
                 continue

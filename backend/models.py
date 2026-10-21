@@ -35,11 +35,16 @@ class Sample(Base):
     description: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[str | None] = mapped_column(String(100))
     owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Set when this sample is a piece cut from another: the parent's "Cut" step.
+    # The piece inherits the parent's timeline up to that step.
+    cut_step_id: Mapped[int | None] = mapped_column(
+        ForeignKey("process_steps.id", use_alter=True, name="fk_samples_cut_step_id"), index=True)
+    is_reference: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     owner: Mapped["User | None"] = relationship("User", back_populates="samples")
     process_steps: Mapped[list["ProcessStep"]] = relationship(
-        "ProcessStep", back_populates="sample",
+        "ProcessStep", back_populates="sample", foreign_keys="ProcessStep.sample_id",
         order_by="ProcessStep.position",
         cascade="all, delete-orphan",
     )
@@ -96,7 +101,7 @@ class ProcessStep(Base):
     performed_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps")
+    sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps", foreign_keys=[sample_id])
     step_type: Mapped["ProcessStepType"] = relationship("ProcessStepType", back_populates="steps")
 
 

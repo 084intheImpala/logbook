@@ -129,6 +129,29 @@ a type's schema is a hint shown on the form, not enforced.
 Schema changes to existing databases are applied automatically on startup
 (`backend/migrations.py`).
 
+## Cutting a sample into pieces
+
+**✂ Cut into pieces** on a sample's page records a "Cut" step on its
+timeline and creates one new sample per piece. A tick box adds an extra
+reference piece (`<name>-REF`, marked **Reference**). Each piece:
+
+- **inherits** the parent's timeline up to the Cut step. Inherited entries
+  show greyed out with "from <parent>" and can only be edited on the parent.
+  Nothing is copied, so fixing a parent entry fixes it for every piece.
+  Pieces of pieces inherit through the whole chain.
+- copies the parent's film, substrate, tags, owner and shares (whoever cuts
+  someone else's sample also gets edit access to the pieces).
+- gets its own steps and analyses after the cut, separate from its siblings.
+
+The parent stays usable after the cut, and anything added to it afterwards
+belongs to the parent only. Moving the Cut step on the parent's timeline
+changes what the pieces inherit. A sample can't be deleted while it has
+pieces, and neither can a Cut step that pieces were cut at.
+
+Access to a piece includes its inherited history (entries and files from
+before the cut), even without access to the parent. Search matches pieces on
+inherited entries, and the CSV marks those rows in `inherited_from`.
+
 ## Access and sharing
 
 Every logged-in user sees every sample's summary: name, ID, materials, tags,

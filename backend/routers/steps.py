@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from backend.database import get_db
-from backend.models import ProcessStep, ProcessStepType, Attachment
+from backend.models import Sample, ProcessStep, ProcessStepType, Attachment
 from backend.params import parse_params, params_to_text, type_schemas_json, parse_datetime
 from backend.timeline import place_new, renumber
 from backend.utils import save_upload
@@ -142,6 +142,7 @@ async def update_step(
 
 @router.post("/{sample_id}/steps/{step_id}/delete")
 async def delete_step(
+    request: Request,
     sample_id: int,
     step_id: int,
     db: AsyncSession = Depends(get_db),
@@ -154,6 +155,12 @@ async def delete_step(
     step = result.scalar_one_or_none()
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
+    pieces = (await db.execute(select(Sample).where(Sample.cut_step_id == step_id))).scalars().all()
+    if pieces:
+        request.session["flash_error"] = (
+            f"Can't delete this cut: {len(pieces)} piece{'s' if len(pieces) != 1 else ''} were cut here "
+            "and inherit the history before it. Delete the pieces first.")
+        return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
     await db.delete(step)
     await db.flush()
