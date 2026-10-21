@@ -8,7 +8,7 @@ from backend.database import get_db
 from backend.models import Analysis
 from backend.timeline import renumber
 from backend.auth import require_login, load_sample, can_edit_entry
-from backend.entry_forms import ANALYSIS, form_page, save, get_entry
+from backend.entry_forms import ANALYSIS, form_page, save, get_entry, overwrite_check
 
 router = APIRouter()
 
@@ -48,6 +48,14 @@ async def update(request: Request, sample_id: int, analysis_id: int, db: AsyncSe
                  current_user=Depends(require_login)):
     sample, entry = await _editable(db, sample_id, analysis_id, current_user)
     return await save(request, db, ANALYSIS, sample, entry, current_user)
+
+
+@router.post("/{sample_id}/analyses/{analysis_id}/edit/check")
+async def check_overwrite(request: Request, sample_id: int, analysis_id: int, db: AsyncSession = Depends(get_db),
+                          current_user=Depends(require_login)):
+    """Asked by the form before saving changes to a whole run (see overwrite_check)."""
+    sample, entry = await _editable(db, sample_id, analysis_id, current_user)
+    return await overwrite_check(request, db, ANALYSIS, sample, entry, current_user)
 
 
 @router.post("/{sample_id}/analyses/{analysis_id}/delete")

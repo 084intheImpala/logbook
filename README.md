@@ -376,7 +376,9 @@ ticked sample gets its own copy, linked as a run ("Also on: …" on the
 sample page), and a file field appears next to it for that sample's own
 files (e.g. its data). On a new entry, the main photo and file fields go to
 every sample (stored once). Editing one copy lists the others, each with its
-own file field, and offers to apply the changes to them (not the files);
+own file field, and offers to apply the changes to them (not the files).
+That copies the whole form onto them, so if it would change or clear a value
+another sample already has, you're shown which and asked first;
 each copy keeps its own place in its sample's timeline. Deleting a copy only
 removes it from that sample.
 

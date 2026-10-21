@@ -88,4 +88,8 @@ PT = {
     "Where it is": "Onde está",
     "place": "local",
     "Today": "Hoje",
+    "Saving will overwrite these values on the other samples:": "Guardar vai substituir estes valores nas outras amostras:",
+    "…and {n} more": "…e mais {n}",
+    "Save anyway? Cancel to go back; you can untick “Apply these changes to them too”.":
+        "Guardar na mesma? Cancele para voltar; pode desassinalar “Aplicar estas alterações também a essas”.",
 }

@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass
 
 from fastapi import HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
@@ -20,9 +20,9 @@ from backend.auth import can_edit, can_edit_entry
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, remember
 from backend.config import settings
 from backend.i18n import t
-from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample
-from backend.params import (extra_params, located_lists, params_to_text, parse_date, parse_form, parse_params,
-                            schema_keys)
+from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
+from backend.params import (describe, extra_params, located_lists, params_to_text, parse_date, parse_form,
+                            parse_params, schema_keys)
 from backend.performers import apply_performer, tell_performer, users_for_form
 from backend.templating import templates
 from backend.timeline import place_new
@@ -197,3 +197,52 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
     for performer_user, samples in newly_told.values():
         await tell_performer(request, performer_user, user, samples, entry_type.name)
     return RedirectResponse(f"/samples/{sample.id}#{kind.name}-{entry.id}", status_code=303)
+
+
+# ── Warning before overwriting the other samples of a run ────────────────────
+
+def _comparable(request: Request, type_name: str, schema, params, notes, location, performer, performed_at) -> dict:
+    """An entry's values as {translated label: text}, for comparing copies."""
+    values = {t(request, "Type"): type_name}
+    for row in describe(params, schema):
+        if "rows" in row:   # a mode, e.g. XRD's rocking curve
+            prefix = f"{t(request, row['group'])}: {row['label']}" if row["group"] else row["label"]
+            values |= {f"{prefix} / {t(request, sub['label'])}": sub["value"] for sub in row["rows"]}
+        else:
+            values[t(request, row["label"])] = row["value"]
+    values |= {t(request, "Notes"): notes or "", t(request, "Where"): location or "",
+               t(request, "Performed by"): performer or "",
+               t(request, "Date"): performed_at.isoformat() if performed_at else ""}
+    return values
+
+
+async def overwrite_check(request: Request, db: AsyncSession, kind: Kind, sample, entry, user) -> JSONResponse:
+    """What saving this form with "apply to the others" ticked would overwrite:
+    values the other copies have that differ from the form's. Filling in
+    their empty fields isn't an overwrite. Nothing is saved."""
+    form = await request.form()
+    type_id = form.get("type_id", "")
+    entry_type = await db.get(kind.type_model, int(type_id)) if type_id.isdigit() else None
+    if entry_type is None:
+        return JSONResponse({"conflicts": []})
+    params, _ = parse_form(form, entry_type.parameter_schema)
+    params = parse_params(form.get("params_extra", "")) | params
+    performer = form.get("performer", "")
+    performer_user = await db.get(User, int(performer)) if performer.isdigit() else None
+    performer_name = (performer_user.display_name if performer_user
+                      else form.get("performed_by", "").strip() if performer == "other" else "")
+    new = _comparable(request, entry_type.name, entry_type.parameter_schema, params,
+                      form.get("notes", "").strip(), form.get("location", "").strip(), performer_name,
+                      parse_date(form.get("performed_at", "")))
+    conflicts = []
+    for other, other_sample in await run_entries(db, kind, entry):
+        if not can_edit_entry(user, other_sample, other):
+            continue
+        other_type = await db.get(kind.type_model, getattr(other, kind.type_field))
+        old = _comparable(request, other_type.name, other_type.parameter_schema, other.parameters, other.notes,
+                          other.location, other.performer_name, other.performed_at)
+        for label, value in old.items():
+            if value and new.get(label, "") != value:
+                conflicts.append({"sample": other_sample.title, "field": label, "old": value,
+                                  "new": new.get(label) or "—"})
+    return JSONResponse({"conflicts": conflicts})

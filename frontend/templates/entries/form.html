@@ -253,6 +253,31 @@
     });
   }
 
+  // Saving changes to a whole run: warn first if values on the other samples
+  // would be overwritten (the server compares; files aren't sent for that).
+  {% if entry and run %}
+  form.addEventListener('submit', async e => {
+    const applyToRun = form.querySelector('input[name="apply_to_run"]');
+    if (form.dataset.confirmed || !applyToRun || !applyToRun.checked) return;
+    e.preventDefault();
+    const data = new FormData(form);
+    for (const [key, value] of [...data.entries()]) if (value instanceof File) data.delete(key);
+    let conflicts = [];
+    try {
+      const response = await fetch({{ (request.url.path ~ "/check")|tojson }}, {method: 'POST', body: data});
+      conflicts = (await response.json()).conflicts || [];
+    } catch (err) { /* couldn't check: save as asked */ }
+    if (conflicts.length) {
+      const lines = conflicts.slice(0, 15).map(c => `${c.sample} — ${c.field}: ${c.old} → ${c.new}`);
+      if (conflicts.length > 15) lines.push({{ _("…and {n} more")|tojson }}.replace('{n}', conflicts.length - 15));
+      if (!confirm([{{ _("Saving will overwrite these values on the other samples:")|tojson }}, '', ...lines, '',
+                    {{ _("Save anyway? Cancel to go back; you can untick “Apply these changes to them too”.")|tojson }}].join('\n'))) return;
+    }
+    form.dataset.confirmed = '1';
+    form.submit();
+  });
+  {% endif %}
+
   sync();
 })();
 </script>
