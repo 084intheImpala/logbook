@@ -8,7 +8,7 @@
     <div class="text-xs text-gray-400 mb-1">
       <a href="/samples/" class="hover:underline">Samples</a> / {{ sample.name }}
     </div>
-    <h1 class="text-2xl font-bold text-gray-900">{{ sample.name }}</h1>
+    <h1 class="text-2xl font-bold text-gray-900">{{ sample.name }} <span class="text-base font-mono font-normal text-gray-400">#{{ sample.id }}</span></h1>
     <div class="flex flex-wrap gap-3 mt-2 text-sm text-gray-600 items-center">
       {% if sample.film_material %}
         <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{{ sample.film_material }}</span>
@@ -21,7 +21,12 @@
       {% endif %}
       <span class="text-gray-400">{{ sample.created_at.strftime('%Y-%m-%d') }}</span>
     </div>
-    {% if sample.description %}
+    {% if sample.tags %}
+    <div class="flex flex-wrap gap-1 mt-2">
+      {% for t in sample.tags %}<a href="/search?tag={{ t|urlencode }}" class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">{{ t }}</a>{% endfor %}
+    </div>
+    {% endif %}
+    {% if can_view and sample.description %}
       <p class="mt-2 text-sm text-gray-600 max-w-2xl">{{ sample.description }}</p>
     {% endif %}
   </div>
@@ -29,16 +34,77 @@
   <div class="flex gap-2 shrink-0">
     <a href="/samples/{{ sample.id }}/edit"
        class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">Edit</a>
+    {% if is_owner %}
     <form method="post" action="/samples/{{ sample.id }}/delete"
           onsubmit="return confirm('Delete this sample and all its data?')">
       <button class="text-sm border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">Delete</button>
     </form>
+    {% endif %}
   </div>
   {% endif %}
 </div>
 
+{% if not can_view %}
+<div class="mb-8 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
+  🔒 You can see this sample's summary only. Parameters, notes, dates and files are visible to the owner
+  {%- if owner_user %} ({{ owner_user.name or owner_user.username }}){% endif %} and to people they share it with.
+</div>
+{% elif not is_owner %}
+<div class="mb-6 text-xs text-gray-500">
+  Shared with you by {{ owner_user.name or owner_user.username if owner_user else "the owner" }}
+  ({{ "can edit" if can_edit else "view only" }}).
+</div>
+{% endif %}
+
+{% if is_owner and sample.owner_id %}
+<details id="sharing" class="mb-8 bg-white rounded-xl border border-gray-200 shadow-sm" {% if sample.shares %}open{% endif %}>
+  <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">
+    Sharing <span class="font-normal text-gray-400">· {{ sample.shares|length }} user{{ 's' if sample.shares|length != 1 }}</span>
+  </summary>
+  <div class="px-4 pb-4 space-y-3">
+    {% if sample.shares %}
+    <ul class="divide-y divide-gray-100 text-sm">
+      {% for sh in sample.shares %}
+      <li class="flex items-center gap-3 py-1.5">
+        <span class="flex-1">{{ sh.user.name or sh.user.username }} <span class="text-gray-400 text-xs">{{ sh.user.username }}</span></span>
+        <form method="post" action="/samples/{{ sample.id }}/shares" class="inline">
+          <input type="hidden" name="user_id" value="{{ sh.user_id }}">
+          <select name="access" onchange="this.form.submit()" class="border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white">
+            <option value="view" {% if not sh.can_edit %}selected{% endif %}>View</option>
+            <option value="edit" {% if sh.can_edit %}selected{% endif %}>Edit</option>
+          </select>
+        </form>
+        <form method="post" action="/samples/{{ sample.id }}/shares/{{ sh.id }}/delete" class="inline">
+          <button class="text-xs text-red-500 hover:underline">Remove</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-xs text-gray-400">Only you and admins can see this sample's details.</p>
+    {% endif %}
+    {% if share_candidates %}
+    <form method="post" action="/samples/{{ sample.id }}/shares" class="flex items-center gap-2">
+      <select name="user_id" required class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+        <option value="">Share with…</option>
+        {% for u in share_candidates %}<option value="{{ u.id }}">{{ u.name or u.username }} ({{ u.username }})</option>{% endfor %}
+      </select>
+      <select name="access" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+        <option value="view">View</option>
+        <option value="edit">Edit</option>
+      </select>
+      <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">Share</button>
+    </form>
+    {% endif %}
+    <p class="text-xs text-gray-400">View: see parameters, notes and files. Edit: also add/change steps, analyses and files. Admins always have full access.</p>
+  </div>
+</details>
+{% elif is_owner and not sample.owner_id %}
+<div class="mb-6 text-xs text-gray-500">This sample has no owner, so everyone can see and edit it.{% if current_user.is_admin %} Assign an owner from <a href="/samples/{{ sample.id }}/edit" class="text-blue-600 hover:underline">Edit</a>.{% endif %}</div>
+{% endif %}
+
 <!-- Add buttons -->
-{% if current_user %}
+{% if can_edit %}
 <div class="flex gap-3 mb-8">
   <a href="/samples/{{ sample.id }}/steps/new"
      class="inline-flex items-center gap-1.5 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm">
@@ -54,6 +120,12 @@
     </svg>
     Add Analysis
   </a>
+  {% if can_edit and timeline|length > 1 %}
+  <form method="post" action="/samples/{{ sample.id }}/timeline/sort-by-date" class="ml-auto"
+        onsubmit="return confirm('Reorder dated entries chronologically? Entries without a date keep their place.')">
+    <button class="text-sm border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50">Sort by date</button>
+  </form>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -101,15 +173,25 @@
           </span>
           <span class="font-semibold text-gray-900 flex-1">{{ entry.type_name }}</span>
           <div class="flex items-center gap-3 text-xs text-gray-400 shrink-0">
-            {% if entry.performed_at %}
+            {% if can_view and entry.performed_at %}
               <span>{{ entry.performed_at.strftime('%Y-%m-%d') }}{% if entry.performed_at.hour or entry.performed_at.minute %} {{ entry.performed_at.strftime('%H:%M') }}{% endif %}</span>
             {% endif %}
-            {% if entry.performed_by %}
+            {% if can_view and entry.performed_by %}
               <span>by {{ entry.performed_by }}</span>
             {% endif %}
           </div>
-          {% if current_user %}
+          {% if can_edit %}
           <div class="flex items-center gap-1 shrink-0 ml-2">
+            {% if can_edit %}
+            {% for dir, arrow, show in [("up", "↑", not loop.first), ("down", "↓", not loop.last)] %}
+            <form method="post" action="/samples/{{ sample.id }}/timeline/move" class="inline">
+              <input type="hidden" name="kind" value="{{ entry.kind }}">
+              <input type="hidden" name="entry_id" value="{{ entry.id }}">
+              <input type="hidden" name="direction" value="{{ dir }}">
+              <button class="p-1 text-gray-400 hover:text-gray-700 {% if not show %}invisible{% endif %}" title="Move {{ dir }}">{{ arrow }}</button>
+            </form>
+            {% endfor %}
+            {% endif %}
             <a href="{{ entry.edit_url }}"
                class="p-1 text-gray-400 hover:text-blue-600" title="Edit">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,13 +212,14 @@
           {% endif %}
         </div>
 
+        {% if can_view %}
         <!-- Parameters grid -->
         {% if entry.parameters %}
         <div class="px-5 py-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
           {% for k, v in entry.parameters.items() %}
           <div>
             <div class="text-xs text-gray-400">{{ k }}</div>
-            <div class="text-sm font-medium text-gray-800">{{ v }}</div>
+            <div class="text-sm font-medium text-gray-800">{{ v if v != "" else "—" }}</div>
           </div>
           {% endfor %}
         </div>
@@ -158,7 +241,7 @@
             <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
               <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
               <span class="text-gray-400">({{ (att.file_size / 1024)|round(1) }} KB)</span>
-              {% if current_user %}
+              {% if can_edit %}
               <form method="post" action="/files/{{ att.id }}/delete" class="inline">
                 <input type="hidden" name="sample_id" value="{{ sample.id }}">
                 <button class="text-gray-300 hover:text-red-400 ml-1" title="Remove">×</button>
@@ -170,8 +253,10 @@
         </div>
         {% endif %}
 
+        {% endif %}{# can_view #}
+
         <!-- File upload -->
-        {% if current_user %}
+        {% if can_edit %}
         <div class="px-5 pb-3 border-t border-gray-50 pt-2">
           <form method="post" action="/files/upload/{{ sample.id }}" enctype="multipart/form-data"
                 class="flex items-center gap-2">
@@ -200,7 +285,7 @@
 <!-- Empty state -->
 <div class="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center">
   <p class="text-gray-400 text-sm mb-4">No steps or analyses recorded yet.</p>
-  {% if current_user %}
+  {% if can_edit %}
   <div class="flex justify-center gap-3">
     <a href="/samples/{{ sample.id }}/steps/new"
        class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">

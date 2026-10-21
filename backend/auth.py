@@ -1,11 +1,11 @@
 """Auth helpers: password hashing, session deps, custom exception."""
 from passlib.context import CryptContext
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from backend.database import get_db
-from backend.models import User
+from backend.models import User, Sample
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -50,12 +50,42 @@ async def require_login(
     return user
 
 
-def can_edit(user: User | None, sample) -> bool:
-    """True if this user may edit/delete the given sample."""
+# ── Sample permissions ───────────────────────────────────────────────────────
+# Everyone logged in sees a sample's summary (name, materials, tags, which
+# techniques were used). Details — parameters, notes, dates, files — need
+# view access. Samples without an owner (created before logins) stay open.
+
+def _share_for(user: User, sample):
+    return next((sh for sh in sample.shares if sh.user_id == user.id), None)
+
+
+def is_owner(user: User | None, sample) -> bool:
+    """Owner or admin: may delete the sample and manage its sharing."""
     if user is None:
         return False
-    if user.is_admin:
+    return user.is_admin or sample.owner_id is None or sample.owner_id == user.id
+
+
+def can_view(user: User | None, sample) -> bool:
+    return is_owner(user, sample) or (user is not None and _share_for(user, sample) is not None)
+
+
+def can_edit(user: User | None, sample) -> bool:
+    """True if this user may change the sample, its steps, analyses and files."""
+    if is_owner(user, sample):
         return True
-    if sample.owner_id is None:
-        return True   # legacy sample (pre-auth): anyone logged in can edit
-    return sample.owner_id == user.id
+    share = user and _share_for(user, sample)
+    return bool(share and share.can_edit)
+
+
+_CHECKS = {"summary": lambda u, s: True, "view": can_view, "edit": can_edit, "owner": is_owner}
+
+
+async def load_sample(db: AsyncSession, sample_id: int, user: User | None, need: str = "view"):
+    """Fetch a sample, raising 404 if missing or 403 if `user` lacks `need` access."""
+    sample = (await db.execute(select(Sample).where(Sample.id == sample_id))).scalar_one_or_none()
+    if not sample:
+        raise HTTPException(status_code=404, detail="Sample not found")
+    if not _CHECKS[need](user, sample):
+        raise HTTPException(status_code=403, detail="You don't have access to this sample.")
+    return sample

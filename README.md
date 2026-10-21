@@ -111,12 +111,49 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ## Data model
 
 ```
-Sample
- ├── ProcessStep  (ordered 0, 1, 2, …; can repeat types, e.g. two annealings)
+Sample            (id is the unique identifier; names may repeat; optional tags)
+ ├── ProcessStep  (can repeat types, e.g. two annealings)
  │    └── Attachment (uploaded files)
  └── Analysis     (XRD, RBS, SEM, …)
       └── Attachment (data files, images)
 ```
+
+Steps and analyses share one timeline per sample, ordered by an explicit
+`position`. Dates are optional: a new dated entry is slotted in
+chronologically, an undated one is appended. On the sample page, the ↑/↓
+arrows reorder entries and **Sort by date** reorders the dated ones.
+
+Only the sample name and the step/analysis type are mandatory. `required` in
+a type's schema is a hint shown on the form, not enforced.
+
+Schema changes to existing databases are applied automatically on startup
+(`backend/migrations.py`).
+
+## Access and sharing
+
+Every logged-in user sees every sample's summary: name, ID, materials, tags,
+which techniques were used, and who created it. Details (description,
+parameters, notes, dates and files) are visible only to:
+
+- the sample's owner (whoever created it),
+- admins,
+- users the owner has shared the sample with.
+
+Owners share from the **Sharing** panel on a sample's page, or select
+several samples on the **Search** page and share them at once. Each share
+is **View** (read details and download files) or **Edit** (also add and
+change steps, analyses and files). Only the owner or an admin can delete a
+sample or change who it's shared with. Samples without an owner are open to
+everyone; admins can assign an owner from the sample's Edit form.
+
+## Search and export
+
+The **Search** tab filters samples by free text, investigator, material,
+technique and tag, and groups results by any of those. **Export results
+(CSV)** downloads the matching samples, with details left blank for
+samples you can't view. Free-text search only matches details you can see.
+Admins can download the whole database from the admin page. The CSV has one row per step/analysis, with a
+`param:<key>` column per parameter.
 
 ### Process step types (seeded)
 - Deposition, Annealing, Ion Implantation, Lithography, Etching, Other
@@ -124,13 +161,16 @@ Sample
 ### Analysis types (seeded)
 - XRD, XPS, SEM, TEM, RBS, AFM, Raman, Hall/4-probe, Ellipsometry, SIMS, Other
 
-Add new types at **Step & Analysis Types** in the sidebar.
+Add or edit types at **Configurations** in the sidebar (admins only).
 
 ---
 
 ## Adding a new step / analysis type
 
-Go to the **Step & Analysis Types** page in the sidebar. Each type has a
+Admins manage types under **Configurations** in the sidebar: add, edit
+(name, description, schema) or delete (only when unused). Editing a schema
+never changes stored data: removed keys stay on existing entries, and new
+keys show up empty the next time an entry is edited. Each type has a
 `parameter_schema` — a JSON list of field descriptors:
 
 ```json

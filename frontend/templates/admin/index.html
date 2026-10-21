@@ -1,8 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Admin — Logbook{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-1">Admin Panel</h1>
-<p class="text-sm text-gray-500 mb-6">Manage users and configurations.</p>
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold mb-1">Admin Panel</h1>
+    <p class="text-sm text-gray-500">Manage users and configurations.</p>
+  </div>
+  <a href="/admin/export.csv"
+     class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">Export full database (CSV)</a>
+</div>
 
 {% if flash %}
 <div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
@@ -123,93 +129,86 @@
 <h2 class="text-lg font-semibold text-gray-800 mb-1">Configurations</h2>
 <p class="text-sm text-gray-500 mb-6">Define the process step types and analysis types available in the logbook.</p>
 
+{% macro type_panel(title, kind, types, usage, color, example) %}
+<div>
+  <h3 class="text-base font-semibold text-gray-700 mb-3">{{ title }}</h3>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100 mb-4">
+    {% for t in types %}
+    <details class="group">
+      <summary class="px-4 py-3 cursor-pointer list-none">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-sm flex-1">{{ t.name }}</span>
+          <span class="text-xs text-gray-400">{{ usage.get(t.id, 0) }} entr{{ 'y' if usage.get(t.id, 0) == 1 else 'ies' }}</span>
+          <span class="text-xs text-{{ color }}-600 group-open:hidden">Edit</span>
+        </div>
+        {% if t.description %}<div class="text-xs text-gray-400">{{ t.description }}</div>{% endif %}
+        {% if t.parameter_schema %}
+        <div class="mt-1 flex flex-wrap gap-1">
+          {% for f in t.parameter_schema %}
+          <span class="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded">{{ f.label or f.key }}{% if f.unit %} [{{ f.unit }}]{% endif %}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </summary>
+      <div class="px-4 pb-4 space-y-3">
+        <form method="post" action="/admin/{{ kind }}/{{ t.id }}/edit" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Name</label>
+              <input name="name" required value="{{ t.name }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
+              <input name="description" value="{{ t.description or '' }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Parameter Schema (JSON)</label>
+            <textarea name="parameter_schema_json" rows="{{ [4, (t.parameter_schema or [])|length + 2]|max }}"
+                      class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-mono">{{ t.parameter_schema|schema_json }}</textarea>
+            <p class="text-xs text-gray-400 mt-1">Existing entries keep their stored values. New keys appear empty the next time an entry is edited; removed keys stay on old entries.</p>
+          </div>
+          <button type="submit" class="bg-{{ color }}-600 text-white text-xs px-4 py-1.5 rounded hover:bg-{{ color }}-700">Save</button>
+        </form>
+        {% if not usage.get(t.id) %}
+        <form method="post" action="/admin/{{ kind }}/{{ t.id }}/delete"
+              onsubmit="return confirm('Delete type {{ t.name }}?')">
+          <button class="text-xs text-red-500 hover:underline">Delete type</button>
+        </form>
+        {% endif %}
+      </div>
+    </details>
+    {% else %}
+    <div class="px-4 py-6 text-center text-sm text-gray-400">None yet.</div>
+    {% endfor %}
+  </div>
+
+  <details class="bg-white rounded-xl border border-gray-200 shadow-sm">
+    <summary class="px-4 py-3 text-sm font-medium text-{{ color }}-600 cursor-pointer">+ Add new type</summary>
+    <form method="post" action="/admin/{{ kind }}/new" class="px-4 pb-4 space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Name</label>
+        <input name="name" required class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
+        <input name="description" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Parameter Schema (JSON)</label>
+        <textarea name="parameter_schema_json" rows="5" placeholder='{{ example }}'
+                  class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-mono">[]</textarea>
+      </div>
+      <button type="submit" class="bg-{{ color }}-600 text-white text-xs px-4 py-1.5 rounded hover:bg-{{ color }}-700">Add</button>
+    </form>
+  </details>
+</div>
+{% endmacro %}
+
 <div class="grid grid-cols-2 gap-8">
-
-  <!-- Process step types -->
-  <div>
-    <h3 class="text-base font-semibold text-gray-700 mb-3">Process Step Types</h3>
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100 mb-4">
-      {% for st in step_types %}
-      <div class="px-4 py-3">
-        <div class="font-medium text-sm">{{ st.name }}</div>
-        {% if st.description %}<div class="text-xs text-gray-400">{{ st.description }}</div>{% endif %}
-        {% if st.parameter_schema %}
-        <div class="mt-1 flex flex-wrap gap-1">
-          {% for f in st.parameter_schema %}
-          <span class="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded">{{ f.label }}</span>
-          {% endfor %}
-        </div>
-        {% endif %}
-      </div>
-      {% else %}
-      <div class="px-4 py-6 text-center text-sm text-gray-400">No step types yet.</div>
-      {% endfor %}
-    </div>
-
-    <details class="bg-white rounded-xl border border-gray-200 shadow-sm">
-      <summary class="px-4 py-3 text-sm font-medium text-blue-600 cursor-pointer">+ Add new step type</summary>
-      <form method="post" action="/admin/step-types/new" class="px-4 pb-4 space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Name</label>
-          <input name="name" required class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
-          <input name="description" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Parameter Schema (JSON)</label>
-          <textarea name="parameter_schema_json" rows="5"
-                    placeholder='[{"key":"temperature","label":"Temperature","type":"number","unit":"°C"}]'
-                    class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-mono">[]</textarea>
-        </div>
-        <button type="submit" class="bg-blue-600 text-white text-xs px-4 py-1.5 rounded hover:bg-blue-700">Add</button>
-      </form>
-    </details>
-  </div>
-
-  <!-- Analysis types -->
-  <div>
-    <h3 class="text-base font-semibold text-gray-700 mb-3">Analysis Types</h3>
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100 mb-4">
-      {% for at in analysis_types %}
-      <div class="px-4 py-3">
-        <div class="font-medium text-sm">{{ at.name }}</div>
-        {% if at.description %}<div class="text-xs text-gray-400">{{ at.description }}</div>{% endif %}
-        {% if at.parameter_schema %}
-        <div class="mt-1 flex flex-wrap gap-1">
-          {% for f in at.parameter_schema %}
-          <span class="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded">{{ f.label }}</span>
-          {% endfor %}
-        </div>
-        {% endif %}
-      </div>
-      {% else %}
-      <div class="px-4 py-6 text-center text-sm text-gray-400">No analysis types yet.</div>
-      {% endfor %}
-    </div>
-
-    <details class="bg-white rounded-xl border border-gray-200 shadow-sm">
-      <summary class="px-4 py-3 text-sm font-medium text-emerald-600 cursor-pointer">+ Add new analysis type</summary>
-      <form method="post" action="/admin/analysis-types/new" class="px-4 pb-4 space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Name</label>
-          <input name="name" required class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
-          <input name="description" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Parameter Schema (JSON)</label>
-          <textarea name="parameter_schema_json" rows="5"
-                    placeholder='[{"key":"energy","label":"Beam Energy","type":"number","unit":"keV"}]'
-                    class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-mono">[]</textarea>
-        </div>
-        <button type="submit" class="bg-emerald-600 text-white text-xs px-4 py-1.5 rounded hover:bg-emerald-700">Add</button>
-      </form>
-    </details>
-  </div>
-
+  {{ type_panel("Process Step Types", "step-types", step_types, step_usage, "blue",
+                '[{"key":"temperature","label":"Temperature","type":"number","unit":"°C"}]') }}
+  {{ type_panel("Analysis Types", "analysis-types", analysis_types, analysis_usage, "emerald",
+                '[{"key":"energy","label":"Beam Energy","type":"number","unit":"keV"}]') }}
 </div>
 {% endblock %}

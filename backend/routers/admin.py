@@ -3,21 +3,25 @@ import json
 import re
 import secrets
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from backend.database import get_db
-from backend.models import ProcessStepType, AnalysisType, User
+from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User
 from backend.auth import require_login, hash_password
 from backend.email_utils import send_welcome_email
 from backend.config import settings
+from backend.export import load_samples_full, samples_csv
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="frontend/templates")
+# One field per line, unicode units (°C, µm) kept readable
+templates.env.filters["schema_json"] = lambda schema: "[\n" + ",\n".join(
+    "  " + json.dumps(f, ensure_ascii=False) for f in schema or []) + "\n]"
 
 
 def _generate_password(length: int = 12) -> str:
@@ -47,6 +51,10 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
     step_types = (await db.execute(select(ProcessStepType).order_by(ProcessStepType.name))).scalars().all()
     analysis_types = (await db.execute(select(AnalysisType).order_by(AnalysisType.name))).scalars().all()
     users = (await db.execute(select(User).order_by(User.username))).scalars().all()
+    step_usage = dict((await db.execute(
+        select(ProcessStep.step_type_id, func.count()).group_by(ProcessStep.step_type_id))).all())
+    analysis_usage = dict((await db.execute(
+        select(Analysis.analysis_type_id, func.count()).group_by(Analysis.analysis_type_id))).all())
 
     # Pop one-time flash from session
     flash = request.session.pop("flash", None)
@@ -57,11 +65,19 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
         "step_types": step_types,
         "analysis_types": analysis_types,
         "users": users,
+        "step_usage": step_usage,
+        "analysis_usage": analysis_usage,
         "current_user": admin,
         "flash": flash,
         "flash_error": flash_error,
         "email_configured": bool(settings.SMTP_PASSWORD),
     })
+
+
+@router.get("/export.csv")
+async def export_database(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    samples = await load_samples_full(db)
+    return await samples_csv(db, samples, f"logbook_full_{date.today():%Y%m%d}.csv")
 
 
 # ── User management ──────────────────────────────────────────────────────────
@@ -197,33 +213,122 @@ async def delete_user(
     return RedirectResponse("/admin/", status_code=303)
 
 
-# ── Step types ────────────────────────────────────────────────────────────────
+# ── Step & analysis types ─────────────────────────────────────────────────────
+# Editing a type's schema only changes the form hints for future edits; the
+# parameters already stored on steps/analyses are never touched.
 
-@router.post("/step-types/new")
-async def create_step_type(
+TYPE_MODELS = {"step-types": ProcessStepType, "analysis-types": AnalysisType}
+TYPE_USAGE = {"step-types": ProcessStep.step_type_id, "analysis-types": Analysis.analysis_type_id}
+
+
+def _parse_schema(text: str) -> list[dict]:
+    """Validate a parameter schema: a JSON list of objects with unique, non-empty keys."""
+    try:
+        schema = json.loads(text or "[]")
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Parameter schema is not valid JSON: {exc}")
+    if not isinstance(schema, list) or not all(isinstance(f, dict) for f in schema):
+        raise ValueError("Parameter schema must be a JSON list of objects.")
+    keys = [str(f.get("key", "")).strip() for f in schema]
+    if not all(keys):
+        raise ValueError('Every schema field needs a "key".')
+    if len(set(keys)) != len(keys):
+        raise ValueError("Schema keys must be unique.")
+    if any(":" in k for k in keys):
+        raise ValueError('Schema keys cannot contain ":".')
+    for f, k in zip(schema, keys):
+        f["key"] = k
+    return schema
+
+
+def _type_model(kind: str):
+    if kind not in TYPE_MODELS:
+        raise HTTPException(status_code=404, detail="Unknown type kind")
+    return TYPE_MODELS[kind]
+
+
+async def _name_taken(db: AsyncSession, model, name: str, exclude_id: int | None = None) -> bool:
+    q = select(model).where(func.lower(model.name) == name.lower())
+    if exclude_id is not None:
+        q = q.where(model.id != exclude_id)
+    return (await db.execute(q)).scalar_one_or_none() is not None
+
+
+@router.post("/{kind}/new")
+async def create_type(
+    request: Request,
+    kind: str,
     name: str = Form(...),
     description: str = Form(""),
     parameter_schema_json: str = Form("[]"),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    schema = json.loads(parameter_schema_json)
-    db.add(ProcessStepType(name=name, description=description or None, parameter_schema=schema))
+    model = _type_model(kind)
+    name = name.strip()
+    try:
+        schema = _parse_schema(parameter_schema_json)
+    except ValueError as exc:
+        request.session["flash_error"] = str(exc)
+        return RedirectResponse("/admin/", status_code=303)
+    if await _name_taken(db, model, name):
+        request.session["flash_error"] = f"A type named '{name}' already exists."
+        return RedirectResponse("/admin/", status_code=303)
+    db.add(model(name=name, description=description.strip() or None, parameter_schema=schema))
     await db.commit()
+    request.session["flash"] = f"Type '{name}' added."
     return RedirectResponse("/admin/", status_code=303)
 
 
-# ── Analysis types ────────────────────────────────────────────────────────────
-
-@router.post("/analysis-types/new")
-async def create_analysis_type(
+@router.post("/{kind}/{type_id}/edit")
+async def update_type(
+    request: Request,
+    kind: str,
+    type_id: int,
     name: str = Form(...),
     description: str = Form(""),
     parameter_schema_json: str = Form("[]"),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    schema = json.loads(parameter_schema_json)
-    db.add(AnalysisType(name=name, description=description or None, parameter_schema=schema))
+    model = _type_model(kind)
+    obj = (await db.execute(select(model).where(model.id == type_id))).scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Type not found")
+    name = name.strip()
+    try:
+        schema = _parse_schema(parameter_schema_json)
+    except ValueError as exc:
+        request.session["flash_error"] = f"{obj.name}: {exc}"
+        return RedirectResponse("/admin/", status_code=303)
+    if await _name_taken(db, model, name, exclude_id=type_id):
+        request.session["flash_error"] = f"A type named '{name}' already exists."
+        return RedirectResponse("/admin/", status_code=303)
+    obj.name = name
+    obj.description = description.strip() or None
+    obj.parameter_schema = schema
     await db.commit()
+    request.session["flash"] = f"Type '{name}' updated. Existing entries keep their stored values."
+    return RedirectResponse("/admin/", status_code=303)
+
+
+@router.post("/{kind}/{type_id}/delete")
+async def delete_type(
+    request: Request,
+    kind: str,
+    type_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    model = _type_model(kind)
+    obj = (await db.execute(select(model).where(model.id == type_id))).scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Type not found")
+    used = (await db.execute(select(func.count()).where(TYPE_USAGE[kind] == type_id))).scalar()
+    if used:
+        request.session["flash_error"] = f"Cannot delete '{obj.name}': it is used by {used} entr{'y' if used == 1 else 'ies'}."
+        return RedirectResponse("/admin/", status_code=303)
+    await db.delete(obj)
+    await db.commit()
+    request.session["flash"] = f"Type '{obj.name}' deleted."
     return RedirectResponse("/admin/", status_code=303)

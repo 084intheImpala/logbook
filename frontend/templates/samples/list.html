@@ -24,6 +24,7 @@
         <th class="text-left px-5 py-3 font-semibold text-gray-600">Name</th>
         <th class="text-left px-5 py-3 font-semibold text-gray-600">Film</th>
         <th class="text-left px-5 py-3 font-semibold text-gray-600">Substrate</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">Tags</th>
         <th class="text-left px-5 py-3 font-semibold text-gray-600">Created by</th>
         <th class="text-left px-5 py-3 font-semibold text-gray-600">Date</th>
         <th></th>
@@ -35,9 +36,13 @@
         <td class="px-5 py-3 text-gray-400 font-mono text-xs">#{{ s.id }}</td>
         <td class="px-5 py-3">
           <a href="/samples/{{ s.id }}" class="font-semibold text-blue-600 hover:underline">{{ s.name }}</a>
+          {% if not can_view(current_user, s) %}<span class="text-xs text-gray-400" title="Summary only — ask the owner to share it">🔒</span>{% endif %}
         </td>
         <td class="px-5 py-3 text-gray-600">{{ s.film_material or '—' }}</td>
         <td class="px-5 py-3 text-gray-600">{{ s.substrate_material or '—' }}</td>
+        <td class="px-5 py-3">
+          {% for t in s.tags or [] %}<a href="/search?tag={{ t|urlencode }}" class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1">{{ t }}</a>{% endfor %}
+        </td>
         <td class="px-5 py-3 text-gray-600">{{ s.created_by or '—' }}</td>
         <td class="px-5 py-3 text-gray-400 text-xs">{{ s.created_at.strftime('%Y-%m-%d') }}</td>
         <td class="px-5 py-3 text-right">

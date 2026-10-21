@@ -6,16 +6,18 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.config import settings
 from backend.database import create_tables, AsyncSessionLocal
-from backend.routers import samples, steps, analyses, files, admin
+from backend.routers import samples, steps, analyses, files, admin, search
 from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException
 from backend.seed import seed_types
+from backend.migrations import run_migrations
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
     async with AsyncSessionLocal() as session:
+        await run_migrations(session)
         await seed_types(session)
     yield
 
@@ -33,6 +35,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
 app.include_router(auth_router.router, tags=["auth"])
+app.include_router(search.router)
 app.include_router(samples.router, prefix="/samples", tags=["samples"])
 app.include_router(steps.router, prefix="/samples", tags=["steps"])
 app.include_router(analyses.router, prefix="/samples", tags=["analyses"])

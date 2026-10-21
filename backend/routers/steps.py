@@ -1,49 +1,19 @@
-from datetime import datetime
-import json
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from backend.database import get_db
-from backend.models import Sample, ProcessStep, ProcessStepType, Attachment
+from backend.models import ProcessStep, ProcessStepType, Attachment
+from backend.params import parse_params, params_to_text, type_schemas_json, parse_datetime
+from backend.timeline import place_new, renumber
 from backend.utils import save_upload
-from backend.auth import require_login
+from backend.auth import require_login, load_sample
 
 router = APIRouter()
 templates = Jinja2Templates(directory="frontend/templates")
-
-
-def _parse_params(text: str) -> dict:
-    """Parse 'key: value' lines into a dict."""
-    params = {}
-    for line in text.strip().splitlines():
-        if ":" in line:
-            k, _, v = line.partition(":")
-            k, v = k.strip(), v.strip()
-            if k and v:
-                try:
-                    params[k] = float(v) if "." in v else int(v)
-                except ValueError:
-                    params[k] = v
-    return params
-
-
-def _params_to_text(params: dict | None) -> str:
-    if not params:
-        return ""
-    return "\n".join(f"{k}: {v}" for k, v in params.items())
-
-
-def _type_schemas_json(step_types) -> str:
-    """Build a JSON map of step_type_id → list of {key, label} for JS pre-fill."""
-    return json.dumps({
-        str(st.id): [{"key": f["key"], "label": f.get("label", f["key"])}
-                     for f in (st.parameter_schema or [])]
-        for st in step_types
-    })
 
 
 @router.get("/{sample_id}/steps/new", response_class=HTMLResponse)
@@ -53,10 +23,7 @@ async def new_step_form(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
-    result = await db.execute(select(Sample).where(Sample.id == sample_id))
-    sample = result.scalar_one_or_none()
-    if not sample:
-        raise HTTPException(status_code=404, detail="Sample not found")
+    sample = await load_sample(db, sample_id, current_user, "edit")
     step_types = (await db.execute(select(ProcessStepType).order_by(ProcessStepType.name))).scalars().all()
     return templates.TemplateResponse("steps/form.html", {
         "request": request,
@@ -64,7 +31,7 @@ async def new_step_form(
         "step_types": step_types,
         "step": None,
         "params_text": "",
-        "type_schemas_json": _type_schemas_json(step_types),
+        "type_schemas_json": type_schemas_json(step_types),
         "attachments": [],
         "current_user": current_user,
     })
@@ -82,27 +49,20 @@ async def create_step(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
-    result = await db.execute(select(Sample).where(Sample.id == sample_id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Sample not found")
-
-    order_result = await db.execute(
-        select(func.coalesce(func.max(ProcessStep.step_order), -1))
-        .where(ProcessStep.sample_id == sample_id)
-    )
-    next_order = order_result.scalar() + 1
+    await load_sample(db, sample_id, current_user, "edit")
 
     step = ProcessStep(
         sample_id=sample_id,
         step_type_id=step_type_id,
-        step_order=next_order,
-        parameters=_parse_params(params_text) or None,
+        step_order=0,  # set by place_new
+        parameters=parse_params(params_text) or None,
         notes=notes or None,
         performed_by=performed_by or current_user.username,
-        performed_at=datetime.strptime(performed_at, '%Y-%m-%dT%H:%M') if performed_at else None,
+        performed_at=parse_datetime(performed_at),
     )
     db.add(step)
     await db.flush()  # get step.id without committing
+    await place_new(db, step)
 
     await save_upload(file, "step", step.id, db)
     await db.commit()
@@ -126,8 +86,7 @@ async def edit_step_form(
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
 
-    sample_result = await db.execute(select(Sample).where(Sample.id == sample_id))
-    sample = sample_result.scalar_one_or_none()
+    sample = await load_sample(db, sample_id, current_user, "edit")
     step_types = (await db.execute(select(ProcessStepType).order_by(ProcessStepType.name))).scalars().all()
 
     att_result = await db.execute(
@@ -142,8 +101,8 @@ async def edit_step_form(
         "sample": sample,
         "step": step,
         "step_types": step_types,
-        "params_text": _params_to_text(step.parameters),
-        "type_schemas_json": _type_schemas_json(step_types),
+        "params_text": params_to_text(step.parameters, step.step_type.parameter_schema),
+        "type_schemas_json": type_schemas_json(step_types),
         "attachments": attachments,
         "current_user": current_user,
     })
@@ -162,6 +121,7 @@ async def update_step(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
+    await load_sample(db, sample_id, current_user, "edit")
     result = await db.execute(
         select(ProcessStep).where(ProcessStep.id == step_id, ProcessStep.sample_id == sample_id)
     )
@@ -170,10 +130,10 @@ async def update_step(
         raise HTTPException(status_code=404, detail="Step not found")
 
     step.step_type_id = step_type_id
-    step.parameters = _parse_params(params_text) or None
+    step.parameters = parse_params(params_text) or None
     step.notes = notes or None
     step.performed_by = performed_by or None
-    step.performed_at = datetime.strptime(performed_at, '%Y-%m-%dT%H:%M') if performed_at else None
+    step.performed_at = parse_datetime(performed_at)
 
     await save_upload(file, "step", step_id, db)
     await db.commit()
@@ -187,6 +147,7 @@ async def delete_step(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
+    await load_sample(db, sample_id, current_user, "edit")
     result = await db.execute(
         select(ProcessStep).where(ProcessStep.id == step_id, ProcessStep.sample_id == sample_id)
     )
@@ -194,45 +155,8 @@ async def delete_step(
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
 
-    deleted_order = step.step_order
     await db.delete(step)
-
-    remaining = await db.execute(
-        select(ProcessStep)
-        .where(ProcessStep.sample_id == sample_id, ProcessStep.step_order > deleted_order)
-        .order_by(ProcessStep.step_order)
-    )
-    for s in remaining.scalars():
-        s.step_order -= 1
-
-    await db.commit()
-    return RedirectResponse(f"/samples/{sample_id}", status_code=303)
-
-
-@router.post("/{sample_id}/steps/{step_id}/move")
-async def move_step(
-    sample_id: int,
-    step_id: int,
-    direction: str = Form(...),
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_login),
-):
-    result = await db.execute(
-        select(ProcessStep).where(ProcessStep.id == step_id, ProcessStep.sample_id == sample_id)
-    )
-    step = result.scalar_one_or_none()
-    if not step:
-        raise HTTPException(status_code=404, detail="Step not found")
-
-    target_order = step.step_order + (-1 if direction == "up" else 1)
-    swap_result = await db.execute(
-        select(ProcessStep).where(
-            ProcessStep.sample_id == sample_id,
-            ProcessStep.step_order == target_order
-        )
-    )
-    swap = swap_result.scalar_one_or_none()
-    if swap:
-        swap.step_order, step.step_order = step.step_order, swap.step_order
+    await db.flush()
+    await renumber(db, sample_id)
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
