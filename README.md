@@ -344,10 +344,12 @@ Each step or analysis type has its own fields, filled in on the form:
   tick the ones measured, or add another, and fill in each one's range, step,
   acquisition time and configuration.
 - **Where** (CTN, INESC MN, or another institute) is on every step and
-  analysis; it's a dropdown too. Equipment (deposition machines, SEMs)
-  belongs to a place, and the machine dropdown only offers what's at the
-  place chosen under Where: INESC MN has the Alcatel SCM 450, UHV1, UHV2 and
-  SentiFet. A new machine typed on the form is filed under that place.
+  analysis; it's a dropdown too. Every technique has an **Equipment**
+  dropdown (Machine on Deposition) with its own list, and equipment belongs
+  to a place: the dropdown only offers what's at the place chosen under
+  Where (INESC MN has the Alcatel SCM 450, UHV1, UHV2 and SentiFet). A new
+  piece of equipment typed on the form is filed under that place. New types
+  added under Configurations get the Equipment field automatically.
   Equipment with no place set is offered everywhere. Admins can move
   equipment to another place under Dropdown lists.
 - **Other parameters** takes anything else as `key: value` lines.

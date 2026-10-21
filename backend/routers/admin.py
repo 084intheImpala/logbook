@@ -11,7 +11,7 @@ from sqlalchemy import select, func
 
 from backend.database import get_db
 from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User, ChoiceOption
-from backend.params import validate_schema, lists_used, located_lists
+from backend.params import validate_schema, lists_used, located_lists, with_equipment
 from backend.choices import LOCATION_LIST
 from backend.auth import require_login, hash_password
 from backend.email_utils import send_welcome_email
@@ -361,7 +361,8 @@ async def create_type(
     if await _name_taken(db, model, name):
         request.session["flash_error"] = t(request, "A type named '{name}' already exists.", name=name)
         return RedirectResponse("/admin/", status_code=303)
-    db.add(model(name=name, description=description.strip() or None, parameter_schema=schema))
+    # New techniques get the standard Equipment dropdown (it can be removed by editing the schema)
+    db.add(model(name=name, description=description.strip() or None, parameter_schema=with_equipment(schema, name)))
     await db.commit()
     request.session["flash"] = t(request, "Type '{name}' added.", name=name)
     return RedirectResponse("/admin/", status_code=303)

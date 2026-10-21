@@ -1,5 +1,6 @@
 """Default step types, analysis types and dropdown values (field types: see
 backend/params.py), seeded into a new database by seed.py."""
+from backend.params import with_equipment
 
 
 def num(key, label, unit="", **kw):
@@ -256,6 +257,12 @@ ANALYSIS_TYPES = [
         ],
     },
 ]
+
+# Every technique gets an Equipment dropdown tied to the place (Where), unless
+# it has one already (Deposition's Machine, SEM). Cut has its own form.
+for _type in PROCESS_STEP_TYPES + ANALYSIS_TYPES:
+    if _type["name"] != "Cut":
+        _type["parameter_schema"] = with_equipment(_type["parameter_schema"], _type["name"])
 
 # Starting values of the shared dropdowns; people add more as they go.
 # Equipment is given as (name, place).

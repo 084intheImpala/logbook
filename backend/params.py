@@ -28,6 +28,7 @@ schema can also be typed as `key: value` lines (the "extra parameters").
 """
 import json
 import math
+import re
 from datetime import date, datetime
 
 FIELD_TYPES = ("number", "duration", "text", "longtext", "choice", "variant", "check", "modes")
@@ -112,6 +113,19 @@ def located_lists(schema: list[dict] | None) -> set[str]:
         for fields in _side_fields(f):
             names |= located_lists(fields)
     return names
+
+
+def equipment_field(type_name: str) -> dict:
+    """The Equipment dropdown every technique starts with: its own list
+    (e.g. "ellipsometry_equipment"), filtered by the place under Where."""
+    slug = re.sub(r"[^a-z0-9]+", "_", type_name.lower()).strip("_") or "other"
+    return {"key": "equipment", "label": "Equipment", "type": "choice", "list": f"{slug}_equipment", "located": True}
+
+
+def with_equipment(schema: list[dict], type_name: str) -> list[dict]:
+    """`schema` with an Equipment field first, unless it already has
+    equipment (a "located" dropdown, e.g. Deposition's Machine)."""
+    return schema if located_lists(schema) else [equipment_field(type_name)] + schema
 
 
 def validate_schema(schema, path="") -> str | None:
