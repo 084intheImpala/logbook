@@ -10,8 +10,9 @@ from backend.models import Sample, Attachment
 from backend.lineage import Family
 
 SAMPLE_COLUMNS = [
-    "sample_id", "sample_name", "cut_from", "is_reference", "tags", "film_material", "substrate_material",
-    "substrate_dimensions", "description", "created_by", "created_at",
+    "sample_id", "label", "sample_type", "researcher", "created_at", "cut_from", "is_reference", "tags",
+    "film_material", "substrate", "substrate_material", "substrate_dimensions", "external_id", "supplier",
+    "description",
 ]
 ENTRY_COLUMNS = [
     "entry_order", "entry_kind", "technique", "inherited_from", "performed_at", "performed_by", "notes", "attachments",
@@ -43,12 +44,13 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
         details = show_details(s)
         parent, _ = family.parent_and_cut(s)
         base = {
-            "sample_id": s.id, "sample_name": s.name,
-            "cut_from": f"{parent.name} #{parent.id}" if parent else None,
+            "sample_id": s.title, "label": s.label, "sample_type": s.type_label, "researcher": s.researcher,
+            "cut_from": parent.title if parent else None,
             "is_reference": "yes" if s.is_reference else None, "tags": ", ".join(s.tags or []),
-            "film_material": s.film_material, "substrate_material": s.substrate_material,
-            "substrate_dimensions": s.substrate_dimensions, "description": s.description if details else None,
-            "created_by": s.created_by, "created_at": s.created_at,
+            "film_material": s.film_material, "substrate": s.substrate.name if s.substrate else None,
+            "substrate_material": s.substrate_material, "substrate_dimensions": s.substrate_dimensions,
+            "external_id": s.external_id, "supplier": s.supplier,
+            "description": s.description if details else None, "created_at": s.created_at,
         }
         items = family.timeline(s)
         if not items:
@@ -56,7 +58,7 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
         for i, item in enumerate(items, 1):
             kind, e = item.kind, item.entry
             row = {**base, "entry_order": i, "entry_kind": kind, "technique": item.technique,
-                   "inherited_from": f"{item.source.name} #{item.source.id}" if item.source is not s else None}
+                   "inherited_from": item.source.title if item.source is not s else None}
             if not details:
                 rows.append(row)
                 continue

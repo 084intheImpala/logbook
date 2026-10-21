@@ -1,14 +1,15 @@
 from backend.config import settings
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from backend.database import get_db
-from backend.models import User
+from backend.models import User, Sample
 from backend.auth import hash_password, verify_password, require_login
+from backend.sample_ids import INITIALS_RE, normalize_initials
 
 router = APIRouter()
 templates = Jinja2Templates(directory="frontend/templates")
@@ -102,6 +103,72 @@ async def change_password(
     db_user.must_change_password = False
     await db.commit()
     request.session.pop("magic_login", None)
+    return RedirectResponse("/samples/" if db_user.initials else "/profile", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Profile: display name and the initials used in sample IDs
+# ---------------------------------------------------------------------------
+
+async def validate_profile(db: AsyncSession, user: User, name: str, initials: str) -> str | None:
+    """Return an error message, or None if `name`/`initials` can be saved for `user`."""
+    if not name.strip():
+        return "Please enter your name."
+    if not INITIALS_RE.match(initials):
+        return "Initials must be 2 to 4 letters (A–Z)."
+    taken = (await db.execute(
+        select(User).where(User.initials == initials, User.id != user.id))).scalar_one_or_none()
+    if taken:
+        return f"The initials {initials} are already used by {taken.display_name}."
+    return None
+
+
+async def has_samples(db: AsyncSession, user: User) -> bool:
+    return (await db.execute(select(func.count()).where(Sample.owner_id == user.id))).scalar() > 0
+
+
+@router.get("/profile", response_class=HTMLResponse)
+async def profile_page(
+    request: Request,
+    user: User = Depends(require_login),
+    db: AsyncSession = Depends(get_db),
+):
+    return templates.TemplateResponse("auth/profile.html", {
+        "request": request,
+        "current_user": user,
+        "error": None,
+        "name": user.name or "",
+        "initials": user.initials or "",
+        "initials_locked": bool(user.initials) and await has_samples(db, user),
+        "year": date.today().year,
+    })
+
+
+@router.post("/profile")
+async def save_profile(
+    request: Request,
+    name: str = Form(""),
+    initials: str = Form(""),
+    user: User = Depends(require_login),
+    db: AsyncSession = Depends(get_db),
+):
+    # Initials are part of existing sample IDs, so only admins change them later.
+    locked = bool(user.initials) and await has_samples(db, user)
+    initials = user.initials if locked else normalize_initials(initials)
+    error = await validate_profile(db, user, name, initials)
+    if error:
+        return templates.TemplateResponse("auth/profile.html", {
+            "request": request,
+            "current_user": user,
+            "error": error,
+            "name": name,
+            "initials": initials,
+            "initials_locked": locked,
+            "year": date.today().year,
+        }, status_code=400)
+    user.name = name.strip()
+    user.initials = initials
+    await db.commit()
     return RedirectResponse("/samples/", status_code=303)
 
 @router.get("/magic", response_class=HTMLResponse)

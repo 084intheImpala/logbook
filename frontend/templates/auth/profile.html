@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Your profile — Logbook{% endblock %}
+{% block content %}
+<div class="max-w-sm mx-auto mt-16">
+  <h1 class="text-2xl font-bold text-gray-900 mb-2 text-center">Your profile</h1>
+  {% if not current_user.initials %}
+  <p class="text-sm text-gray-500 mb-6 text-center">Before you start: how should your name appear, and which initials should your sample IDs use?</p>
+  {% endif %}
+
+  {% if error %}
+  <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/profile" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1" for="name">Name</label>
+      <input id="name" name="name" type="text" required value="{{ name }}" autofocus
+             placeholder="e.g. Ana Sofia Sousa"
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <p class="text-xs text-gray-400 mt-1">Shown as the researcher on your samples.</p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1" for="initials">Initials</label>
+      <input id="initials" name="initials" type="text" required value="{{ initials }}"
+             minlength="2" maxlength="4" pattern="[A-Za-z]{2,4}" placeholder="e.g. ASS"
+             {% if initials_locked %}disabled{% endif %}
+             class="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+      <p class="text-xs text-gray-400 mt-1">
+        {% if initials_locked %}
+        Your initials are part of your existing sample IDs. Ask an admin if they need to change.
+        {% else %}
+        2–4 letters. Your sample IDs will look like <span class="font-mono" id="id-preview">{{ (initials or "ABC")|upper }}-{{ year }}-001</span>.
+        {% endif %}
+      </p>
+    </div>
+    <button type="submit"
+            class="w-full bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
+      Save
+    </button>
+    <p class="text-center"><a href="/change-password" class="text-xs text-gray-500 hover:underline">Change password</a></p>
+  </form>
+</div>
+<script>
+const ini = document.getElementById('initials'), preview = document.getElementById('id-preview');
+if (preview) ini.addEventListener('input', () =>
+  preview.textContent = (ini.value.toUpperCase() || 'ABC') + '-{{ year }}-001');
+</script>
+{% endblock %}

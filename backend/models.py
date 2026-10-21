@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any
-from sqlalchemy import Integer, String, Text, DateTime, ForeignKey, JSON, BigInteger, Boolean, UniqueConstraint, func
+from sqlalchemy import Integer, String, Text, DateTime, ForeignKey, JSON, BigInteger, Boolean, Float, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.database import Base
 
@@ -17,23 +17,57 @@ class User(Base):
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     login_token: Mapped[str | None] = mapped_column(String(128), unique=True, index=True)
     login_token_expires: Mapped[datetime | None] = mapped_column(DateTime)
+    # Used in sample IDs (e.g. ASS-2026-001); 2–4 capital letters, unique.
+    initials: Mapped[str | None] = mapped_column(String(4), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     samples: Mapped[list["Sample"]] = relationship("Sample", back_populates="owner")
+
+    @property
+    def display_name(self) -> str:
+        return self.name or self.username
+
+
+SAMPLE_TYPES = {"thin_film": "Thin film", "bulk": "Bulk", "commercial": "Commercial"}
+POLISHING = {"single": "Single side", "double": "Double side", "none": "Unpolished"}
+
+
+class Substrate(Base):
+    """Shared library of substrates that thin-film and bulk samples are made from."""
+    __tablename__ = "substrates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    material: Mapped[str] = mapped_column(String(100), nullable=False)
+    orientation: Mapped[str | None] = mapped_column(String(50))
+    thickness_um: Mapped[float | None] = mapped_column(Float)
+    polishing: Mapped[str | None] = mapped_column(String(20))   # key of POLISHING
+    size: Mapped[str | None] = mapped_column(String(100))       # e.g. 2-inch wafer
+    supplier: Mapped[str | None] = mapped_column(String(120))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    created_by: Mapped["User | None"] = relationship("User", lazy="selectin")
 
 
 class Sample(Base):
     __tablename__ = "samples"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Names may repeat; the integer id is the unique identifier.
-    name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    # Generated, never changes: <researcher initials>-<year>-<number>, and
+    # pieces append -A, -B, -REF (pieces of pieces -1, -2, …). See sample_ids.py.
+    code: Mapped[str | None] = mapped_column(String(60), unique=True)
+    # Optional personal description; stored in the old "name" column.
+    label: Mapped[str | None] = mapped_column("name", String(100), index=True)
+    sample_type: Mapped[str] = mapped_column(String(20), default="thin_film", server_default="thin_film", nullable=False)
+    substrate_id: Mapped[int | None] = mapped_column(ForeignKey("substrates.id"), index=True)
+    external_id: Mapped[str | None] = mapped_column(String(100))   # e.g. ID given by whoever cut a bulk piece
+    supplier: Mapped[str | None] = mapped_column(String(120))      # commercial samples
     tags: Mapped[list[str] | None] = mapped_column(JSON)
-    substrate_material: Mapped[str | None] = mapped_column(String(100))
     substrate_dimensions: Mapped[str | None] = mapped_column(String(100))
     film_material: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text)
-    created_by: Mapped[str | None] = mapped_column(String(100))
     owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     # Set when this sample is a piece cut from another: the parent's "Cut" step.
     # The piece inherits the parent's timeline up to that step.
@@ -42,7 +76,8 @@ class Sample(Base):
     is_reference: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    owner: Mapped["User | None"] = relationship("User", back_populates="samples")
+    owner: Mapped["User | None"] = relationship("User", back_populates="samples", lazy="selectin")
+    substrate: Mapped["Substrate | None"] = relationship("Substrate", lazy="selectin")
     process_steps: Mapped[list["ProcessStep"]] = relationship(
         "ProcessStep", back_populates="sample", foreign_keys="ProcessStep.sample_id",
         order_by="ProcessStep.position",
@@ -58,6 +93,23 @@ class Sample(Base):
         "SampleShare", back_populates="sample", lazy="selectin",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def type_label(self) -> str:
+        return SAMPLE_TYPES.get(self.sample_type, self.sample_type)
+
+    @property
+    def researcher(self) -> str | None:
+        return self.owner.display_name if self.owner else None
+
+    @property
+    def substrate_material(self) -> str | None:
+        return self.substrate.material if self.substrate else None
+
+    @property
+    def title(self) -> str:
+        """How the sample is referred to in links and headings."""
+        return self.code or f"#{self.id}"
 
 
 class SampleShare(Base):

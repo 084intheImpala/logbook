@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{{ sample.name }} — Logbook{% endblock %}
+{% block title %}{{ sample.title }} — Logbook{% endblock %}
 {% block content %}
 {% macro cut_marker() %}
 <div class="relative pl-14">
   <div class="absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-2 border-dashed border-gray-300 bg-white text-gray-500">✂</div>
   <div class="py-2.5 text-sm text-gray-500">
-    Cut from <a href="/samples/{{ parent.id }}" class="text-blue-600 hover:underline">{{ parent.name }}</a>
+    Cut from <a href="/samples/{{ parent.id }}" class="text-blue-600 hover:underline font-mono">{{ parent.title }}</a>
     {%- if cut and cut.performed_at %} on {{ cut.performed_at.strftime('%Y-%m-%d') }}{% endif %}.
     Entries above are inherited; this piece's own history starts here.
   </div>
@@ -17,37 +17,71 @@
   <div>
     <div class="text-xs text-gray-400 mb-1">
       <a href="/samples/" class="hover:underline">Samples</a> /
-      {% if parent %}<a href="/samples/{{ parent.id }}" class="hover:underline">{{ parent.name }}</a> / {% endif %}{{ sample.name }}
+      {% if parent %}<a href="/samples/{{ parent.id }}" class="hover:underline font-mono">{{ parent.title }}</a> / {% endif %}<span class="font-mono">{{ sample.title }}</span>
     </div>
-    <h1 class="text-2xl font-bold text-gray-900">{{ sample.name }} <span class="text-base font-mono font-normal text-gray-400">#{{ sample.id }}</span>
-      {% if sample.is_reference %}<span class="align-middle ml-1 bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded">Reference</span>{% endif %}
+    <h1 class="text-2xl font-bold text-gray-900 font-mono">{{ sample.title }}
+      <span class="align-middle ml-1 font-sans bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded">{{ sample.type_label }}</span>
+      {% if sample.is_reference %}<span class="align-middle font-sans bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded">Reference</span>{% endif %}
     </h1>
+    {% if sample.label %}<div class="text-lg text-gray-600">{{ sample.label }}</div>{% endif %}
     {% if parent %}
     <div class="mt-1 text-sm text-gray-500">
-      ✂ Cut from <a href="/samples/{{ parent.id }}" class="text-blue-600 hover:underline">{{ parent.name }}</a>
-      <span class="font-mono text-xs text-gray-400">#{{ parent.id }}</span>
+      ✂ Cut from <a href="/samples/{{ parent.id }}" class="text-blue-600 hover:underline font-mono">{{ parent.title }}</a>
       {%- if cut and cut.performed_at %} on {{ cut.performed_at.strftime('%Y-%m-%d') }}{% endif %}
       {% if siblings|length > 1 %}
       · pieces:
       {% for p in siblings %}
-        {% if p.id == sample.id %}<span class="font-medium text-gray-700">{{ p.name }}</span>{% else %}<a href="/samples/{{ p.id }}" class="text-blue-600 hover:underline">{{ p.name }}</a>{% endif %}
+        {% if p.id == sample.id %}<span class="font-mono font-medium text-gray-700">{{ p.title }}</span>{% else %}<a href="/samples/{{ p.id }}" class="font-mono text-blue-600 hover:underline">{{ p.title }}</a>{% endif %}
         {%- if p.is_reference %} <span class="text-amber-600 text-xs">(ref)</span>{% endif %}{{ "," if not loop.last }}
       {% endfor %}
       {% endif %}
     </div>
     {% endif %}
-    <div class="flex flex-wrap gap-3 mt-2 text-sm text-gray-600 items-center">
+
+    <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+      <dt class="text-gray-400">Researcher</dt>
+      <dd class="text-gray-700">{{ sample.researcher or '—' }} <span class="text-gray-400">· {{ sample.created_at.strftime('%Y-%m-%d') }}</span></dd>
+      {% if sample.substrate %}
+      <dt class="text-gray-400">Substrate</dt>
+      <dd class="text-gray-700">
+        <a href="/substrates/{{ sample.substrate.id }}" class="text-blue-600 hover:underline">{{ sample.substrate.name }}</a>
+        <span class="text-gray-500">— {{ sample.substrate.material }}
+          {%- if sample.substrate.orientation %} ({{ sample.substrate.orientation }}){% endif %}
+          {%- if sample.substrate.thickness_um %}, {{ '%g'|format(sample.substrate.thickness_um) }} µm{% endif %}</span>
+      </dd>
+      {% endif %}
+      {% if sample.substrate_dimensions %}
+      <dt class="text-gray-400">Dimensions</dt><dd class="text-gray-700">{{ sample.substrate_dimensions }}</dd>
+      {% endif %}
       {% if sample.film_material %}
-        <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{{ sample.film_material }}</span>
+      <dt class="text-gray-400">Film</dt>
+      <dd><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{{ sample.film_material }}</span></dd>
       {% endif %}
-      {% if sample.substrate_material %}
-        <span>on {{ sample.substrate_material }}{% if sample.substrate_dimensions %} ({{ sample.substrate_dimensions }}){% endif %}</span>
+      {% if sample.external_id %}
+      <dt class="text-gray-400">{{ "Product / batch no." if sample.sample_type == "commercial" else "External ID" }}</dt>
+      <dd class="text-gray-700 font-mono">{{ sample.external_id }}</dd>
       {% endif %}
-      {% if sample.created_by %}
-        <span class="text-gray-400">by {{ sample.created_by }}</span>
+      {% if sample.supplier %}
+      <dt class="text-gray-400">Supplier</dt><dd class="text-gray-700">{{ sample.supplier }}</dd>
       {% endif %}
-      <span class="text-gray-400">{{ sample.created_at.strftime('%Y-%m-%d') }}</span>
-    </div>
+      {% if spec_files %}
+      <dt class="text-gray-400">Spec sheet</dt>
+      <dd class="flex flex-wrap gap-2">
+        {% for att in spec_files %}
+        <span class="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-xs">
+          <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
+          {% if can_edit %}
+          <form method="post" action="/files/{{ att.id }}/delete" class="inline"
+                onsubmit="return confirm('Remove {{ att.original_filename }}?')">
+            <button class="text-gray-300 hover:text-red-400 ml-1" title="Remove">×</button>
+          </form>
+          {% endif %}
+        </span>
+        {% endfor %}
+      </dd>
+      {% endif %}
+    </dl>
+
     {% if sample.tags %}
     <div class="flex flex-wrap gap-1 mt-2">
       {% for t in sample.tags %}<a href="/search?tag={{ t|urlencode }}" class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">{{ t }}</a>{% endfor %}
@@ -83,11 +117,11 @@
 {% if not can_view %}
 <div class="mb-8 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
   🔒 You can see this sample's summary only{% if has_inherited %} (plus any history you can see on its parent){% endif %}. Parameters, notes, dates and files are visible to the owner
-  {%- if owner_user %} ({{ owner_user.name or owner_user.username }}){% endif %} and to people they share it with.
+  {%- if owner_user %} ({{ owner_user.display_name }}){% endif %} and to people they share it with.
 </div>
 {% elif not is_owner %}
 <div class="mb-6 text-xs text-gray-500">
-  Shared with you by {{ owner_user.name or owner_user.username if owner_user else "the owner" }}
+  Shared with you by {{ owner_user.display_name if owner_user else "the owner" }}
   ({{ "can edit" if can_edit else "view only" }}).
 </div>
 {% endif %}
@@ -102,7 +136,7 @@
     <ul class="divide-y divide-gray-100 text-sm">
       {% for sh in sample.shares %}
       <li class="flex items-center gap-3 py-1.5">
-        <span class="flex-1">{{ sh.user.name or sh.user.username }} <span class="text-gray-400 text-xs">{{ sh.user.username }}</span></span>
+        <span class="flex-1">{{ sh.user.display_name }} <span class="text-gray-400 text-xs">{{ sh.user.username }}</span></span>
         <form method="post" action="/samples/{{ sample.id }}/shares" class="inline">
           <input type="hidden" name="user_id" value="{{ sh.user_id }}">
           <select name="access" onchange="this.form.submit()" class="border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white">
@@ -123,7 +157,7 @@
     <form method="post" action="/samples/{{ sample.id }}/shares" class="flex items-center gap-2">
       <select name="user_id" required class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
         <option value="">Share with…</option>
-        {% for u in share_candidates %}<option value="{{ u.id }}">{{ u.name or u.username }} ({{ u.username }})</option>{% endfor %}
+        {% for u in share_candidates %}<option value="{{ u.id }}">{{ u.display_name }} ({{ u.username }})</option>{% endfor %}
       </select>
       <select name="access" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
         <option value="view">View</option>
@@ -211,7 +245,7 @@
           <span class="font-semibold text-gray-900 flex-1">{{ entry.type_name }}
             {% if entry.inherited %}
             <a href="/samples/{{ entry.source.id }}" class="ml-2 text-xs font-normal text-gray-500 hover:underline"
-               title="Inherited — edit it on {{ entry.source.name }}">from {{ entry.source.name }}</a>
+               title="Inherited — edit it on {{ entry.source.title }}">from <span class="font-mono">{{ entry.source.title }}</span></a>
             {% endif %}
           </span>
           <div class="flex items-center gap-3 text-xs text-gray-400 shrink-0">
@@ -278,7 +312,7 @@
           <span class="text-xs text-gray-400 mr-1">Pieces:</span>
           {% for p in entry.pieces %}
           <a href="/samples/{{ p.id }}" class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full mr-1">
-            ✂ {{ p.name }}{% if p.is_reference %} <span class="text-amber-600">(ref)</span>{% endif %}</a>
+            ✂ <span class="font-mono">{{ p.title }}</span>{% if p.label %} {{ p.label }}{% endif %}{% if p.is_reference %} <span class="text-amber-600">(ref)</span>{% endif %}</a>
           {% endfor %}
         </div>
         {% endif %}
@@ -294,7 +328,6 @@
               <span class="text-gray-400">({{ (att.file_size / 1024)|round(1) }} KB)</span>
               {% if can_edit and not entry.inherited %}
               <form method="post" action="/files/{{ att.id }}/delete" class="inline">
-                <input type="hidden" name="sample_id" value="{{ sample.id }}">
                 <button class="text-gray-300 hover:text-red-400 ml-1" title="Remove">×</button>
               </form>
               {% endif %}

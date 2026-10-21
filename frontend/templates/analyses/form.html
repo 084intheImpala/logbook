@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{% if analysis %}Edit Analysis{% else %}Add Analysis{% endif %} — {{ sample.name }}{% endblock %}
+{% block title %}{% if analysis %}Edit Analysis{% else %}Add Analysis{% endif %} — {{ sample.title }}{% endblock %}
 {% block content %}
 <div class="max-w-2xl">
   <div class="text-xs text-gray-400 mb-4">
     <a href="/samples/" class="hover:underline">Samples</a> /
-    <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.name }}</a> /
+    <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.title }}</a> /
     {% if analysis %}Edit Analysis{% else %}Add Analysis{% endif %}
   </div>
   <h1 class="text-2xl font-bold mb-6">
@@ -92,10 +92,7 @@
         <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
           <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
           <span class="text-gray-400">({{ (att.file_size / 1024)|round(1) }} KB)</span>
-          <form method="post" action="/files/{{ att.id }}/delete" class="inline">
-            <input type="hidden" name="sample_id" value="{{ sample.id }}">
-            <button class="text-gray-300 hover:text-red-400 ml-1 font-bold" title="Remove">×</button>
-          </form>
+          <button form="delete-att-{{ att.id }}" class="text-gray-300 hover:text-red-400 ml-1 font-bold" title="Remove">×</button>
         </div>
         {% endfor %}
       </div>
@@ -110,6 +107,12 @@
       <a href="/samples/{{ sample.id }}" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">Cancel</a>
     </div>
   </form>
+
+  {# File-delete forms live outside the main form; HTML forms can't nest. #}
+  {% for att in attachments %}
+  <form id="delete-att-{{ att.id }}" method="post" action="/files/{{ att.id }}/delete"
+        onsubmit="return confirm('Remove {{ att.original_filename }}?')"></form>
+  {% endfor %}
 </div>
 
 <script>

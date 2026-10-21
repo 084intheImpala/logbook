@@ -1,11 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Form
+from datetime import date
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
-from backend.models import Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment, User
+from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
+                            Substrate, User, SAMPLE_TYPES)
+from backend.sample_ids import next_code, piece_codes
+from backend.utils import save_upload
 from backend.auth import require_login, load_sample, can_view, can_edit, is_owner
 from backend import timeline as tl
 from backend.lineage import load_sample_full, load_family, pieces_of
@@ -67,46 +72,108 @@ async def list_samples(
     })
 
 
+async def _form_context(db: AsyncSession, request: Request, current_user, sample, editing: bool, error=None):
+    return {
+        "request": request,
+        "sample": sample,
+        "editing": editing,
+        "error": error,
+        "sample_types": SAMPLE_TYPES,
+        "substrates": (await db.execute(select(Substrate).order_by(Substrate.material, Substrate.name))).scalars().all(),
+        "spec_files": await _attachments_for(db, "sample", [sample.id]) if editing else {},
+        "known_tags": await all_tags(db),
+        "users": (await db.execute(select(User).order_by(User.username))).scalars().all()
+                 if editing and current_user.is_admin else [],
+        "now_year": date.today().year,
+        "current_user": current_user,
+    }
+
+
+def _apply_form(sample: Sample, form: dict):
+    """Copy submitted fields onto the sample, dropping those its type doesn't use."""
+    sample.sample_type = form["sample_type"] if form["sample_type"] in SAMPLE_TYPES else "thin_film"
+    commercial = sample.sample_type == "commercial"
+    sample.label = form["label"].strip() or None
+    sample.substrate_id = None if commercial else (int(form["substrate_id"]) if form["substrate_id"].isdigit() else None)
+    sample.substrate_dimensions = form["substrate_dimensions"].strip() or None
+    sample.film_material = form["film_material"].strip() or None if sample.sample_type == "thin_film" else None
+    sample.external_id = form["external_id"].strip() or None if sample.sample_type != "thin_film" else None
+    sample.supplier = form["supplier"].strip() or None if commercial else None
+    sample.description = form["description"].strip() or None
+    sample.tags = parse_tags(form["tags"])
+
+
+async def _validate(db: AsyncSession, sample: Sample, new_files: list[UploadFile], has_spec: bool) -> str | None:
+    if sample.sample_type in ("thin_film", "bulk"):
+        if not sample.substrate_id or not await db.get(Substrate, sample.substrate_id):
+            return "Choose the substrate from the library (add it on the Substrates tab if it's missing)."
+    if sample.sample_type == "commercial":
+        if not sample.description:
+            return "A commercial sample needs a description."
+        if not has_spec and not any(f.filename for f in new_files):
+            return "A commercial sample needs its spec sheet (PDF or photo)."
+    return None
+
+
+def _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
+                 external_id, supplier, description, tags) -> dict:
+    return dict(sample_type=sample_type, label=label, substrate_id=substrate_id,
+                substrate_dimensions=substrate_dimensions, film_material=film_material,
+                external_id=external_id, supplier=supplier, description=description, tags=tags)
+
+
 @router.get("/new", response_class=HTMLResponse)
 async def new_sample_form(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
-    return templates.TemplateResponse("samples/form.html", {
-        "request": request,
-        "sample": None,
-        "known_tags": await all_tags(db),
-        "current_user": current_user,
-    })
+    sample = Sample(sample_type="thin_film")
+    return templates.TemplateResponse(
+        "samples/form.html", await _form_context(db, request, current_user, sample, editing=False))
 
 
 @router.post("/new")
 async def create_sample(
     request: Request,
-    name: str = Form(...),
-    substrate_material: str = Form(""),
+    sample_type: str = Form("thin_film"),
+    label: str = Form(""),
+    substrate_id: str = Form(""),
     substrate_dimensions: str = Form(""),
     film_material: str = Form(""),
+    external_id: str = Form(""),
+    supplier: str = Form(""),
     description: str = Form(""),
     tags: str = Form(""),
-    created_by: str = Form(""),
+    files: list[UploadFile] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
-    sample = Sample(
-        name=name,
-        substrate_material=substrate_material or None,
-        substrate_dimensions=substrate_dimensions or None,
-        film_material=film_material or None,
-        description=description or None,
-        tags=parse_tags(tags),
-        created_by=created_by or current_user.username,
-        owner_id=current_user.id,
-    )
-    db.add(sample)
+    user_id, initials, username = current_user.id, current_user.initials, current_user.username
+    sample = Sample(owner_id=user_id)
+    _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
+                                     external_id, supplier, description, tags))
+    error = await _validate(db, sample, files, has_spec=False)
+    if error:
+        return templates.TemplateResponse(
+            "samples/form.html", await _form_context(db, request, current_user, sample, False, error),
+            status_code=400)
+
+    # Two people creating samples at once could race for the same number; retry.
+    for _ in range(5):
+        sample.code = await next_code(db, initials)
+        db.add(sample)
+        try:
+            await db.flush()
+            break
+        except IntegrityError:
+            await db.rollback()
+            sample = Sample(owner_id=user_id)
+            _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions,
+                                             film_material, external_id, supplier, description, tags))
+    for f in files:
+        await save_upload(f, "sample", sample.id, db, uploaded_by=username)
     await db.commit()
-    await db.refresh(sample)
     return RedirectResponse(f"/samples/{sample.id}", status_code=303)
 
 
@@ -160,7 +227,9 @@ async def sample_detail(
         own_index += not inherited
 
     owner = is_owner(current_user, sample)
+    spec_files = (await _attachments_for(db, "sample", [sample_id]))[sample_id] if viewable else []
     return templates.TemplateResponse("samples/detail.html", {
+        "spec_files": spec_files,
         "request": request,
         "sample": sample,
         "timeline": timeline,
@@ -194,40 +263,44 @@ async def edit_sample_form(
     current_user=Depends(require_login),
 ):
     sample = await load_sample(db, sample_id, current_user, "edit")
-    users = (await db.execute(select(User).order_by(User.username))).scalars().all() if current_user.is_admin else []
-    return templates.TemplateResponse("samples/form.html", {
-        "request": request,
-        "sample": sample,
-        "known_tags": await all_tags(db),
-        "users": users,
-        "current_user": current_user,
-    })
+    return templates.TemplateResponse(
+        "samples/form.html", await _form_context(db, request, current_user, sample, editing=True))
 
 
 @router.post("/{sample_id}/edit")
 async def update_sample(
     request: Request,
     sample_id: int,
-    name: str = Form(...),
-    substrate_material: str = Form(""),
+    sample_type: str = Form("thin_film"),
+    label: str = Form(""),
+    substrate_id: str = Form(""),
     substrate_dimensions: str = Form(""),
     film_material: str = Form(""),
+    external_id: str = Form(""),
+    supplier: str = Form(""),
     description: str = Form(""),
     tags: str = Form(""),
     owner_id: str = Form(None),
+    files: list[UploadFile] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
     sample = await load_sample(db, sample_id, current_user, "edit")
-    sample.name = name
-    sample.substrate_material = substrate_material or None
-    sample.substrate_dimensions = substrate_dimensions or None
-    sample.film_material = film_material or None
-    sample.description = description or None
-    sample.tags = parse_tags(tags)
-    # Only admins can reassign ownership (e.g. claim samples created before logins).
+    _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
+                                     external_id, supplier, description, tags))
+    has_spec = bool((await _attachments_for(db, "sample", [sample_id]))[sample_id])
+    error = await _validate(db, sample, files, has_spec)
+    if error:
+        response = templates.TemplateResponse(  # renders now, before the rollback expires `sample`
+            "samples/form.html", await _form_context(db, request, current_user, sample, True, error),
+            status_code=400)
+        await db.rollback()  # don't keep the invalid changes in this session
+        return response
+    # Only admins can reassign ownership. The sample ID keeps the original initials.
     if current_user.is_admin and owner_id is not None:
         sample.owner_id = int(owner_id) if owner_id else None
+    for f in files:
+        await save_upload(f, "sample", sample.id, db, uploaded_by=current_user.username)
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
@@ -264,9 +337,12 @@ async def cut_form(
     current_user=Depends(require_login),
 ):
     sample = await load_sample(db, sample_id, current_user, "edit")
+    codes, ref_code = await piece_codes(db, sample, 50, reference=True)
     return templates.TemplateResponse("samples/cut.html", {
         "request": request,
         "sample": sample,
+        "next_codes": codes,
+        "ref_code": ref_code,
         "flash_error": request.session.pop("flash_error", None),
         "current_user": current_user,
     })
@@ -276,10 +352,10 @@ async def cut_form(
 async def cut_sample(
     request: Request,
     sample_id: int,
-    piece_names: list[str] = Form([]),
+    piece_labels: list[str] = Form([]),
     piece_dimensions: list[str] = Form([]),
     keep_reference: str = Form(""),
-    reference_name: str = Form(""),
+    reference_label: str = Form(""),
     reference_dimensions: str = Form(""),
     method: str = Form(""),
     notes: str = Form(""),
@@ -289,15 +365,18 @@ async def cut_sample(
 ):
     """Record a Cut step on the sample and create one sample per piece.
 
-    Pieces copy the parent's materials, tags, owner and shares; if the person
-    cutting isn't the owner, they get edit access to the pieces."""
+    Pieces get the parent's ID plus a suffix, copy its type, substrate,
+    materials, tags, owner and shares; if the person cutting isn't the owner,
+    they get edit access to the pieces."""
     parent = await load_sample(db, sample_id, current_user, "edit")
-    pieces = [(n.strip(), d.strip(), False) for n, d in zip(piece_names, piece_dimensions) if n.strip()]
+    pieces = [(lbl.strip(), dims.strip(), False) for lbl, dims in zip(piece_labels, piece_dimensions)]
     if keep_reference:
-        pieces.append((reference_name.strip() or f"{parent.name}-REF", reference_dimensions.strip(), True))
+        pieces.append((reference_label.strip(), reference_dimensions.strip(), True))
     if not pieces:
-        request.session["flash_error"] = "Give at least one piece a name."
+        request.session["flash_error"] = "Cut into at least one piece."
         return RedirectResponse(f"/samples/{sample_id}/cut", status_code=303)
+    codes, ref_code = await piece_codes(db, parent, sum(not ref for *_, ref in pieces), bool(keep_reference))
+    codes = iter(codes)
 
     cut_type = (await db.execute(
         select(ProcessStepType).where(ProcessStepType.name == CUT_TYPE_NAME))).scalar_one_or_none()
@@ -321,14 +400,17 @@ async def cut_sample(
     await tl.place_new(db, cut)
 
     owner_id = parent.owner_id or current_user.id
-    for name, dims, is_ref in pieces:
+    for label, dims, is_ref in pieces:
         piece = Sample(
-            name=name,
+            code=ref_code if is_ref else next(codes),
+            label=label or None,
+            sample_type=parent.sample_type,
+            substrate_id=parent.substrate_id,
+            external_id=parent.external_id,
+            supplier=parent.supplier,
             film_material=parent.film_material,
-            substrate_material=parent.substrate_material,
             substrate_dimensions=dims or None,
             tags=list(parent.tags) if parent.tags else None,
-            created_by=current_user.username,
             owner_id=owner_id,
             cut_step_id=cut.id,
             is_reference=is_ref,
@@ -404,7 +486,7 @@ async def share_many(
         _set_share(s, user_id, access == "edit")
     await db.commit()
     skipped = len(samples) - len(shared)
-    msg = f"Shared {len(shared)} sample{'s' if len(shared) != 1 else ''} with {target.username} ({access})."
+    msg = f"Shared {len(shared)} sample{'s' if len(shared) != 1 else ''} with {target.display_name} ({access})."
     if skipped:
         msg += f" Skipped {skipped} you don't own."
     request.session["flash"] = msg

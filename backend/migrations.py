@@ -22,6 +22,25 @@ def _upgrade_schema(conn):
     add_column("analyses", "position", "INTEGER")
     add_column("samples", "cut_step_id", "INTEGER REFERENCES process_steps(id)")
     add_column("samples", "is_reference", "BOOLEAN NOT NULL DEFAULT false")
+    add_column("samples", "code", "VARCHAR(60)")
+    add_column("samples", "sample_type", "VARCHAR(20) NOT NULL DEFAULT 'thin_film'")
+    add_column("samples", "substrate_id", "INTEGER REFERENCES substrates(id)")
+    add_column("samples", "external_id", "VARCHAR(100)")
+    add_column("samples", "supplier", "VARCHAR(120)")
+    add_column("users", "initials", "VARCHAR(4)")
+
+    # The sample "name" became an optional label, and created_by / the free-text
+    # substrate material were replaced by the owner and the substrate library.
+    if conn.dialect.name == "postgresql":
+        for col in ("name", "created_by", "substrate_material"):
+            if col in {c["name"] for c in insp.get_columns("samples")}:
+                conn.execute(text(f"ALTER TABLE samples ALTER COLUMN {col} DROP NOT NULL"))
+    for table, column, name in [("samples", "code", "uq_samples_code"), ("users", "initials", "uq_users_initials")]:
+        existing = {ix["name"] for ix in insp.get_indexes(table)} | {
+            uc["name"] for uc in insp.get_unique_constraints(table)}
+        if not existing & {name, f"{table}_{column}_key"}:
+            conn.execute(text(f"CREATE UNIQUE INDEX {name} ON {table} ({column})"))
+    conn.execute(text("UPDATE samples SET code = 'LEGACY-' || id WHERE code IS NULL"))
 
     # Sample names used to be unique; the id is now the only unique identifier.
     for uc in insp.get_unique_constraints("samples"):

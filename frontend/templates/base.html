@@ -29,6 +29,10 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
           Search
         </a>
+        <a href="/substrates/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/substrates') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7l8-4 8 4-8 4-8-4zm0 5l8 4 8-4M4 17l8 4 8-4"/></svg>
+          Substrates
+        </a>
         {% if current_user %}
         <a href="/samples/new" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 text-gray-300">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -46,10 +50,10 @@
       <div class="px-5 py-4 border-t border-gray-700">
         {% if current_user %}
         <div class="flex items-center gap-2 mb-2">
-          <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-            {{ current_user.username[0].upper() }}
+          <div class="h-6 min-w-6 px-1 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+            {{ current_user.initials or current_user.username[0].upper() }}
           </div>
-          <span class="text-sm text-gray-200 truncate">{{ current_user.username }}</span>
+          <a href="/profile" class="text-sm text-gray-200 truncate hover:underline" title="Your profile">{{ current_user.display_name }}</a>
           {% if current_user.is_admin %}<span class="text-xs text-yellow-400">admin</span>{% endif %}
         </div>
         <form method="post" action="/logout">

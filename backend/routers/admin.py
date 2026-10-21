@@ -16,6 +16,8 @@ from backend.auth import require_login, hash_password
 from backend.email_utils import send_welcome_email
 from backend.config import settings
 from backend.export import samples_csv
+from backend.routers.auth import validate_profile
+from backend.sample_ids import normalize_initials
 from backend.lineage import Family, load_samples_full
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -142,6 +144,32 @@ async def create_user(
     else:
         request.session["flash"] = f"User '{username}' created. Temporary password: {temp_password}"
 
+    return RedirectResponse("/admin/", status_code=303)
+
+
+@router.post("/users/{user_id}/profile")
+async def update_user_profile(
+    request: Request,
+    user_id: int,
+    name: str = Form(""),
+    initials: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Admins can fix anyone's name or initials. Changing initials doesn't
+    rename existing sample IDs; only new samples use the new initials."""
+    target = await db.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    initials = normalize_initials(initials)
+    error = await validate_profile(db, target, name, initials)
+    if error:
+        request.session["flash_error"] = f"{target.username}: {error}"
+        return RedirectResponse("/admin/", status_code=303)
+    target.name = name.strip()
+    target.initials = initials
+    await db.commit()
+    request.session["flash"] = f"Updated {target.username}: {target.name} ({initials})."
     return RedirectResponse("/admin/", status_code=303)
 
 

@@ -23,6 +23,16 @@ class RequiresLoginException(Exception):
     pass
 
 
+class RequiresProfileException(Exception):
+    """Raised by require_login when the user hasn't set their name and
+    initials yet (needed for sample IDs); main.py redirects to /profile."""
+    pass
+
+
+# Pages a user without initials can still reach
+PROFILE_EXEMPT_PATHS = ("/profile", "/change-password", "/logout")
+
+
 async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -47,6 +57,8 @@ async def require_login(
     user = await get_current_user(request, db)
     if not user:
         raise RequiresLoginException()
+    if not user.initials and not request.url.path.startswith(PROFILE_EXEMPT_PATHS):
+        raise RequiresProfileException()
     return user
 
 

@@ -6,9 +6,9 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.config import settings
 from backend.database import create_tables, AsyncSessionLocal
-from backend.routers import samples, steps, analyses, files, admin, search
+from backend.routers import samples, steps, analyses, files, admin, search, substrates
 from backend.routers import auth as auth_router
-from backend.auth import RequiresLoginException
+from backend.auth import RequiresLoginException, RequiresProfileException
 from backend.seed import seed_types
 from backend.migrations import run_migrations
 
@@ -36,6 +36,7 @@ app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
 app.include_router(auth_router.router, tags=["auth"])
 app.include_router(search.router)
+app.include_router(substrates.router)
 app.include_router(samples.router, prefix="/samples", tags=["samples"])
 app.include_router(steps.router, prefix="/samples", tags=["steps"])
 app.include_router(analyses.router, prefix="/samples", tags=["analyses"])
@@ -46,6 +47,11 @@ app.include_router(admin.router)
 @app.exception_handler(RequiresLoginException)
 async def requires_login_handler(request: Request, exc: RequiresLoginException):
     return RedirectResponse(url=f"/login?next={request.url.path}", status_code=302)
+
+
+@app.exception_handler(RequiresProfileException)
+async def requires_profile_handler(request: Request, exc: RequiresProfileException):
+    return RedirectResponse(url="/profile", status_code=302)
 
 
 @app.get("/")

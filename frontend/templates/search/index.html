@@ -24,10 +24,19 @@
 
 <form method="get" action="/search" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 space-y-3">
   <input name="q" type="search" value="{{ filters.q }}" autofocus
-         placeholder="Search names, descriptions, notes, parameters…"
+         placeholder="Search IDs, labels, external IDs, descriptions, notes, parameters…"
          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-  <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-    {{ select("investigator", "Investigator", options.investigators) }}
+  <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+    {{ select("investigator", "Researcher", options.investigators) }}
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">Sample type</label>
+      <select name="sample_type" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
+        <option value="">Any</option>
+        {% for value, label in sample_types.items() %}
+        <option value="{{ value }}" {% if filters.sample_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
     {{ select("material", "Material (film or substrate)", options.materials) }}
     {{ select("technique", "Technique", options.techniques) }}
     {{ select("tag", "Tag", options.tags) }}
@@ -58,7 +67,7 @@
   <span class="text-gray-600">Share selected samples with</span>
   <select name="user_id" required class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
     <option value="">— user —</option>
-    {% for u in share_users %}<option value="{{ u.id }}">{{ u.name or u.username }} ({{ u.username }})</option>{% endfor %}
+    {% for u in share_users %}<option value="{{ u.id }}">{{ u.display_name }} ({{ u.username }})</option>{% endfor %}
   </select>
   <select name="access" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
     <option value="view">View</option>
@@ -83,12 +92,12 @@
         <tr class="bg-gray-50 border-b border-gray-200">
           {% if any_owned and share_users %}<th class="w-8"></th>{% endif %}
           <th class="text-left px-4 py-2 font-semibold text-gray-600">ID</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Name</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">Type</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">Film</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">Substrate</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">Techniques</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">Tags</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Investigator</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">Researcher</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">Created</th>
         </tr>
       </thead>
@@ -98,18 +107,19 @@
           {% if any_owned and share_users %}
           <td class="pl-4 py-2">{% if is_owner(s) %}<input type="checkbox" form="bulk-share" name="sample_ids" value="{{ s.id }}" class="share-box">{% endif %}</td>
           {% endif %}
-          <td class="px-4 py-2 text-gray-400 font-mono text-xs">#{{ s.id }}</td>
-          <td class="px-4 py-2"><a href="/samples/{{ s.id }}" class="font-semibold text-blue-600 hover:underline">{{ s.name }}</a>
+          <td class="px-4 py-2"><a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
+            {% if s.label %}<div class="text-xs text-gray-600">{{ s.label }}</div>{% endif %}
             {% if not can_view(s) %}<span class="text-xs text-gray-400" title="Summary only — ask the owner to share it">🔒</span>{% endif %}
             {% set parent = parent_of(s) %}
-            {% if parent %}<div class="text-xs text-gray-400">✂ piece of <a href="/samples/{{ parent.id }}" class="hover:underline">{{ parent.name }}</a>{% if s.is_reference %} · <span class="text-amber-600">reference</span>{% endif %}</div>{% endif %}</td>
+            {% if parent %}<div class="text-xs text-gray-400">✂ piece of <a href="/samples/{{ parent.id }}" class="font-mono hover:underline">{{ parent.title }}</a>{% if s.is_reference %} · <span class="text-amber-600">reference</span>{% endif %}</div>{% endif %}</td>
+          <td class="px-4 py-2 text-gray-600 text-xs">{{ s.type_label }}</td>
           <td class="px-4 py-2 text-gray-600">{{ s.film_material or '—' }}</td>
           <td class="px-4 py-2 text-gray-600">{{ s.substrate_material or '—' }}</td>
           <td class="px-4 py-2 text-gray-600 text-xs">{{ techniques_of(s)|join(', ') or '—' }}</td>
           <td class="px-4 py-2">
             {% for t in s.tags or [] %}<span class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1">{{ t }}</span>{% endfor %}
           </td>
-          <td class="px-4 py-2 text-gray-600">{{ s.created_by or '—' }}</td>
+          <td class="px-4 py-2 text-gray-600">{{ s.researcher or '—' }}</td>
           <td class="px-4 py-2 text-gray-400 text-xs">{{ s.created_at.strftime('%Y-%m-%d') }}</td>
         </tr>
         {% endfor %}

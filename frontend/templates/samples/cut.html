@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Cut {{ sample.name }} — Logbook{% endblock %}
+{% block title %}Cut {{ sample.title }} — Logbook{% endblock %}
 {% block content %}
 <div class="max-w-2xl">
   <div class="text-xs text-gray-400 mb-4">
     <a href="/samples/" class="hover:underline">Samples</a> /
-    <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.name }}</a> / Cut into pieces
+    <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.title }}</a> / Cut into pieces
   </div>
-  <h1 class="text-2xl font-bold mb-2">Cut {{ sample.name }} into pieces</h1>
+  <h1 class="text-2xl font-bold mb-2">Cut {{ sample.title }} into pieces</h1>
   <p class="text-sm text-gray-500 mb-6">
-    Each piece becomes its own sample and inherits {{ sample.name }}'s history up to this cut.
-    {{ sample.name }} itself stays in the logbook and can keep getting new steps.
+    Each piece becomes its own sample and inherits {{ sample.title }}'s history up to this cut.
+    {{ sample.title }} itself stays in the logbook and can keep getting new steps.
   </p>
 
   {% if flash_error %}
@@ -38,8 +38,8 @@
     </div>
 
     <div>
-      <div class="grid grid-cols-2 gap-3 text-xs font-medium text-gray-600 mb-1">
-        <span>Piece name</span><span>Dimensions</span>
+      <div class="grid grid-cols-[10rem_1fr_1fr] gap-3 text-xs font-medium text-gray-600 mb-1">
+        <span>ID</span><span>Label <span class="font-normal text-gray-400">(optional)</span></span><span>Dimensions</span>
       </div>
       <div id="piece-rows" class="space-y-2"></div>
     </div>
@@ -50,8 +50,9 @@
         Also keep a reference piece
         <span class="text-xs text-gray-400">— listed with the other pieces, marked as Reference</span>
       </label>
-      <div id="reference-row" class="grid grid-cols-2 gap-3 hidden">
-        <input name="reference_name" value="{{ sample.name }}-REF"
+      <div id="reference-row" class="grid grid-cols-[10rem_1fr_1fr] gap-3 items-center hidden">
+        <span class="font-mono text-sm text-gray-700">{{ ref_code }}</span>
+        <input name="reference_label" placeholder="e.g. reference"
                class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
         <input name="reference_dimensions" placeholder="e.g. 5×5 mm"
                class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
@@ -65,7 +66,7 @@
     </div>
 
     <p class="text-xs text-gray-400">
-      Pieces copy the film, substrate and tags, keep the same owner, and are shared with the same people as {{ sample.name }}.
+      Pieces copy the sample type, substrate, film and tags, keep the same owner, and are shared with the same people as {{ sample.title }}.
     </p>
 
     <div class="flex gap-3 pt-1">
@@ -77,22 +78,21 @@
 
 <script>
 (function () {
-  const base = {{ sample.name|tojson }};
+  const codes = {{ next_codes|tojson }};
   const rows = document.getElementById('piece-rows');
   const count = document.getElementById('piece-count');
-  const letter = i => i < 26 ? String.fromCharCode(65 + i) : String(i + 1);
-
   // Keep what the user typed in existing rows; only add or remove rows at the end.
   function render() {
     const n = Math.max(1, Math.min(50, parseInt(count.value) || 1));
     while (rows.children.length < n) {
       const i = rows.children.length;
       const row = document.createElement('div');
-      row.className = 'grid grid-cols-2 gap-3';
+      row.className = 'grid grid-cols-[10rem_1fr_1fr] gap-3 items-center';
       row.innerHTML =
-        '<input name="piece_names" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">' +
+        '<span class="font-mono text-sm text-gray-700"></span>' +
+        '<input name="piece_labels" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">' +
         '<input name="piece_dimensions" placeholder="e.g. 5×5 mm" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">';
-      row.firstChild.value = base + '-' + letter(i);
+      row.firstChild.textContent = codes[i];
       rows.appendChild(row);
     }
     while (rows.children.length > n) rows.lastChild.remove();

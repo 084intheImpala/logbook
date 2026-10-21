@@ -13,6 +13,7 @@ async def save_upload(
     entity_type: str,
     entity_id: int,
     db: AsyncSession,
+    uploaded_by: str | None = None,
 ) -> Attachment | None:
     """Save an uploaded file to disk and create an Attachment record.
     Returns the Attachment (not yet committed) or None if no file provided."""
@@ -32,6 +33,15 @@ async def save_upload(
         original_filename=file.filename,
         file_size=len(content),
         mime_type=file.content_type or mimetypes.guess_type(file.filename)[0] or "application/octet-stream",
+        uploaded_by=uploaded_by,
     )
     db.add(attachment)
     return attachment
+
+
+async def delete_attachment(attachment: Attachment, db: AsyncSession):
+    """Remove an attachment's file from disk and its record from the session."""
+    path = settings.UPLOAD_DIR / attachment.stored_filename
+    if path.exists():
+        path.unlink()
+    await db.delete(attachment)

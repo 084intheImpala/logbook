@@ -111,19 +111,52 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ## Data model
 
 ```
-Sample            (id is the unique identifier; names may repeat; optional tags)
+Substrate         (shared library: material, orientation, thickness, polishing, spec files)
+Sample            (generated ID, type, optional label and tags)
  ├── ProcessStep  (can repeat types, e.g. two annealings)
  │    └── Attachment (uploaded files)
  └── Analysis     (XRD, RBS, SEM, …)
       └── Attachment (data files, images)
 ```
 
+### Sample IDs
+
+Every sample gets an ID when it's created: the researcher's initials, the
+year, and that researcher's counter for the year, e.g. `ASS-2026-001`. Pieces
+cut from it add `-A`, `-B`, … (pieces of pieces `-1`, `-2`, …), and a
+reference piece adds `-REF`. IDs never change, even if the sample changes
+owner or the researcher's initials change later. The optional **Label** is
+for your own description and doesn't need to be unique.
+
+Everyone sets their display name and initials (2–4 letters, unique) on first
+login; they're asked again until they do. Once someone has samples, only an
+admin can change their initials (Configurations → Users).
+
+### Sample types
+
+- **Thin film:** a substrate from the library, dimensions, and optionally the
+  film material (a sample is just its substrate until it's deposited).
+- **Bulk:** a piece of a library substrate, e.g. a 5×5 mm piece of a wafer.
+  **External ID** holds the identifier given by whoever cut it.
+- **Commercial:** a description, supplier, product/batch number, and the
+  spec sheet (PDF or photo), which is required.
+
+### Substrate library
+
+The **Substrates** tab lists the substrates samples are made from, with
+thickness, orientation, polishing, size, supplier, notes and spec files
+(PDF or photos). Anyone can add one; whoever added it and admins can edit
+it. A substrate used by any sample can't be deleted.
+
+### Timeline
+
 Steps and analyses share one timeline per sample, ordered by an explicit
 `position`. Dates are optional: a new dated entry is slotted in
 chronologically, an undated one is appended. On the sample page, the ↑/↓
 arrows reorder entries and **Sort by date** reorders the dated ones.
 
-Only the sample name and the step/analysis type are mandatory. `required` in
+Mandatory: the substrate for thin-film and bulk samples, the description and
+spec sheet for commercial ones, and the type of each step/analysis. `required` in
 a type's schema is a hint shown on the form, not enforced.
 
 Schema changes to existing databases are applied automatically on startup
@@ -133,13 +166,14 @@ Schema changes to existing databases are applied automatically on startup
 
 **✂ Cut into pieces** on a sample's page records a "Cut" step on its
 timeline and creates one new sample per piece. A tick box adds an extra
-reference piece (`<name>-REF`, marked **Reference**). Each piece:
+reference piece (`<ID>-REF`, marked **Reference**). Each piece:
 
 - **inherits** the parent's timeline up to the Cut step. Inherited entries
   show greyed out with "from <parent>" and can only be edited on the parent.
   Nothing is copied, so fixing a parent entry fixes it for every piece.
   Pieces of pieces inherit through the whole chain.
-- copies the parent's film, substrate, tags, owner and shares (whoever cuts
+- gets the parent's ID plus a suffix (see Sample IDs) and an optional label.
+- copies the parent's type, substrate, film, tags, owner and shares (whoever cuts
   someone else's sample also gets edit access to the pieces).
 - gets its own steps and analyses after the cut, separate from its siblings.
 
@@ -154,11 +188,11 @@ inherited entries, and the CSV marks those rows in `inherited_from`.
 
 ## Access and sharing
 
-Every logged-in user sees every sample's summary: name, ID, materials, tags,
-which techniques were used, and who created it. Details (description,
+Every logged-in user sees every sample's summary: ID, label, type,
+materials, substrate, tags, which techniques were used, and the researcher. Details (description,
 parameters, notes, dates and files) are visible only to:
 
-- the sample's owner (whoever created it),
+- the sample's owner (the researcher who created it),
 - admins,
 - users the owner has shared the sample with.
 
@@ -171,8 +205,9 @@ everyone; admins can assign an owner from the sample's Edit form.
 
 ## Search and export
 
-The **Search** tab filters samples by free text, investigator, material,
-technique and tag, and groups results by any of those. **Export results
+The **Search** tab filters samples by free text, researcher, sample type,
+material, technique and tag, and groups results by researcher, year, type,
+material, technique or tag. **Export results
 (CSV)** downloads the matching samples, with details left blank for
 samples you can't view. Free-text search only matches details you can see.
 Admins can download the whole database from the admin page. The CSV has one row per step/analysis, with a

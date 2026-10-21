@@ -95,14 +95,14 @@ async def load_family(db: AsyncSession, sample: Sample) -> dict:
     siblings = []
     if sample.cut_step_id:
         siblings = (await db.execute(
-            select(Sample).where(Sample.cut_step_id == sample.cut_step_id).order_by(Sample.name)
+            select(Sample).where(Sample.cut_step_id == sample.cut_step_id).order_by(Sample.code)
         )).scalars().all()
 
     own_step_ids = [s.id for s in sample.process_steps]
     pieces_by_cut: dict[int, list[Sample]] = {}
     if own_step_ids:
         rows = (await db.execute(
-            select(Sample).where(Sample.cut_step_id.in_(own_step_ids)).order_by(Sample.name)
+            select(Sample).where(Sample.cut_step_id.in_(own_step_ids)).order_by(Sample.code)
         )).scalars()
         for piece in rows:
             pieces_by_cut.setdefault(piece.cut_step_id, []).append(piece)
