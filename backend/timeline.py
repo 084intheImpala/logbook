@@ -10,12 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.models import ProcessStep, Analysis
 
 
-async def ordered_entries(db: AsyncSession, sample_id: int, legacy: bool = False) -> list:
+async def ordered_entries(db: AsyncSession, sample_id: int) -> list:
     steps = (await db.execute(select(ProcessStep).where(ProcessStep.sample_id == sample_id))).scalars().all()
     analyses = (await db.execute(select(Analysis).where(Analysis.sample_id == sample_id))).scalars().all()
-    if legacy:
-        return _legacy_order(steps, analyses)
-    # Entries without a position (shouldn't happen after migration) go last.
+    # A just-added entry has no position until place_new gives it one; it goes last.
     big = 1 << 30
     return sorted(
         [*steps, *analyses],
@@ -23,28 +21,13 @@ async def ordered_entries(db: AsyncSession, sample_id: int, legacy: bool = False
     )
 
 
-def _legacy_order(steps, analyses) -> list:
-    """Pre-`position` ordering: steps by step_order, analyses merged in by date."""
-    steps = sorted(steps, key=lambda s: s.step_order)
-    analyses = sorted(analyses, key=lambda a: a.performed_at or a.created_at)
-    result = []
-    for a in analyses:
-        a_date = a.performed_at or a.created_at
-        while steps and (steps[0].performed_at or steps[0].created_at) <= a_date:
-            result.append(steps.pop(0))
-        result.append(a)
-    return result + steps
-
-
 def _apply_positions(entries: list):
     for i, e in enumerate(entries):
         e.position = i
-        if isinstance(e, ProcessStep):
-            e.step_order = i
 
 
-async def renumber(db: AsyncSession, sample_id: int, legacy: bool = False):
-    _apply_positions(await ordered_entries(db, sample_id, legacy=legacy))
+async def renumber(db: AsyncSession, sample_id: int):
+    _apply_positions(await ordered_entries(db, sample_id))
 
 
 async def place_new(db: AsyncSession, entry):

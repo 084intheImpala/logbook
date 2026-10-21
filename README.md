@@ -183,8 +183,10 @@ Mandatory: the substrate for thin-film and bulk samples, the description and
 spec sheet for commercial ones, and the type of each step/analysis. `required` in
 a type's schema is a hint shown on the form, not enforced.
 
-Schema changes to existing databases are applied automatically on startup
-(`backend/migrations.py`).
+The tables are created on first start from `backend/models.py`. There are no
+migrations: after changing a model, recreate the database
+(`docker compose down -v`, then `docker compose up -d`), which deletes all
+data. Add migrations (e.g. Alembic) before the logbook holds real data.
 
 ## Cutting a sample into pieces
 
@@ -197,8 +199,12 @@ reference piece (`<ID>-REF`, marked **Reference**). Each piece:
   Nothing is copied, so fixing a parent entry fixes it for every piece.
   Pieces of pieces inherit through the whole chain.
 - gets the parent's ID plus a suffix (see Sample IDs) and an optional label.
-- copies the parent's type, substrate, film, tags, owner and shares (whoever cuts
+- copies the parent's type, substrate, film, tags and shares (whoever cuts
   someone else's sample also gets edit access to the pieces).
+- belongs to the researcher picked for it on the cut form, by default the
+  parent's owner. A piece given to someone else is assigned as described in
+  [Assigning a sample to someone else](#assigning-a-sample-to-someone-else),
+  and the parent's owner keeps edit access to it.
 - gets its own steps and analyses after the cut, separate from its siblings.
 
 The parent stays usable after the cut, and anything added to it afterwards
@@ -227,6 +233,27 @@ change steps, analyses and files). Only the owner or an admin can delete a
 sample or change who it's shared with. Samples without an owner are open to
 everyone; admins can assign an owner from the sample's Edit form.
 
+### Assigning a sample to someone else
+
+A sample can be given to another researcher in three places:
+
+- the **Researcher** field on the New Sample form. The sample then gets
+  their initials (e.g. `BOB-2026-004`);
+- the **Researcher** field on the Edit form, for the sample's owner (e.g.
+  give the original to whoever does the deposition and keep the pieces);
+- the **Researcher** column on the cut form, per piece.
+
+When an admin assigns it, it goes straight to them. Otherwise the new owner
+has to confirm it:
+
+- They get an email with links to the samples (if SMTP is set up and they
+  have an email address). They also see a badge on **Samples** and a list
+  at the top of that page.
+- Until they answer, the sample shows "awaiting confirmation" and whoever
+  assigned it has edit access, which they keep afterwards.
+- On the sample's page they can **Accept** it, or **Decline** it, which
+  gives it back to whoever assigned it, by email too. The ID never changes.
+
 ## Suggestions
 
 Everyone has a **💡 Suggestions** tab to send an idea, problem or question;
@@ -235,6 +262,23 @@ it records which page they came from. Admins see everything in the
 mark suggestions solved or reopen them. Each suggestion is a thread: the
 author sees replies on their Suggestions page (with a badge for unread
 replies) and can answer back.
+
+## Language and dark mode
+
+The **PT / EN** switch at the bottom of the sidebar picks the language; on a
+first visit it follows the browser, and Portuguese if the browser asks for
+neither. The ☾ / ☀ button switches dark mode (it starts from the system
+setting and is remembered per browser). Emails are sent in both languages,
+Portuguese first.
+
+Templates and messages are written in English and wrapped in `_()` (Jinja)
+or `t(request, …)` (Python); the Portuguese is in `backend/translations/`,
+one module per area, merged into one dictionary (see `backend/i18n.py`). Text
+without an entry shows in English. Technical terms and metadata stay in
+English in both languages: sample types, step/analysis types and techniques,
+parameter names, polishing. Dark
+mode remaps the Tailwind colour classes in `base.html`, so a page using a new
+colour may need a line there.
 
 ## Search and export
 

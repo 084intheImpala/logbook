@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Search — Logbook{% endblock %}
+{% block title %}{{ _("Search") }} — Logbook{% endblock %}
 {% block content %}
 {% macro select(name, label, values) %}
 <div>
   <label class="block text-xs font-medium text-gray-600 mb-1">{{ label }}</label>
   <select name="{{ name }}" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
-    <option value="">Any</option>
+    <option value="">{{ _("Any") }}</option>
     {% for v in values %}
     <option value="{{ v }}" {% if filters[name]|lower == v|lower %}selected{% endif %}>{{ v }}</option>
     {% endfor %}
@@ -15,43 +15,43 @@
 
 <div class="flex items-center justify-between mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">Search</h1>
-    <p class="text-sm text-gray-500 mt-1">{{ result_count }} sample{{ 's' if result_count != 1 }} found</p>
+    <h1 class="text-2xl font-bold text-gray-900">{{ _("Search") }}</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ _("{n} sample found", n=result_count) if result_count == 1 else _("{n} samples found", n=result_count) }}</p>
   </div>
   <a href="{{ export_url }}"
-     class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">Export results (CSV)</a>
+     class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Export results (CSV)") }}</a>
 </div>
 
 <form method="get" action="/search" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 space-y-3">
   <input name="q" type="search" value="{{ filters.q }}" autofocus
-         placeholder="Search IDs, labels, external IDs, descriptions, notes, parameters…"
+         placeholder="{{ _("Search IDs, labels, external IDs, descriptions, notes, parameters…") }}"
          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
   <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
-    {{ select("investigator", "Researcher", options.investigators) }}
+    {{ select("investigator", _("Researcher"), options.investigators) }}
     <div>
-      <label class="block text-xs font-medium text-gray-600 mb-1">Sample type</label>
+      <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Sample type") }}</label>
       <select name="sample_type" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
-        <option value="">Any</option>
+        <option value="">{{ _("Any") }}</option>
         {% for value, label in sample_types.items() %}
         <option value="{{ value }}" {% if filters.sample_type == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>
-    {{ select("material", "Material (film or substrate)", options.materials) }}
-    {{ select("technique", "Technique", options.techniques) }}
-    {{ select("tag", "Tag", options.tags) }}
+    {{ select("material", _("Material (film or substrate)"), options.materials) }}
+    {{ select("technique", _("Technique"), options.techniques) }}
+    {{ select("tag", _("Tag"), options.tags) }}
     <div>
-      <label class="block text-xs font-medium text-gray-600 mb-1">Group by</label>
+      <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Group by") }}</label>
       <select name="group_by" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
         {% for value, label in group_by_options.items() %}
-        <option value="{{ value }}" {% if group_by == value %}selected{% endif %}>{{ label }}</option>
+        <option value="{{ value }}" {% if group_by == value %}selected{% endif %}>{{ _(label) }}</option>
         {% endfor %}
       </select>
     </div>
   </div>
   <div class="flex gap-3">
-    <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-blue-700">Search</button>
-    <a href="/search" class="text-sm text-gray-500 px-2 py-1.5 hover:text-gray-700">Clear</a>
+    <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-blue-700">{{ _("Search") }}</button>
+    <a href="/search" class="text-sm text-gray-500 px-2 py-1.5 hover:text-gray-700">{{ _("Clear") }}</a>
   </div>
 </form>
 
@@ -64,18 +64,18 @@
 <form id="bulk-share" method="post" action="/samples/share"
       class="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 mb-6 flex flex-wrap items-center gap-2 text-sm">
   <input type="hidden" name="back" value="{{ current_url }}">
-  <span class="text-gray-600">Share selected samples with</span>
+  <span class="text-gray-600">{{ _("Share selected samples with") }}</span>
   <select name="user_id" required class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
-    <option value="">— user —</option>
+    <option value="">— {{ _("user") }} —</option>
     {% for u in share_users %}<option value="{{ u.id }}">{{ u.display_name }} ({{ u.username }})</option>{% endfor %}
   </select>
   <select name="access" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
-    <option value="view">View</option>
-    <option value="edit">Edit</option>
+    <option value="view">{{ _("View") }}</option>
+    <option value="edit">{{ _("Edit") }}</option>
   </select>
-  <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">Share</button>
+  <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Share") }}</button>
   <label class="ml-auto text-xs text-gray-500 flex items-center gap-1 cursor-pointer">
-    <input type="checkbox" onchange="document.querySelectorAll('.share-box').forEach(b => b.checked = this.checked)"> select all mine
+    <input type="checkbox" onchange="document.querySelectorAll('.share-box').forEach(b => b.checked = this.checked)"> {{ _("select all mine") }}
   </label>
 </form>
 {% endif %}
@@ -83,7 +83,7 @@
 <section class="mb-6">
   {% if group_by %}
   <h2 class="text-sm font-semibold text-gray-700 mb-2">
-    {{ group }} <span class="font-normal text-gray-400">· {{ samples|length }}</span>
+    {{ _(group) if group == none_label else group }} <span class="font-normal text-gray-400">· {{ samples|length }}</span>
   </h2>
   {% endif %}
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -91,14 +91,14 @@
       <thead>
         <tr class="bg-gray-50 border-b border-gray-200">
           {% if any_owned and share_users %}<th class="w-8"></th>{% endif %}
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">ID</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Type</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Film</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Substrate</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Techniques</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Tags</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Researcher</th>
-          <th class="text-left px-4 py-2 font-semibold text-gray-600">Created</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("ID") }}</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Type") }}</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Film") }}</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Substrate") }}</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Techniques") }}</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Tags") }}</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Researcher") }}</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Created") }}</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
@@ -109,9 +109,9 @@
           {% endif %}
           <td class="px-4 py-2"><a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
             {% if s.label %}<div class="text-xs text-gray-600">{{ s.label }}</div>{% endif %}
-            {% if not can_view(s) %}<span class="text-xs text-gray-400" title="Summary only — ask the owner to share it">🔒</span>{% endif %}
+            {% if not can_view(s) %}<span class="text-xs text-gray-400" title="{{ _("Summary only — ask the owner to share it") }}">🔒</span>{% endif %}
             {% set parent = parent_of(s) %}
-            {% if parent %}<div class="text-xs text-gray-400">✂ piece of <a href="/samples/{{ parent.id }}" class="font-mono hover:underline">{{ parent.title }}</a>{% if s.is_reference %} · <span class="text-amber-600">reference</span>{% endif %}</div>{% endif %}</td>
+            {% if parent %}<div class="text-xs text-gray-400">✂ {{ _("piece of") }} <a href="/samples/{{ parent.id }}" class="font-mono hover:underline">{{ parent.title }}</a>{% if s.is_reference %} · <span class="text-amber-600">{{ _("reference") }}</span>{% endif %}</div>{% endif %}</td>
           <td class="px-4 py-2 text-gray-600 text-xs">{{ s.type_label }}</td>
           <td class="px-4 py-2 text-gray-600">{{ s.film_material or '—' }}</td>
           <td class="px-4 py-2 text-gray-600">{{ s.substrate_material or '—' }}</td>
@@ -130,7 +130,7 @@
 {% endfor %}
 {% else %}
 <div class="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300 text-gray-500 text-sm">
-  No samples match these filters.
+  {{ _("No samples match these filters.") }}
 </div>
 {% endif %}
 {% endblock %}

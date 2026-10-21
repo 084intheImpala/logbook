@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -10,14 +10,13 @@ from backend.routers import samples, steps, analyses, files, admin, search, subs
 from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException, RequiresProfileException
 from backend.seed import seed_types
-from backend.migrations import run_migrations
+from backend.i18n import LANGS
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
     async with AsyncSessionLocal() as session:
-        await run_migrations(session)
         await seed_types(session)
     yield
 
@@ -58,3 +57,11 @@ async def requires_profile_handler(request: Request, exc: RequiresProfileExcepti
 @app.get("/")
 async def root():
     return RedirectResponse("/samples/")
+
+
+@app.post("/lang")
+async def set_language(request: Request, lang: str = Form(...), back: str = Form("/")):
+    """The PT/EN switch in the sidebar."""
+    if lang in LANGS:
+        request.session["lang"] = lang
+    return RedirectResponse(back if back.startswith("/") and not back.startswith("//") else "/", status_code=303)

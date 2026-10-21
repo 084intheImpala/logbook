@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}{% if analysis %}Edit Analysis{% else %}Add Analysis{% endif %} — {{ sample.title }}{% endblock %}
+{% block title %}{% if analysis %}{{ _("Edit Analysis") }}{% else %}{{ _("Add Analysis") }}{% endif %} — {{ sample.title }}{% endblock %}
 {% block content %}
 <div class="max-w-2xl">
   <div class="text-xs text-gray-400 mb-4">
-    <a href="/samples/" class="hover:underline">Samples</a> /
+    <a href="/samples/" class="hover:underline">{{ _("Samples") }}</a> /
     <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.title }}</a> /
-    {% if analysis %}Edit Analysis{% else %}Add Analysis{% endif %}
+    {% if analysis %}{{ _("Edit Analysis") }}{% else %}{{ _("Add Analysis") }}{% endif %}
   </div>
   <h1 class="text-2xl font-bold mb-6">
-    {% if analysis %}Edit {{ analysis.analysis_type.name }}{% else %}Add Analysis{% endif %}
+    {% if analysis %}{{ _("Edit {name}", name=analysis.analysis_type.name) }}{% else %}{{ _("Add Analysis") }}{% endif %}
   </h1>
 
   <form method="post" enctype="multipart/form-data"
@@ -17,10 +17,10 @@
 
     <!-- Analysis type -->
     <div>
-      <label class="block text-sm font-semibold text-gray-700 mb-1">Analysis Type <span class="text-red-400">*</span></label>
+      <label class="block text-sm font-semibold text-gray-700 mb-1">{{ _("Analysis Type") }} <span class="text-red-400">*</span></label>
       <select id="analysis-type-select" name="analysis_type_id" required
               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-        <option value="">— select —</option>
+        <option value="">— {{ _("select") }} —</option>
         {% for at in analysis_types %}
         <option value="{{ at.id }}"
           {% if analysis and analysis.analysis_type_id == at.id %}selected{% endif %}>
@@ -33,16 +33,16 @@
     <!-- Performed by / Date & Time -->
     <div class="grid grid-cols-2 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Performed by</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Performed by") }}</label>
         <input name="performed_by" type="text"
                value="{{ analysis.performed_by or '' if analysis else '' }}"
-               placeholder="Name"
+               placeholder="{{ _("Name") }}"
                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          Date &amp; Time
-          <span class="font-normal text-gray-400 text-xs ml-1">— optional</span>
+          {{ _("Date & Time") }}
+          <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("optional") }}</span>
         </label>
         <input name="performed_at" type="datetime-local"
                value="{% if analysis and analysis.performed_at %}{{ analysis.performed_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
@@ -53,14 +53,14 @@
     <!-- Parameters -->
     <div>
       <div class="flex items-center justify-between mb-1">
-        <label class="block text-sm font-medium text-gray-700">Parameters</label>
+        <label class="block text-sm font-medium text-gray-700">{{ _("Parameters") }}</label>
         <button type="button" id="prefill-btn"
                 class="text-xs text-emerald-500 hover:text-emerald-700 hidden">
-          + Add fields from type
+          + {{ _("Add fields from type") }}
         </button>
       </div>
       <p class="text-xs text-gray-400 mb-1.5">
-        One parameter per line: <code class="bg-gray-100 px-1 rounded font-mono">key: value</code>
+        {{ _("One parameter per line:") }} <code class="bg-gray-100 px-1 rounded font-mono">{{ _("key: value") }}</code>
         &nbsp;·&nbsp; <span id="param-hints" class="text-gray-400"></span>
       </p>
       <textarea id="params-textarea" name="params_text" rows="6"
@@ -69,38 +69,38 @@
 
     <!-- Notes -->
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Notes") }}</label>
       <textarea name="notes" rows="3"
-                placeholder="Instrument used, conditions, observations…"
+                placeholder="{{ _("Instrument used, conditions, observations…") }}"
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">{{ analysis.notes or '' if analysis else '' }}</textarea>
     </div>
 
     <!-- Photos and files -->
     <div class="border-t border-gray-100 pt-4 grid grid-cols-2 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">📷 Photos <span class="text-xs font-normal text-gray-400">(optional)</span></label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">📷 {{ _("Photos") }} <span class="text-xs font-normal text-gray-400">({{ _("optional") }})</span></label>
         <input type="file" name="photos" accept="image/*" multiple
                class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
-        <p class="text-xs text-gray-400 mt-1">Pick several at once; on a phone you can use the camera. Large photos are resized to {{ photo_max_px }} px.</p>
+        <p class="text-xs text-gray-400 mt-1">{{ _("Pick several at once; on a phone you can use the camera. Large photos are resized to {px} px.", px=photo_max_px) }}</p>
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">📎 Other files <span class="text-xs font-normal text-gray-400">(optional)</span></label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">📎 {{ _("Other files") }} <span class="text-xs font-normal text-gray-400">({{ _("optional") }})</span></label>
         <input type="file" name="files" multiple
                class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 cursor-pointer">
-        <p class="text-xs text-gray-400 mt-1">Data, spectra, PDFs, raw images… stored unchanged.</p>
+        <p class="text-xs text-gray-400 mt-1">{{ _("Data, spectra, PDFs, raw images… stored unchanged.") }}</p>
       </div>
     </div>
 
     <!-- Existing attachments (edit only) -->
     {% if attachments %}
     <div>
-      <div class="text-xs text-gray-500 font-medium mb-1.5">Existing attachments</div>
+      <div class="text-xs text-gray-500 font-medium mb-1.5">{{ _("Existing attachments") }}</div>
       <div class="flex flex-wrap gap-2">
         {% for att in attachments %}
         <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
           <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
           <span class="text-gray-400">({{ (att.file_size / 1024)|round(1) }} KB)</span>
-          <button form="delete-att-{{ att.id }}" class="text-gray-300 hover:text-red-400 ml-1 font-bold" title="Remove">×</button>
+          <button form="delete-att-{{ att.id }}" class="text-gray-300 hover:text-red-400 ml-1 font-bold" title="{{ _("Remove") }}">×</button>
         </div>
         {% endfor %}
       </div>
@@ -110,16 +110,16 @@
     <div class="flex gap-3 pt-1">
       <button type="submit"
               class="bg-emerald-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-emerald-700">
-        {% if analysis %}Save changes{% else %}Add analysis{% endif %}
+        {% if analysis %}{{ _("Save changes") }}{% else %}{{ _("Add analysis") }}{% endif %}
       </button>
-      <a href="/samples/{{ sample.id }}" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">Cancel</a>
+      <a href="/samples/{{ sample.id }}" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">{{ _("Cancel") }}</a>
     </div>
   </form>
 
   {# File-delete forms live outside the main form; HTML forms can't nest. #}
   {% for att in attachments %}
   <form id="delete-att-{{ att.id }}" method="post" action="/files/{{ att.id }}/delete"
-        onsubmit="return confirm('Remove {{ att.original_filename }}?')"></form>
+        onsubmit='return confirm({{ _("Remove {name}?", name=att.original_filename)|tojson }})'></form>
   {% endfor %}
 </div>
 
@@ -134,7 +134,7 @@
   function updateHints(typeId) {
     const fields = schemas[typeId] || [];
     if (!fields.length) { hints.textContent = ''; btn.classList.add('hidden'); return; }
-    hints.textContent = 'keys: ' + fields.map(f =>
+    hints.textContent = {{ _("keys")|tojson }} + ': ' + fields.map(f =>
       f.key + (f.unit ? ' [' + f.unit + ']' : '') + (f.required ? '*' : '')).join(', ');
     btn.classList.remove('hidden');
   }

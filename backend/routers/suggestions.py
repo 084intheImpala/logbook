@@ -2,18 +2,19 @@
 Each suggestion is a short thread between its author and the admins."""
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.models import Suggestion, SuggestionReply, User, SUGGESTION_KINDS
 from backend.auth import require_login
+from backend.i18n import t
 from backend.routers.admin import require_admin
 
 router = APIRouter(tags=["suggestions"])
-templates = Jinja2Templates(directory="frontend/templates")
+from backend.templating import templates
 
+# Labels are English msgids; the template translates them with _().
 STATUS_FILTERS = {"open": "Open", "solved": "Solved", "all": "All"}
 
 
@@ -72,7 +73,7 @@ async def submit_suggestion(
     current_user: User = Depends(require_login),
 ):
     if not text.strip():
-        request.session["flash"] = "Please write something before sending."
+        request.session["flash"] = t(request, "Please write something before sending.")
         return RedirectResponse("/suggestions", status_code=303)
     db.add(Suggestion(
         user_id=current_user.id,
@@ -82,7 +83,7 @@ async def submit_suggestion(
         author_seen_at=func.now(),
     ))
     await db.commit()
-    request.session["flash"] = "Thanks! Your suggestion was sent to the admins."
+    request.session["flash"] = t(request, "Thanks! Your suggestion was sent to the admins.")
     return RedirectResponse("/suggestions", status_code=303)
 
 

@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}{{ substrate.name if substrate else "New substrate" }} — Logbook{% endblock %}
+{% block title %}{{ substrate.name if substrate else _("New substrate") }} — Logbook{% endblock %}
 {% block content %}
 {% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-600" %}
 <div class="max-w-xl">
   <div class="text-xs text-gray-400 mb-4">
-    <a href="/substrates/" class="hover:underline">Substrates</a> / {{ substrate.name if substrate else "New" }}
+    <a href="/substrates/" class="hover:underline">{{ _("Substrates") }}</a> / {{ substrate.name if substrate else _("New") }}
   </div>
-  <h1 class="text-2xl font-bold mb-1">{{ substrate.name if substrate else "New substrate" }}</h1>
+  <h1 class="text-2xl font-bold mb-1">{{ substrate.name if substrate else _("New substrate") }}</h1>
   {% if substrate %}
   <p class="text-sm text-gray-500 mb-6">
-    Added by {{ substrate.created_by.display_name if substrate.created_by else "—" }} on {{ substrate.created_at.strftime('%Y-%m-%d') }}.
-    {% if not can_edit %}Only they or an admin can edit it.{% endif %}
+    {{ _("Added by {name} on {date}.", name=substrate.created_by.display_name if substrate.created_by else "—", date=substrate.created_at.strftime('%Y-%m-%d')) }}
+    {% if not can_edit %}{{ _("Only they or an admin can edit it.") }}{% endif %}
   </p>
   {% else %}
-  <p class="text-sm text-gray-500 mb-6">Describe the substrate once; samples then pick it from the library.</p>
+  <p class="text-sm text-gray-500 mb-6">{{ _("Describe the substrate once; samples then pick it from the library.") }}</p>
   {% endif %}
 
   <form method="post" enctype="multipart/form-data"
@@ -22,28 +22,28 @@
     <fieldset {% if not can_edit %}disabled{% endif %} class="space-y-4">
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Name") }} <span class="text-red-500">*</span></label>
           <input name="name" required value="{{ substrate.name if substrate else '' }}"
-                 placeholder="e.g. Si(100) 2-inch DSP" class="{{ input_cls }}">
+                 placeholder="{{ _("e.g. Si(100) 2-inch DSP") }}" class="{{ input_cls }}">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Material <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Material") }} <span class="text-red-500">*</span></label>
           <input name="material" required value="{{ substrate.material if substrate else '' }}"
-                 placeholder="e.g. Si, Al2O3, Ga2O3" class="{{ input_cls }}">
+                 placeholder="{{ _("e.g. Si, Al2O3, Ga2O3") }}" class="{{ input_cls }}">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Orientation</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Orientation") }}</label>
           <input name="orientation" value="{{ substrate.orientation or '' if substrate else '' }}"
-                 placeholder="e.g. (100), c-plane" class="{{ input_cls }}">
+                 placeholder="{{ _("e.g. (100), c-plane") }}" class="{{ input_cls }}">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Thickness (µm)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Thickness (µm)") }}</label>
           <input name="thickness_um" inputmode="decimal"
                  value="{{ '%g'|format(substrate.thickness_um) if substrate and substrate.thickness_um else '' }}"
-                 placeholder="e.g. 525" class="{{ input_cls }}">
+                 placeholder="{{ _("e.g. 525") }}" class="{{ input_cls }}">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Polishing</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Polishing") }}</label>
           <select name="polishing" class="{{ input_cls }} bg-white">
             <option value="">—</option>
             {% for value, label in polishing.items() %}
@@ -52,23 +52,23 @@
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Size</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Size") }}</label>
           <input name="size" value="{{ substrate.size or '' if substrate else '' }}"
-                 placeholder="e.g. 2-inch wafer, 10×10 mm" class="{{ input_cls }}">
+                 placeholder="{{ _("e.g. 2-inch wafer, 10×10 mm") }}" class="{{ input_cls }}">
         </div>
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Supplier") }}</label>
         <input name="supplier" value="{{ substrate.supplier or '' if substrate else '' }}" class="{{ input_cls }}">
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Notes") }}</label>
         <textarea name="notes" rows="3" class="{{ input_cls }}">{{ substrate.notes or '' if substrate else '' }}</textarea>
       </div>
       {% if can_edit %}
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Spec sheet / photos
-          <span class="font-normal text-gray-400 text-xs">— PDF or images</span></label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Spec sheet / photos") }}
+          <span class="font-normal text-gray-400 text-xs">— {{ _("PDF or images") }}</span></label>
         <input type="file" name="files" multiple accept=".pdf,image/*"
                class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
       </div>
@@ -77,13 +77,13 @@
 
     {% if attachments %}
     <div>
-      <div class="text-xs text-gray-500 font-medium mb-1.5">Attached specs</div>
+      <div class="text-xs text-gray-500 font-medium mb-1.5">{{ _("Attached specs") }}</div>
       <div class="flex flex-wrap gap-2">
         {% for att in attachments %}
         <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
           <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
           {% if can_edit %}
-          <button form="delete-att-{{ att.id }}" class="text-gray-300 hover:text-red-400 ml-1 font-bold" title="Remove">×</button>
+          <button form="delete-att-{{ att.id }}" class="text-gray-300 hover:text-red-400 ml-1 font-bold" title="{{ _("Remove") }}">×</button>
           {% endif %}
         </div>
         {% endfor %}
@@ -94,9 +94,9 @@
     {% if can_edit %}
     <div class="flex gap-3 pt-1">
       <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">
-        {% if substrate %}Save changes{% else %}Add substrate{% endif %}
+        {% if substrate %}{{ _("Save changes") }}{% else %}{{ _("Add substrate") }}{% endif %}
       </button>
-      <a href="/substrates/" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">Cancel</a>
+      <a href="/substrates/" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">{{ _("Cancel") }}</a>
     </div>
     {% endif %}
   </form>
@@ -104,12 +104,12 @@
   {# File-delete forms live outside the main form; HTML forms can't nest. #}
   {% for att in attachments %}
   <form id="delete-att-{{ att.id }}" method="post" action="/files/{{ att.id }}/delete"
-        onsubmit="return confirm('Remove {{ att.original_filename }}?')"></form>
+        onsubmit='return confirm({{ _("Remove {name}?", name=att.original_filename)|tojson }})'></form>
   {% endfor %}
 
   {% if substrate %}
   <section class="mt-8">
-    <h2 class="text-sm font-semibold text-gray-700 mb-2">Samples on this substrate · {{ samples|length }}</h2>
+    <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("Samples on this substrate") }} · {{ samples|length }}</h2>
     {% if samples %}
     <div class="flex flex-wrap gap-2">
       {% for s in samples %}
@@ -119,11 +119,11 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-sm text-gray-400">None yet.</p>
+    <p class="text-sm text-gray-400">{{ _("None yet.") }}</p>
     {% if can_edit %}
     <form method="post" action="/substrates/{{ substrate.id }}/delete" class="mt-3"
-          onsubmit="return confirm('Delete this substrate from the library?')">
-      <button class="text-xs text-red-500 hover:underline">Delete substrate</button>
+          onsubmit='return confirm({{ _("Delete this substrate from the library?")|tojson }})'>
+      <button class="text-xs text-red-500 hover:underline">{{ _("Delete substrate") }}</button>
     </form>
     {% endif %}
     {% endif %}

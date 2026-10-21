@@ -21,7 +21,7 @@ class User(Base):
     initials: Mapped[str | None] = mapped_column(String(4), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    samples: Mapped[list["Sample"]] = relationship("Sample", back_populates="owner")
+    samples: Mapped[list["Sample"]] = relationship("Sample", back_populates="owner", foreign_keys="Sample.owner_id")
 
     @property
     def display_name(self) -> str:
@@ -58,8 +58,8 @@ class Sample(Base):
     # Generated, never changes: <researcher initials>-<year>-<number>, and
     # pieces append -A, -B, -REF (pieces of pieces -1, -2, …). See sample_ids.py.
     code: Mapped[str | None] = mapped_column(String(60), unique=True)
-    # Optional personal description; stored in the old "name" column.
-    label: Mapped[str | None] = mapped_column("name", String(100), index=True)
+    # Optional personal description
+    label: Mapped[str | None] = mapped_column(String(100), index=True)
     sample_type: Mapped[str] = mapped_column(String(20), default="thin_film", server_default="thin_film", nullable=False)
     substrate_id: Mapped[int | None] = mapped_column(ForeignKey("substrates.id"), index=True)
     external_id: Mapped[str | None] = mapped_column(String(100))   # e.g. ID given by whoever cut a bulk piece
@@ -69,6 +69,9 @@ class Sample(Base):
     film_material: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text)
     owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Set when someone created the sample on the owner's behalf and the owner
+    # hasn't confirmed it yet: the person who created it.
+    requested_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     # Set when this sample is a piece cut from another: the parent's "Cut" step.
     # The piece inherits the parent's timeline up to that step.
     cut_step_id: Mapped[int | None] = mapped_column(
@@ -76,7 +79,9 @@ class Sample(Base):
     is_reference: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    owner: Mapped["User | None"] = relationship("User", back_populates="samples", lazy="selectin")
+    owner: Mapped["User | None"] = relationship(
+        "User", back_populates="samples", foreign_keys=[owner_id], lazy="selectin")
+    requested_by: Mapped["User | None"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")
     substrate: Mapped["Substrate | None"] = relationship("Substrate", lazy="selectin")
     process_steps: Mapped[list["ProcessStep"]] = relationship(
         "ProcessStep", back_populates="sample", foreign_keys="ProcessStep.sample_id",
@@ -144,7 +149,6 @@ class ProcessStep(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sample_id: Mapped[int] = mapped_column(ForeignKey("samples.id", ondelete="CASCADE"))
     step_type_id: Mapped[int] = mapped_column(ForeignKey("process_step_types.id"))
-    step_order: Mapped[int] = mapped_column(Integer, nullable=False)  # legacy; mirrors position
     # Position in the sample's timeline, shared with Analysis.position.
     position: Mapped[int | None] = mapped_column(Integer)
     parameters: Mapped[dict[str, Any] | None] = mapped_column(JSON)

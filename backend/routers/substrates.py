@@ -1,17 +1,17 @@
 """Substrate library: shared specs that thin-film and bulk samples refer to."""
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.models import Substrate, Sample, Attachment, User, POLISHING
 from backend.auth import require_login
+from backend.i18n import t
 from backend.utils import save_upload, delete_attachment, chosen_files
 
 router = APIRouter(prefix="/substrates", tags=["substrates"])
-templates = Jinja2Templates(directory="frontend/templates")
+from backend.templating import templates
 
 
 def can_edit_substrate(user: User, substrate: Substrate) -> bool:
@@ -109,7 +109,7 @@ async def create_substrate(
     for f in files:
         await save_upload(f, "substrate", substrate.id, db, uploaded_by=current_user.username)
     await db.commit()
-    request.session["flash"] = f"Substrate '{substrate.name}' added."
+    request.session["flash"] = t(request, "Substrate '{name}' added.", name=substrate.name)
     return RedirectResponse("/substrates/", status_code=303)
 
 
@@ -150,7 +150,7 @@ async def update_substrate(
     for f in files:
         await save_upload(f, "substrate", substrate.id, db, uploaded_by=current_user.username)
     await db.commit()
-    request.session["flash"] = f"Substrate '{substrate.name}' saved."
+    request.session["flash"] = t(request, "Substrate '{name}' saved.", name=substrate.name)
     return RedirectResponse("/substrates/", status_code=303)
 
 
@@ -163,11 +163,12 @@ async def delete_substrate(request: Request, substrate_id: int, db: AsyncSession
     used = (await _usage(db)).get(substrate_id, 0)
     if used:
         request.session["flash_error"] = (
-            f"Can't delete '{substrate.name}': {used} sample{'s' if used != 1 else ''} use it.")
+            t(request, "Can't delete '{name}': 1 sample uses it.", name=substrate.name) if used == 1 else
+            t(request, "Can't delete '{name}': {n} samples use it.", name=substrate.name, n=used))
         return RedirectResponse("/substrates/", status_code=303)
     for att in await _attachments(db, substrate_id):
         await delete_attachment(att, db)
     await db.delete(substrate)
     await db.commit()
-    request.session["flash"] = f"Substrate '{substrate.name}' deleted."
+    request.session["flash"] = t(request, "Substrate '{name}' deleted.", name=substrate.name)
     return RedirectResponse("/substrates/", status_code=303)

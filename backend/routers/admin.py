@@ -6,7 +6,6 @@ import string
 from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -15,13 +14,14 @@ from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis,
 from backend.auth import require_login, hash_password
 from backend.email_utils import send_welcome_email
 from backend.config import settings
+from backend.i18n import t
 from backend.export import samples_csv
 from backend.routers.auth import validate_profile
 from backend.sample_ids import normalize_initials
 from backend.lineage import Family, load_samples_full
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-templates = Jinja2Templates(directory="frontend/templates")
+from backend.templating import templates
 # One field per line, unicode units (°C, µm) kept readable
 templates.env.filters["schema_json"] = lambda schema: "[\n" + ",\n".join(
     "  " + json.dumps(f, ensure_ascii=False) for f in schema or []) + "\n]"
@@ -100,19 +100,19 @@ async def create_user(
 
     # Validate email format
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-        request.session["flash_error"] = f"Invalid email address: {email}"
+        request.session["flash_error"] = t(request, "Invalid email address: {email}", email=email)
         return RedirectResponse("/admin/", status_code=303)
 
     # Check username uniqueness
     existing = await db.execute(select(User).where(User.username == username))
     if existing.scalar_one_or_none():
-        request.session["flash_error"] = f"Username '{username}' already exists."
+        request.session["flash_error"] = t(request, "Username '{username}' already exists.", username=username)
         return RedirectResponse("/admin/", status_code=303)
 
     # Check email uniqueness
     existing_email = await db.execute(select(User).where(User.email == email))
     if existing_email.scalar_one_or_none():
-        request.session["flash_error"] = f"Email '{email}' is already registered to another user."
+        request.session["flash_error"] = t(request, "Email '{email}' is already registered to another user.", email=email)
         return RedirectResponse("/admin/", status_code=303)
 
     temp_password = _generate_password()
@@ -137,12 +137,12 @@ async def create_user(
             await send_welcome_email(email, username, temp_password, magic_link)
             email_sent = True
         except Exception as exc:
-            request.session["flash_error"] = f"User created but email failed: {exc}"
+            request.session["flash_error"] = t(request, "User created but email failed: {error}", error=exc)
 
     if email_sent:
-        request.session["flash"] = f"User '{username}' created — credentials sent to {email}."
+        request.session["flash"] = t(request, "User '{username}' created — credentials sent to {email}.", username=username, email=email)
     else:
-        request.session["flash"] = f"User '{username}' created. Temporary password: {temp_password}"
+        request.session["flash"] = t(request, "User '{username}' created. Temporary password: {password}", username=username, password=temp_password)
 
     return RedirectResponse("/admin/", status_code=303)
 
@@ -162,14 +162,14 @@ async def update_user_profile(
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
     initials = normalize_initials(initials)
-    error = await validate_profile(db, target, name, initials)
+    error = await validate_profile(request, db, target, name, initials)
     if error:
         request.session["flash_error"] = f"{target.username}: {error}"
         return RedirectResponse("/admin/", status_code=303)
     target.name = name.strip()
     target.initials = initials
     await db.commit()
-    request.session["flash"] = f"Updated {target.username}: {target.name} ({initials})."
+    request.session["flash"] = t(request, "Updated {username}: {name} ({initials}).", username=target.username, name=target.name, initials=initials)
     return RedirectResponse("/admin/", status_code=303)
 
 
@@ -215,12 +215,12 @@ async def reset_user_password(
             await send_welcome_email(target.email, target.username, temp_password, magic_link)
             email_sent = True
         except Exception as exc:
-            request.session["flash_error"] = f"Password reset but email failed: {exc}"
+            request.session["flash_error"] = t(request, "Password reset but email failed: {error}", error=exc)
 
     if email_sent:
-        request.session["flash"] = f"Password for '{target.username}' reset — new credentials sent to {target.email}."
+        request.session["flash"] = t(request, "Password for '{username}' reset — new credentials sent to {email}.", username=target.username, email=target.email)
     else:
-        request.session["flash"] = f"Password for '{target.username}' reset. New temporary password: {temp_password}"
+        request.session["flash"] = t(request, "Password for '{username}' reset. New temporary password: {password}", username=target.username, password=temp_password)
 
     return RedirectResponse("/admin/", status_code=303)
 
@@ -250,21 +250,21 @@ TYPE_MODELS = {"step-types": ProcessStepType, "analysis-types": AnalysisType}
 TYPE_USAGE = {"step-types": ProcessStep.step_type_id, "analysis-types": Analysis.analysis_type_id}
 
 
-def _parse_schema(text: str) -> list[dict]:
+def _parse_schema(request: Request, text: str) -> list[dict]:
     """Validate a parameter schema: a JSON list of objects with unique, non-empty keys."""
     try:
         schema = json.loads(text or "[]")
     except json.JSONDecodeError as exc:
-        raise ValueError(f"Parameter schema is not valid JSON: {exc}")
+        raise ValueError(t(request, "Parameter schema is not valid JSON: {error}", error=exc))
     if not isinstance(schema, list) or not all(isinstance(f, dict) for f in schema):
-        raise ValueError("Parameter schema must be a JSON list of objects.")
+        raise ValueError(t(request, "Parameter schema must be a JSON list of objects."))
     keys = [str(f.get("key", "")).strip() for f in schema]
     if not all(keys):
-        raise ValueError('Every schema field needs a "key".')
+        raise ValueError(t(request, 'Every schema field needs a "key".'))
     if len(set(keys)) != len(keys):
-        raise ValueError("Schema keys must be unique.")
+        raise ValueError(t(request, "Schema keys must be unique."))
     if any(":" in k for k in keys):
-        raise ValueError('Schema keys cannot contain ":".')
+        raise ValueError(t(request, 'Schema keys cannot contain ":".'))
     for f, k in zip(schema, keys):
         f["key"] = k
     return schema
@@ -296,16 +296,16 @@ async def create_type(
     model = _type_model(kind)
     name = name.strip()
     try:
-        schema = _parse_schema(parameter_schema_json)
+        schema = _parse_schema(request, parameter_schema_json)
     except ValueError as exc:
         request.session["flash_error"] = str(exc)
         return RedirectResponse("/admin/", status_code=303)
     if await _name_taken(db, model, name):
-        request.session["flash_error"] = f"A type named '{name}' already exists."
+        request.session["flash_error"] = t(request, "A type named '{name}' already exists.", name=name)
         return RedirectResponse("/admin/", status_code=303)
     db.add(model(name=name, description=description.strip() or None, parameter_schema=schema))
     await db.commit()
-    request.session["flash"] = f"Type '{name}' added."
+    request.session["flash"] = t(request, "Type '{name}' added.", name=name)
     return RedirectResponse("/admin/", status_code=303)
 
 
@@ -326,18 +326,18 @@ async def update_type(
         raise HTTPException(status_code=404, detail="Type not found")
     name = name.strip()
     try:
-        schema = _parse_schema(parameter_schema_json)
+        schema = _parse_schema(request, parameter_schema_json)
     except ValueError as exc:
         request.session["flash_error"] = f"{obj.name}: {exc}"
         return RedirectResponse("/admin/", status_code=303)
     if await _name_taken(db, model, name, exclude_id=type_id):
-        request.session["flash_error"] = f"A type named '{name}' already exists."
+        request.session["flash_error"] = t(request, "A type named '{name}' already exists.", name=name)
         return RedirectResponse("/admin/", status_code=303)
     obj.name = name
     obj.description = description.strip() or None
     obj.parameter_schema = schema
     await db.commit()
-    request.session["flash"] = f"Type '{name}' updated. Existing entries keep their stored values."
+    request.session["flash"] = t(request, "Type '{name}' updated. Existing entries keep their stored values.", name=name)
     return RedirectResponse("/admin/", status_code=303)
 
 
@@ -355,9 +355,10 @@ async def delete_type(
         raise HTTPException(status_code=404, detail="Type not found")
     used = (await db.execute(select(func.count()).where(TYPE_USAGE[kind] == type_id))).scalar()
     if used:
-        request.session["flash_error"] = f"Cannot delete '{obj.name}': it is used by {used} entr{'y' if used == 1 else 'ies'}."
+        request.session["flash_error"] = (t(request, "Cannot delete '{name}': it is used by 1 entry.", name=obj.name) if used == 1 else
+                                         t(request, "Cannot delete '{name}': it is used by {count} entries.", name=obj.name, count=used))
         return RedirectResponse("/admin/", status_code=303)
     await db.delete(obj)
     await db.commit()
-    request.session["flash"] = f"Type '{obj.name}' deleted."
+    request.session["flash"] = t(request, "Type '{name}' deleted.", name=obj.name)
     return RedirectResponse("/admin/", status_code=303)

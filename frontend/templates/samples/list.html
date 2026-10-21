@@ -1,19 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Samples — Logbook{% endblock %}
+{% block title %}{{ _("Samples") }} — Logbook{% endblock %}
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">Samples</h1>
-    <p class="text-sm text-gray-500 mt-1">{{ samples|length }} sample{{ 's' if samples|length != 1 }}</p>
+    <h1 class="text-2xl font-bold text-gray-900">{{ _("Samples") }}</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ _("{n} sample", n=samples|length) if samples|length == 1 else _("{n} samples", n=samples|length) }}</p>
   </div>
   <a href="/samples/new"
      class="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
     </svg>
-    New Sample
+    {{ _("New Sample") }}
   </a>
 </div>
+
+{% if flash %}
+<div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ flash }}</div>
+{% endif %}
+
+{% if to_confirm %}
+<div class="mb-6 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+  <div class="font-medium text-amber-800 mb-1">{{ _("Assigned to you — please confirm") }}</div>
+  <ul class="space-y-0.5">
+    {% for s in to_confirm %}
+    <li><a href="/samples/{{ s.id }}" class="font-mono text-blue-600 hover:underline">{{ s.title }}</a>
+      {% if s.label %}<span class="text-gray-600">{{ s.label }}</span>{% endif %}
+      <span class="text-gray-500">· {{ _("by {name}", name=s.requested_by.display_name) }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 
 {% if samples %}
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -21,12 +38,12 @@
     <thead>
       <tr class="bg-gray-50 border-b border-gray-200">
         <th class="text-left px-5 py-3 font-semibold text-gray-600">ID</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-600">Type</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-600">Film</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-600">Substrate</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-600">Tags</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-600">Researcher</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-600">Date</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">{{ _("Type") }}</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">{{ _("Film") }}</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">{{ _("Substrate") }}</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">{{ _("Tags") }}</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">{{ _("Researcher") }}</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-600">{{ _("Date") }}</th>
         <th></th>
       </tr>
     </thead>
@@ -35,10 +52,11 @@
       <tr class="hover:bg-gray-50">
         <td class="px-5 py-3">
           <a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
-          {% if not can_view(current_user, s) %}<span class="text-xs text-gray-400" title="Summary only — ask the owner to share it">🔒</span>{% endif %}
+          {% if not can_view(current_user, s) %}<span class="text-xs text-gray-400" title="{{ _("Summary only — ask the owner to share it") }}">🔒</span>{% endif %}
           {% if s.label %}<div class="text-xs text-gray-600">{{ s.label }}</div>{% endif %}
           {% set parent = parents.get(s.id) %}
-            {% if parent %}<div class="text-xs text-gray-400">✂ piece of <a href="/samples/{{ parent.id }}" class="font-mono hover:underline">{{ parent.title }}</a>{% if s.is_reference %} · <span class="text-amber-600">reference</span>{% endif %}</div>{% endif %}
+          {% if s.requested_by_id %}<div class="text-xs text-amber-600">{{ _("awaiting {name}'s confirmation", name=s.researcher) }}</div>{% endif %}
+            {% if parent %}<div class="text-xs text-gray-400">✂ {{ _("piece of") }} <a href="/samples/{{ parent.id }}" class="font-mono hover:underline">{{ parent.title }}</a>{% if s.is_reference %} · <span class="text-amber-600">{{ _("reference") }}</span>{% endif %}</div>{% endif %}
         </td>
         <td class="px-5 py-3 text-gray-600 text-xs">{{ s.type_label }}</td>
         <td class="px-5 py-3 text-gray-600">{{ s.film_material or '—' }}</td>
@@ -49,7 +67,7 @@
         <td class="px-5 py-3 text-gray-600">{{ s.researcher or '—' }}</td>
         <td class="px-5 py-3 text-gray-400 text-xs">{{ s.created_at.strftime('%Y-%m-%d') }}</td>
         <td class="px-5 py-3 text-right">
-          <a href="/samples/{{ s.id }}" class="text-blue-500 hover:underline text-xs">View →</a>
+          <a href="/samples/{{ s.id }}" class="text-blue-500 hover:underline text-xs">{{ _("View →") }}</a>
         </td>
       </tr>
       {% endfor %}
@@ -61,8 +79,8 @@
   <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
   </svg>
-  <p class="text-gray-500 mb-4">No samples yet.</p>
-  <a href="/samples/new" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">Create your first sample</a>
+  <p class="text-gray-500 mb-4">{{ _("No samples yet.") }}</p>
+  <a href="/samples/new" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Create your first sample") }}</a>
 </div>
 {% endif %}
 {% endblock %}

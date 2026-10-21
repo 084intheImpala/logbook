@@ -3,7 +3,6 @@ from datetime import date
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,8 +13,9 @@ from backend.export import samples_csv
 from backend.lineage import Family, load_samples_full
 
 router = APIRouter(tags=["search"])
-templates = Jinja2Templates(directory="frontend/templates")
+from backend.templating import templates
 
+# Labels are English msgids; the templates translate them with _().
 GROUP_BY = {
     "": "No grouping",
     "investigator": "Researcher",
@@ -133,6 +133,7 @@ async def search_page(
         "filters": filters,
         "group_by": group_by,
         "group_by_options": GROUP_BY,
+        "none_label": NONE_LABEL,
         "sample_types": SAMPLE_TYPES,
         "groups": groups,
         "result_count": len(results),

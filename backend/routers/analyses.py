@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -14,7 +13,7 @@ from backend.utils import save_upload, chosen_files
 from backend.auth import require_login, load_sample
 
 router = APIRouter()
-templates = Jinja2Templates(directory="frontend/templates")
+from backend.templating import templates
 
 
 @router.get("/{sample_id}/analyses/new", response_class=HTMLResponse)

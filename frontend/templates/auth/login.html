@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Login — Logbook{% endblock %}
+{% block title %}{{ _("Login") }} — Logbook{% endblock %}
 {% block content %}
 <div class="max-w-sm mx-auto mt-16">
-  <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">Sign in</h1>
+  <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">{{ _("Sign in") }}</h1>
 
   {% if error %}
   <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
@@ -14,17 +14,17 @@
     <input type="hidden" name="next" value="{{ next }}">
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1" for="username">Username</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1" for="username">{{ _("Username") }}</label>
       <input id="username" name="username" type="text" required autofocus
              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
     </div>
 
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1" for="password">
-        Password
+        {{ _("Password") }}
         <a href="/forgot-password"
            class="float-right font-normal text-blue-600 hover:underline text-xs mt-0.5">
-          Forgot password?
+          {{ _("Forgot password?") }}
         </a>
       </label>
       <input id="password" name="password" type="password" required
@@ -33,7 +33,7 @@
 
     <button type="submit"
             class="w-full bg-blue-600 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
-      Sign in
+      {{ _("Sign in") }}
     </button>
   </form>
 </div>

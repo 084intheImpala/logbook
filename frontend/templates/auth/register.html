@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Register — Logbook{% endblock %}
+{% block title %}{{ _("Register") }} — Logbook{% endblock %}
 {% block content %}
 <div class="max-w-sm mx-auto mt-16">
-  <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">Create account</h1>
+  <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">{{ _("Create account") }}</h1>
 
   {% if error %}
   <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
@@ -12,32 +12,32 @@
 
   <form method="post" action="/register" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1" for="username">Username</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1" for="username">{{ _("Username") }}</label>
       <input id="username" name="username" type="text" required autofocus minlength="2"
              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1" for="password">Password</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1" for="password">{{ _("Password") }}</label>
       <input id="password" name="password" type="password" required minlength="6"
              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1" for="password2">Confirm password</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1" for="password2">{{ _("Confirm password") }}</label>
       <input id="password2" name="password2" type="password" required minlength="6"
              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
     </div>
 
     <button type="submit"
             class="w-full bg-blue-600 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
-      Create account
+      {{ _("Create account") }}
     </button>
   </form>
 
   <p class="mt-4 text-center text-sm text-gray-500">
-    Already have an account?
-    <a href="/login" class="text-blue-600 hover:underline">Sign in</a>
+    {{ _("Already have an account?") }}
+    <a href="/login" class="text-blue-600 hover:underline">{{ _("Sign in") }}</a>
   </p>
 </div>
 {% endblock %}

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -12,9 +11,10 @@ from backend.timeline import place_new, renumber
 from backend.config import settings
 from backend.utils import save_upload, chosen_files
 from backend.auth import require_login, load_sample
+from backend.i18n import t
 
 router = APIRouter()
-templates = Jinja2Templates(directory="frontend/templates")
+from backend.templating import templates
 
 
 @router.get("/{sample_id}/steps/new", response_class=HTMLResponse)
@@ -57,7 +57,6 @@ async def create_step(
     step = ProcessStep(
         sample_id=sample_id,
         step_type_id=step_type_id,
-        step_order=0,  # set by place_new
         parameters=parse_params(params_text) or None,
         notes=notes or None,
         performed_by=performed_by or current_user.username,
@@ -168,9 +167,13 @@ async def delete_step(
         raise HTTPException(status_code=404, detail="Step not found")
     pieces = (await db.execute(select(Sample).where(Sample.cut_step_id == step_id))).scalars().all()
     if pieces:
-        request.session["flash_error"] = (
-            f"Can't delete this cut: {len(pieces)} piece{'s' if len(pieces) != 1 else ''} were cut here "
-            "and inherit the history before it. Delete the pieces first.")
+        request.session["flash_error"] = t(
+            request,
+            "Can't delete this cut: {n} piece was cut here and inherits the history before it. "
+            "Delete the piece first." if len(pieces) == 1 else
+            "Can't delete this cut: {n} pieces were cut here and inherit the history before it. "
+            "Delete the pieces first.",
+            n=len(pieces))
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
     await db.delete(step)

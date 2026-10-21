@@ -2,7 +2,6 @@ from backend.config import settings
 from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -10,9 +9,10 @@ from backend.database import get_db
 from backend.models import User, Sample
 from backend.auth import hash_password, verify_password, require_login
 from backend.sample_ids import INITIALS_RE, normalize_initials
+from backend.i18n import t
 
 router = APIRouter()
-templates = Jinja2Templates(directory="frontend/templates")
+from backend.templating import templates
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -39,7 +39,7 @@ async def login(
     if not user or not verify_password(password, user.hashed_password):
         return templates.TemplateResponse("auth/login.html", {
             "request": request,
-            "error": "Invalid username or password.",
+            "error": t(request, "Invalid username or password."),
             "next": next,
         }, status_code=401)
     request.session["user_id"] = user.id
@@ -83,11 +83,11 @@ async def change_password(
     error = None
 
     if not magic and not verify_password(current_password, user.hashed_password):
-        error = "Current password is incorrect."
+        error = t(request, "Current password is incorrect.")
     elif len(new_password) < 8:
-        error = "New password must be at least 8 characters."
+        error = t(request, "New password must be at least 8 characters.")
     elif new_password != confirm_password:
-        error = "Passwords do not match."
+        error = t(request, "Passwords do not match.")
 
     if error:
         return templates.TemplateResponse("auth/change_password.html", {
@@ -110,16 +110,16 @@ async def change_password(
 # Profile: display name and the initials used in sample IDs
 # ---------------------------------------------------------------------------
 
-async def validate_profile(db: AsyncSession, user: User, name: str, initials: str) -> str | None:
+async def validate_profile(request: Request, db: AsyncSession, user: User, name: str, initials: str) -> str | None:
     """Return an error message, or None if `name`/`initials` can be saved for `user`."""
     if not name.strip():
-        return "Please enter your name."
+        return t(request, "Please enter your name.")
     if not INITIALS_RE.match(initials):
-        return "Initials must be 2 to 4 letters (A–Z)."
+        return t(request, "Initials must be 2 to 4 letters (A–Z).")
     taken = (await db.execute(
         select(User).where(User.initials == initials, User.id != user.id))).scalar_one_or_none()
     if taken:
-        return f"The initials {initials} are already used by {taken.display_name}."
+        return t(request, "The initials {initials} are already used by {name}.", initials=initials, name=taken.display_name)
     return None
 
 
@@ -155,7 +155,7 @@ async def save_profile(
     # Initials are part of existing sample IDs, so only admins change them later.
     locked = bool(user.initials) and await has_samples(db, user)
     initials = user.initials if locked else normalize_initials(initials)
-    error = await validate_profile(db, user, name, initials)
+    error = await validate_profile(request, db, user, name, initials)
     if error:
         return templates.TemplateResponse("auth/profile.html", {
             "request": request,

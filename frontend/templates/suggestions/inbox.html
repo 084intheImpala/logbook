@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% from "suggestions/_thread.html" import thread %}
-{% block title %}Suggestion inbox — Logbook{% endblock %}
+{% from "suggestions/_thread.html" import thread with context %}
+{% block title %}{{ _("Suggestion inbox") }} — Logbook{% endblock %}
 {% block content %}
 <div class="max-w-3xl">
-  <h1 class="text-2xl font-bold text-gray-900 mb-1">Suggestion inbox</h1>
-  <p class="text-sm text-gray-500 mb-6">Everything users have sent. Reply in the thread; the author sees it on their Suggestions page.</p>
+  <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ _("Suggestion inbox") }}</h1>
+  <p class="text-sm text-gray-500 mb-6">{{ _("Everything users have sent. Reply in the thread; the author sees it on their Suggestions page.") }}</p>
 
   <nav class="flex gap-1 mb-6 text-sm">
     {% for value, label in status_filters.items() %}
     <a href="/admin/suggestions?status={{ value }}"
        class="px-3 py-1.5 rounded-lg {% if status == value %}bg-gray-900 text-white{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
-      {{ label }} <span class="{% if status == value %}text-gray-300{% else %}text-gray-400{% endif %}">{{ counts[value] }}</span>
+      {{ _(label) }} <span class="{% if status == value %}text-gray-300{% else %}text-gray-400{% endif %}">{{ counts[value] }}</span>
     </a>
     {% endfor %}
   </nav>
@@ -23,7 +23,7 @@
   </div>
   {% else %}
   <div class="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300 text-gray-500 text-sm">
-    {% if status == "open" %}No open suggestions. 🎉{% else %}Nothing here.{% endif %}
+    {% if status == "open" %}{{ _("No open suggestions.") }} 🎉{% else %}{{ _("Nothing here.") }}{% endif %}
   </div>
   {% endif %}
 </div>

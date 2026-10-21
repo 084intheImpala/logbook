@@ -60,6 +60,10 @@ async def require_login(
     if not user.initials and not request.url.path.startswith(PROFILE_EXEMPT_PATHS):
         raise RequiresProfileException()
     user.suggestion_badge = await _suggestion_badge(db, user)
+    user.pending_badge = (await db.execute(
+        select(func.count()).select_from(Sample)
+        .where(Sample.owner_id == user.id, Sample.requested_by_id.is_not(None))
+    )).scalar() or 0
     return user
 
 

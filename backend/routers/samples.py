@@ -1,7 +1,6 @@
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,9 +15,12 @@ from backend import timeline as tl
 from backend.lineage import load_sample_full, load_family, pieces_of
 from backend.params import parse_datetime
 from backend.seed import PROCESS_STEP_TYPES
+from backend.config import settings
+from backend.email_utils import send_confirm_samples_email, send_declined_email
+from backend.i18n import t
 
 router = APIRouter()
-templates = Jinja2Templates(directory="frontend/templates")
+from backend.templating import templates
 
 
 def parse_tags(text: str) -> list[str] | None:
@@ -71,6 +73,8 @@ async def list_samples(
         "request": request,
         "samples": samples_list,
         "parents": {piece_id: by_id[parent_id] for piece_id, parent_id in parent_ids},
+        "to_confirm": [s for s in samples_list if s.owner_id == current_user.id and s.requested_by_id],
+        "flash": request.session.pop("flash", None),
         "can_view": can_view,
         "current_user": current_user,
     })
@@ -88,6 +92,10 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "known_tags": await all_tags(db),
         "users": (await db.execute(select(User).order_by(User.username))).scalars().all()
                  if editing and current_user.is_admin else [],
+        # Who a new sample can be created for (it gets their initials), or who
+        # the owner can give it to. Admins reassign with the "users" list instead.
+        "researchers": await _researchers(db)
+                       if not editing or (sample.owner_id == current_user.id and not current_user.is_admin) else [],
         "now_year": date.today().year,
         "current_user": current_user,
     }
@@ -107,15 +115,16 @@ def _apply_form(sample: Sample, form: dict):
     sample.tags = parse_tags(form["tags"])
 
 
-async def _validate(db: AsyncSession, sample: Sample, new_files: list[UploadFile], has_spec: bool) -> str | None:
+async def _validate(request: Request, db: AsyncSession, sample: Sample, new_files: list[UploadFile],
+                    has_spec: bool) -> str | None:
     if sample.sample_type in ("thin_film", "bulk"):
         if not sample.substrate_id or not await db.get(Substrate, sample.substrate_id):
-            return "Choose the substrate from the library (add it on the Substrates tab if it's missing)."
+            return t(request, "Choose the substrate from the library (add it on the Substrates tab if it's missing).")
     if sample.sample_type == "commercial":
         if not sample.description:
-            return "A commercial sample needs a description."
+            return t(request, "A commercial sample needs a description.")
         if not has_spec and not any(f.filename for f in new_files):
-            return "A commercial sample needs its spec sheet (PDF or photo)."
+            return t(request, "A commercial sample needs its spec sheet (PDF or photo).")
     return None
 
 
@@ -149,16 +158,38 @@ async def create_sample(
     supplier: str = Form(""),
     description: str = Form(""),
     tags: str = Form(""),
+    owner_id: str = Form(""),
     files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
-    user_id, initials, username = current_user.id, current_user.initials, current_user.username
-    sample = Sample(owner_id=user_id)
-    _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
-                                     external_id, supplier, description, tags))
+    """Create a sample, for yourself or on behalf of another researcher. It gets
+    the owner's initials. An admin's goes straight to the owner; anyone else's
+    waits for the owner to confirm it, and the creator gets edit access."""
+    # Plain values: the retry below rolls back, which expires loaded objects.
+    by_id, by_admin, username, by_name = (current_user.id, current_user.is_admin,
+                                          current_user.username, current_user.display_name)
+    owner = current_user
+    if owner_id.isdigit() and int(owner_id) != by_id:
+        owner = await db.get(User, int(owner_id))
+    user_id, initials = owner.id if owner else None, owner.initials if owner else None
+    owner_name, owner_email = (owner.display_name, owner.email) if owner else (None, None)
+    pending = False
+
+    def new_sample() -> Sample:
+        nonlocal pending
+        sample = Sample()
+        _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
+                                         external_id, supplier, description, tags))
+        if user_id:
+            pending = _hand_over(sample, user_id, by_id, by_admin)
+        return sample
+
+    sample = new_sample()
     files = chosen_files(files)
-    error = await _validate(db, sample, files, has_spec=False)
+    error = await _validate(request, db, sample, files, has_spec=False)
+    if not error and not initials:
+        error = t(request, "That researcher hasn't set their initials yet, so their samples can't get an ID.")
     if error:
         return templates.TemplateResponse(
             "samples/form.html", await _form_context(db, request, current_user, sample, False, error),
@@ -173,13 +204,47 @@ async def create_sample(
             break
         except IntegrityError:
             await db.rollback()
-            sample = Sample(owner_id=user_id)
-            _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions,
-                                             film_material, external_id, supplier, description, tags))
+            sample = new_sample()
     for f in files:
         await save_upload(f, "sample", sample.id, db, uploaded_by=username)
     await db.commit()
+    if pending:
+        request.session["flash"] = t(
+            request, "Created for {name}. They'll be asked to confirm it; meanwhile you can edit it.",
+            name=owner_name)
+        await _ask_to_confirm(request, by_name, owner_name, owner_email, [sample])
     return RedirectResponse(f"/samples/{sample.id}", status_code=303)
+
+
+@router.post("/{sample_id}/confirm")
+async def confirm_sample(
+    request: Request,
+    sample_id: int,
+    accept: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    """The owner accepts a sample assigned to them, or declines it, which
+    hands it back to whoever assigned it (its ID doesn't change)."""
+    sample = await load_sample(db, sample_id, current_user, "summary")
+    if sample.owner_id != current_user.id or not sample.requested_by_id:
+        raise HTTPException(status_code=403, detail="There's nothing for you to confirm on this sample.")
+    if accept:
+        request.session["flash"] = t(request, "Sample confirmed: it's now in your samples.")
+    else:
+        giver = sample.requested_by
+        sample.shares = [sh for sh in sample.shares if sh.user_id != giver.id]
+        sample.owner_id = giver.id
+        request.session["flash"] = t(request, "Declined: {sample} now belongs to {name}.",
+                                      sample=sample.title, name=giver.display_name)
+    sample.requested_by_id = None
+    await db.commit()
+    if not accept and settings.SMTP_PASSWORD and giver.email:
+        try:
+            await send_declined_email(giver.email, current_user.display_name, sample)
+        except Exception:
+            pass  # they'll still find it in their samples
+    return RedirectResponse(f"/samples/{sample_id}" if accept else "/samples/", status_code=303)
 
 
 @router.get("/{sample_id}", response_class=HTMLResponse)
@@ -292,23 +357,34 @@ async def update_sample(
     current_user=Depends(require_login),
 ):
     sample = await load_sample(db, sample_id, current_user, "edit")
+    was_owner = sample.owner_id == current_user.id
     _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
                                      external_id, supplier, description, tags))
     has_spec = bool((await _attachments_for(db, "sample", [sample_id]))[sample_id])
     files = chosen_files(files)
-    error = await _validate(db, sample, files, has_spec)
+    error = await _validate(request, db, sample, files, has_spec)
     if error:
         response = templates.TemplateResponse(  # renders now, before the rollback expires `sample`
             "samples/form.html", await _form_context(db, request, current_user, sample, True, error),
             status_code=400)
         await db.rollback()  # don't keep the invalid changes in this session
         return response
-    # Only admins can reassign ownership. The sample ID keeps the original initials.
-    if current_user.is_admin and owner_id is not None:
-        sample.owner_id = int(owner_id) if owner_id else None
+    # Admins reassign ownership directly; owners can give the sample to
+    # someone else, who has to confirm. The sample ID keeps the original initials.
+    new_owner = None
+    if owner_id and owner_id.isdigit() and int(owner_id) != sample.owner_id and (current_user.is_admin or was_owner):
+        new_owner = await db.get(User, int(owner_id))
+    elif owner_id == "" and current_user.is_admin:
+        sample.owner_id = sample.requested_by_id = None
+    pending = new_owner is not None and _hand_over(sample, new_owner.id, current_user.id, current_user.is_admin)
     for f in files:
         await save_upload(f, "sample", sample.id, db, uploaded_by=current_user.username)
     await db.commit()
+    if pending:
+        request.session["flash"] = t(
+            request, "Given to {name}. They'll be asked to confirm it; you keep edit access.",
+            name=new_owner.display_name)
+        await _ask_to_confirm(request, current_user.display_name, new_owner.display_name, new_owner.email, [sample])
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
 
@@ -323,8 +399,10 @@ async def delete_sample(
     pieces = await pieces_of(db, sample_id)
     if pieces:
         request.session["flash_error"] = (
-            f"Can't delete: {len(pieces)} piece{'s' if len(pieces) != 1 else ''} were cut from this sample "
-            "and inherit its history. Delete the pieces first.")
+            t(request, "Can't delete: 1 piece was cut from this sample and inherits its history. "
+                       "Delete the piece first.") if len(pieces) == 1 else
+            t(request, "Can't delete: {n} pieces were cut from this sample and inherit its history. "
+                       "Delete the pieces first.", n=len(pieces)))
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
     await db.delete(sample)
     await db.commit()
@@ -350,6 +428,8 @@ async def cut_form(
         "sample": sample,
         "next_codes": codes,
         "ref_code": ref_code,
+        "researchers": await _researchers(db),
+        "default_owner_id": sample.owner_id or current_user.id,
         "flash_error": request.session.pop("flash_error", None),
         "current_user": current_user,
     })
@@ -361,7 +441,9 @@ async def cut_sample(
     sample_id: int,
     piece_labels: list[str] = Form([]),
     piece_dimensions: list[str] = Form([]),
+    piece_owners: list[str] = Form([]),
     keep_reference: str = Form(""),
+    reference_owner: str = Form(""),
     reference_label: str = Form(""),
     reference_dimensions: str = Form(""),
     method: str = Form(""),
@@ -373,16 +455,20 @@ async def cut_sample(
     """Record a Cut step on the sample and create one sample per piece.
 
     Pieces get the parent's ID plus a suffix, copy its type, substrate,
-    materials, tags, owner and shares; if the person cutting isn't the owner,
-    they get edit access to the pieces."""
+    materials, tags and shares, and by default its owner; if the person
+    cutting isn't the owner, they get edit access to the pieces. A piece can
+    instead be given to another researcher (see _hand_over); the parent's
+    owner then keeps edit access to it."""
     parent = await load_sample(db, sample_id, current_user, "edit")
-    pieces = [(lbl.strip(), dims.strip(), False) for lbl, dims in zip(piece_labels, piece_dimensions)]
+    piece_owners += [""] * (len(piece_labels) - len(piece_owners))
+    pieces = [(lbl.strip(), dims.strip(), False, own)
+              for lbl, dims, own in zip(piece_labels, piece_dimensions, piece_owners)]
     if keep_reference:
-        pieces.append((reference_label.strip(), reference_dimensions.strip(), True))
+        pieces.append((reference_label.strip(), reference_dimensions.strip(), True, reference_owner))
     if not pieces:
-        request.session["flash_error"] = "Cut into at least one piece."
+        request.session["flash_error"] = t(request, "Cut into at least one piece.")
         return RedirectResponse(f"/samples/{sample_id}/cut", status_code=303)
-    codes, ref_code = await piece_codes(db, parent, sum(not ref for *_, ref in pieces), bool(keep_reference))
+    codes, ref_code = await piece_codes(db, parent, sum(not ref for _, _, ref, _ in pieces), bool(keep_reference))
     codes = iter(codes)
 
     cut_type = (await db.execute(
@@ -396,7 +482,6 @@ async def cut_sample(
     cut = ProcessStep(
         sample_id=sample_id,
         step_type_id=cut_type.id,
-        step_order=0,  # set by place_new
         parameters=params,
         notes=notes or None,
         performed_by=current_user.username,
@@ -407,7 +492,10 @@ async def cut_sample(
     await tl.place_new(db, cut)
 
     owner_id = parent.owner_id or current_user.id
-    for label, dims, is_ref in pieces:
+    chosen = {int(o) for *_, o in pieces if o.isdigit()}
+    users = {u.id: u for u in (await db.execute(select(User).where(User.id.in_(chosen)))).scalars()} if chosen else {}
+    to_confirm: dict[int, list[Sample]] = {}
+    for label, dims, is_ref, piece_owner in pieces:
         piece = Sample(
             code=ref_code if is_ref else next(codes),
             label=label or None,
@@ -423,12 +511,65 @@ async def cut_sample(
             is_reference=is_ref,
         )
         piece.shares = [SampleShare(user_id=sh.user_id, can_edit=sh.can_edit) for sh in parent.shares]
-        if current_user.id != owner_id and not current_user.is_admin:
+        target = users.get(int(piece_owner)) if piece_owner.isdigit() else None
+        if target and target.id != owner_id:
+            if _hand_over(piece, target.id, current_user.id, current_user.is_admin):
+                to_confirm.setdefault(target.id, []).append(piece)
+            if parent.owner_id:
+                _set_share(piece, parent.owner_id, True)
+        elif current_user.id != owner_id and not current_user.is_admin:
             _set_share(piece, current_user.id, True)
         db.add(piece)
     await db.commit()
-    request.session["flash"] = f"Cut into {len(pieces)} piece{'s' if len(pieces) != 1 else ''}."
+    msg = (t(request, "Cut into 1 piece.") if len(pieces) == 1 else
+           t(request, "Cut into {n} pieces.", n=len(pieces)))
+    if to_confirm:
+        names = ", ".join(users[uid].display_name for uid in to_confirm)
+        msg += " " + (t(request, "{name} will be asked to confirm theirs.", name=names) if len(to_confirm) == 1 else
+                      t(request, "{names} will be asked to confirm theirs.", names=names))
+    request.session["flash"] = msg
+    for uid, given in to_confirm.items():
+        await _ask_to_confirm(request, current_user.display_name, users[uid].display_name, users[uid].email, given)
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
+
+
+# ── Assigning samples to other researchers ───────────────────────────────────
+
+async def _researchers(db: AsyncSession) -> list[User]:
+    """Users a sample can belong to (they need initials for sample IDs)."""
+    return (await db.execute(select(User).where(User.initials.is_not(None)).order_by(User.username))).scalars().all()
+
+
+def _hand_over(sample: Sample, owner_id: int, by_id: int, by_admin: bool) -> bool:
+    """Make `owner_id` the sample's owner. Giving it to someone else waits for
+    their confirmation, unless an admin does it: meanwhile the giver keeps
+    edit access, and gets the sample back if they decline. Returns True if
+    it's waiting for confirmation."""
+    sample.owner_id = owner_id
+    sample.shares = [sh for sh in sample.shares if sh.user_id != owner_id]
+    if owner_id == by_id or by_admin:
+        sample.requested_by_id = None
+        return False
+    sample.requested_by_id = by_id
+    _set_share(sample, by_id, True)
+    return True
+
+
+async def _ask_to_confirm(request: Request, giver: str, owner_name: str, owner_email: str | None,
+                          samples: list[Sample]):
+    """Email the new owner asking them to confirm. Call after committing."""
+    if not settings.SMTP_PASSWORD:
+        return
+    if not owner_email:
+        request.session["flash_error"] = t(
+            request, "{name} has no email address, so tell them to confirm it on the site.", name=owner_name)
+        return
+    try:
+        await send_confirm_samples_email(owner_email, giver, samples)
+    except Exception as exc:
+        request.session["flash_error"] = t(
+            request, "Couldn't email {name} ({error}); tell them to confirm it on the site.",
+            name=owner_name, error=exc)
 
 
 # ── Sharing ───────────────────────────────────────────────────────────────────
@@ -493,9 +634,15 @@ async def share_many(
         _set_share(s, user_id, access == "edit")
     await db.commit()
     skipped = len(samples) - len(shared)
-    msg = f"Shared {len(shared)} sample{'s' if len(shared) != 1 else ''} with {target.display_name} ({access})."
+    if access == "edit":
+        msg = (t(request, "Shared 1 sample with {name} (edit).", name=target.display_name) if len(shared) == 1 else
+               t(request, "Shared {n} samples with {name} (edit).", n=len(shared), name=target.display_name))
+    else:
+        msg = (t(request, "Shared 1 sample with {name} (view).", name=target.display_name) if len(shared) == 1 else
+               t(request, "Shared {n} samples with {name} (view).", n=len(shared), name=target.display_name))
     if skipped:
-        msg += f" Skipped {skipped} you don't own."
+        msg += " " + (t(request, "Skipped 1 you don't own.") if skipped == 1 else
+                      t(request, "Skipped {n} you don't own.", n=skipped))
     request.session["flash"] = msg
     # Only redirect within the app
     return RedirectResponse(back if back.startswith("/") and not back.startswith("//") else "/search", status_code=303)

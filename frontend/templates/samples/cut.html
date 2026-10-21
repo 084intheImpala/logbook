@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Cut {{ sample.title }} — Logbook{% endblock %}
+{% block title %}{{ _("Cut {sample}", sample=sample.title) }} — Logbook{% endblock %}
 {% block content %}
-<div class="max-w-2xl">
+<div class="max-w-3xl">
   <div class="text-xs text-gray-400 mb-4">
-    <a href="/samples/" class="hover:underline">Samples</a> /
-    <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.title }}</a> / Cut into pieces
+    <a href="/samples/" class="hover:underline">{{ _("Samples") }}</a> /
+    <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.title }}</a> / {{ _("Cut into pieces") }}
   </div>
-  <h1 class="text-2xl font-bold mb-2">Cut {{ sample.title }} into pieces</h1>
+  <h1 class="text-2xl font-bold mb-2">{{ _("Cut {sample} into pieces", sample=sample.title) }}</h1>
   <p class="text-sm text-gray-500 mb-6">
-    Each piece becomes its own sample and inherits {{ sample.title }}'s history up to this cut.
-    {{ sample.title }} itself stays in the logbook and can keep getting new steps.
+    {{ _("Each piece becomes its own sample and inherits {sample}'s history up to this cut.", sample=sample.title) }}
+    {{ _("{sample} itself stays in the logbook and can keep getting new steps.", sample=sample.title) }}
   </p>
 
   {% if flash_error %}
@@ -21,25 +21,25 @@
 
     <div class="grid grid-cols-3 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Number of pieces</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Number of pieces") }}</label>
         <input id="piece-count" type="number" min="1" max="50" value="2"
                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Method</label>
-        <input name="method" type="text" placeholder="e.g. diamond scribe"
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Method") }}</label>
+        <input name="method" type="text" placeholder="{{ _("e.g. diamond-tipped pen, dicing") }}"
                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Date &amp; Time <span class="font-normal text-gray-400 text-xs">— optional</span></label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Date & Time") }} <span class="font-normal text-gray-400 text-xs">— {{ _("optional") }}</span></label>
         <input name="performed_at" type="datetime-local"
                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
       </div>
     </div>
 
     <div>
-      <div class="grid grid-cols-[10rem_1fr_1fr] gap-3 text-xs font-medium text-gray-600 mb-1">
-        <span>ID</span><span>Label <span class="font-normal text-gray-400">(optional)</span></span><span>Dimensions</span>
+      <div class="grid grid-cols-[10rem_1fr_1fr_11rem] gap-3 text-xs font-medium text-gray-600 mb-1">
+        <span>{{ _("ID") }}</span><span>{{ _("Label") }} <span class="font-normal text-gray-400">({{ _("optional") }})</span></span><span>{{ _("Dimensions") }}</span><span>{{ _("Researcher") }}</span>
       </div>
       <div id="piece-rows" class="space-y-2"></div>
     </div>
@@ -47,31 +47,41 @@
     <div class="border-t border-gray-100 pt-4 space-y-2">
       <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
         <input id="keep-reference" type="checkbox" name="keep_reference" class="rounded">
-        Also keep a reference piece
-        <span class="text-xs text-gray-400">— listed with the other pieces, marked as Reference</span>
+        {{ _("Also keep a reference piece") }}
+        <span class="text-xs text-gray-400">— {{ _("listed with the other pieces, marked as Reference") }}</span>
       </label>
-      <div id="reference-row" class="grid grid-cols-[10rem_1fr_1fr] gap-3 items-center hidden">
+      <div id="reference-row" class="grid grid-cols-[10rem_1fr_1fr_11rem] gap-3 items-center hidden">
         <span class="font-mono text-sm text-gray-700">{{ ref_code }}</span>
-        <input name="reference_label" placeholder="e.g. reference"
-               class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
-        <input name="reference_dimensions" placeholder="e.g. 5×5 mm"
-               class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+        <input name="reference_label" placeholder="{{ _("e.g. reference") }}"
+               class="min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+        <input name="reference_dimensions" placeholder="{{ _("e.g. 5×5 mm") }}"
+               class="min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+        <select name="reference_owner" class="min-w-0 owner-select border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white"></select>
       </div>
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-      <textarea name="notes" rows="2" placeholder="Optional"
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Notes") }}</label>
+      <textarea name="notes" rows="2" placeholder="{{ _("Optional") }}"
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
     </div>
 
+    <template id="owner-options">
+      {% for u in researchers %}
+      <option value="{{ u.id }}" {% if u.id == default_owner_id %}selected{% endif %}>{{ u.display_name }} ({{ u.initials }})</option>
+      {% endfor %}
+    </template>
+
     <p class="text-xs text-gray-400">
-      Pieces copy the sample type, substrate, film and tags, keep the same owner, and are shared with the same people as {{ sample.title }}.
+      {{ _("Pieces copy the sample type, substrate, film and tags, and are shared with the same people as {sample}.", sample=sample.title) }}
+      {{ _("Each piece belongs to the researcher chosen for it (by default {sample}'s owner).", sample=sample.title) }}
+      {% if not current_user.is_admin %}{{ _("Anyone else you give a piece to gets an email asking them to confirm it.") }}{% endif %}
+      {% if sample.owner_id %}{{ _("{name} keeps edit access to pieces given to someone else.", name=sample.researcher) }}{% endif %}
     </p>
 
     <div class="flex gap-3 pt-1">
-      <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">Cut</button>
-      <a href="/samples/{{ sample.id }}" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">Cancel</a>
+      <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">{{ _("Cut into pieces") }}</button>
+      <a href="/samples/{{ sample.id }}" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">{{ _("Cancel") }}</a>
     </div>
   </form>
 </div>
@@ -81,18 +91,23 @@
   const codes = {{ next_codes|tojson }};
   const rows = document.getElementById('piece-rows');
   const count = document.getElementById('piece-count');
+  const ownerOptions = document.getElementById('owner-options');
+  document.querySelector('.owner-select').append(ownerOptions.content.cloneNode(true));
   // Keep what the user typed in existing rows; only add or remove rows at the end.
   function render() {
     const n = Math.max(1, Math.min(50, parseInt(count.value) || 1));
     while (rows.children.length < n) {
       const i = rows.children.length;
       const row = document.createElement('div');
-      row.className = 'grid grid-cols-[10rem_1fr_1fr] gap-3 items-center';
+      row.className = 'grid grid-cols-[10rem_1fr_1fr_11rem] gap-3 items-center';
       row.innerHTML =
         '<span class="font-mono text-sm text-gray-700"></span>' +
-        '<input name="piece_labels" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">' +
-        '<input name="piece_dimensions" placeholder="e.g. 5×5 mm" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">';
+        '<input name="piece_labels" class="min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm">' +
+        '<input name="piece_dimensions" class="min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm">' +
+        '<select name="piece_owners" class="min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white"></select>';
       row.firstChild.textContent = codes[i];
+      row.children[2].placeholder = {{ _("e.g. 5×5 mm")|tojson }};
+      row.lastChild.append(ownerOptions.content.cloneNode(true));
       rows.appendChild(row);
     }
     while (rows.children.length > n) rows.lastChild.remove();

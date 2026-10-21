@@ -46,7 +46,7 @@ class ProcessStepOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     sample_id: int
-    step_order: int
+    position: int | None
     step_type: ProcessStepTypeOut
     parameters: dict[str, Any] | None
     notes: str | None

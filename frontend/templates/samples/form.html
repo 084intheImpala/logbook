@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{% if editing %}Edit {{ sample.title }}{% else %}New Sample{% endif %} — Logbook{% endblock %}
+{% block title %}{% if editing %}{{ _("Edit {sample}", sample=sample.title) }}{% else %}{{ _("New Sample") }}{% endif %} — Logbook{% endblock %}
 {% block content %}
 {% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %}
 <div class="max-w-xl">
-  <h1 class="text-2xl font-bold mb-1">{% if editing %}Edit <span class="font-mono">{{ sample.title }}</span>{% else %}New Sample{% endif %}</h1>
+  <h1 class="text-2xl font-bold mb-1">{% if editing %}{{ _("Edit") }} <span class="font-mono">{{ sample.title }}</span>{% else %}{{ _("New Sample") }}{% endif %}</h1>
   <p class="text-sm text-gray-500 mb-6">
-    {% if editing %}The sample ID doesn't change.{% else %}
-    The ID is generated when you save: <span class="font-mono">{{ current_user.initials }}-{{ now_year }}-…</span>{% endif %}
+    {% if editing %}{{ _("The sample ID doesn't change.") }}{% else %}
+    {{ _("The ID is generated when you save:") }} <span class="font-mono" id="id-preview">{{ current_user.initials }}-{{ now_year }}-…</span>{% endif %}
   </p>
 
   {% if error %}
@@ -19,7 +19,7 @@
 
     <!-- Sample type -->
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-2">Sample type</label>
+      <label class="block text-sm font-medium text-gray-700 mb-2">{{ _("Sample type") }}</label>
       <div class="grid grid-cols-3 gap-2">
         {% for value, label in sample_types.items() %}
         <label class="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm cursor-pointer has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
@@ -32,18 +32,18 @@
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Label
-        <span class="font-normal text-gray-400 text-xs ml-1">— optional, your own description</span></label>
-      <input name="label" type="text" value="{{ sample.label or '' }}" placeholder="e.g. waveguide test, batch 2"
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Label") }}
+        <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("optional, your own description") }}</span></label>
+      <input name="label" type="text" value="{{ sample.label or '' }}" placeholder="{{ _("e.g. waveguide test, batch 2") }}"
              class="{{ input_cls }}">
     </div>
 
     <!-- Substrate (thin film, bulk) -->
     <div data-types="thin_film bulk">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Substrate <span class="text-red-500">*</span></label>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Substrate") }} <span class="text-red-500">*</span></label>
       {% if substrates %}
       <select name="substrate_id" class="{{ input_cls }} bg-white">
-        <option value="">— choose from the library —</option>
+        <option value="">— {{ _("choose from the library") }} —</option>
         {% for sub in substrates %}
         <option value="{{ sub.id }}" {% if sample.substrate_id == sub.id %}selected{% endif %}>
           {{ sub.name }} — {{ sub.material }}{% if sub.orientation %} ({{ sub.orientation }}){% endif %}{% if sub.thickness_um %}, {{ '%g'|format(sub.thickness_um) }} µm{% endif %}
@@ -52,43 +52,43 @@
       </select>
       {% endif %}
       <p class="text-xs text-gray-400 mt-1">
-        {% if not substrates %}The substrate library is empty. {% endif %}
-        Missing one? <a href="/substrates/new" target="_blank" class="text-blue-600 hover:underline">Add a substrate</a>
-        (opens in a new tab), then reload this page.
+        {% if not substrates %}{{ _("The substrate library is empty.") }} {% endif %}
+        {{ _("Missing one?") }} <a href="/substrates/new" target="_blank" class="text-blue-600 hover:underline">{{ _("Add a substrate") }}</a>
+        {{ _("(opens in a new tab), then reload this page.") }}
       </p>
     </div>
 
     <div class="grid grid-cols-2 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Dimensions</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Dimensions") }}</label>
         <input name="substrate_dimensions" type="text" value="{{ sample.substrate_dimensions or '' }}"
-               placeholder="e.g. 5×5 mm" class="{{ input_cls }}">
+               placeholder="{{ _("e.g. 5×5 mm") }}" class="{{ input_cls }}">
       </div>
       <div data-types="thin_film">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Film material
-          <span class="font-normal text-gray-400 text-xs">— optional</span></label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Film material") }}
+          <span class="font-normal text-gray-400 text-xs">— {{ _("optional") }}</span></label>
         <input name="film_material" type="text" value="{{ sample.film_material or '' }}"
-               placeholder="e.g. Ga2O3, TiN" class="{{ input_cls }}">
+               placeholder="{{ _("e.g. Ga2O3, TiN") }}" class="{{ input_cls }}">
       </div>
       <div data-types="bulk commercial">
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          <span data-types="bulk">External ID</span><span data-types="commercial">Product / batch no.</span></label>
+          <span data-types="bulk">{{ _("External ID") }}</span><span data-types="commercial">{{ _("Product / batch no.") }}</span></label>
         <input name="external_id" type="text" value="{{ sample.external_id or '' }}"
-               placeholder="ID given by the supplier or whoever cut it" class="{{ input_cls }}">
+               placeholder="{{ _("ID given by the supplier or whoever cut it") }}" class="{{ input_cls }}">
       </div>
     </div>
 
     <!-- Commercial -->
     <div data-types="commercial" class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Supplier") }}</label>
         <input name="supplier" type="text" value="{{ sample.supplier or '' }}" class="{{ input_cls }}">
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Spec sheet <span class="text-red-500">*</span>
-          <span class="font-normal text-gray-400 text-xs">— PDF or photo</span></label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Spec sheet") }} <span class="text-red-500">*</span>
+          <span class="font-normal text-gray-400 text-xs">— {{ _("PDF or photo") }}</span></label>
         {% if spec_files and spec_files[sample.id] %}
-        <p class="text-xs text-gray-500 mb-1">Attached:
+        <p class="text-xs text-gray-500 mb-1">{{ _("Attached:") }}
           {% for att in spec_files[sample.id] %}<a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>{{ ", " if not loop.last }}{% endfor %}
         </p>
         {% endif %}
@@ -98,28 +98,47 @@
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Description
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Description") }}
         <span data-types="commercial" class="text-red-500">*</span>
-        <span data-types="thin_film bulk" class="font-normal text-gray-400 text-xs">— optional</span></label>
+        <span data-types="thin_film bulk" class="font-normal text-gray-400 text-xs">— {{ _("optional") }}</span></label>
       <textarea name="description" rows="3" class="{{ input_cls }}">{{ sample.description or '' }}</textarea>
     </div>
 
     <!-- Tags with suggestions from existing tags -->
     <div class="relative">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Tags
-        <span class="font-normal text-gray-400 text-xs ml-1">— comma-separated; pick existing ones when you can</span></label>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Tags") }}
+        <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("comma-separated; pick existing ones when you can") }}</span></label>
       <input id="tags-input" name="tags" type="text" autocomplete="off"
-             value="{{ (sample.tags or [])|join(', ') }}" placeholder="e.g. Ga2O3, nanoparticles"
+             value="{{ (sample.tags or [])|join(', ') }}" placeholder="{{ _("e.g. Ga2O3, nanoparticles") }}"
              class="{{ input_cls }}">
       <div id="tag-suggestions" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
     </div>
 
+    {% if researchers|length > 1 %}
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Researcher") }}
+        <span class="font-normal text-gray-400 text-xs ml-1">— {% if editing %}{{ _("who the sample belongs to; you can give it to someone else") }}{% else %}{{ _("who the sample belongs to") }}{% endif %}</span></label>
+      <select name="owner_id" id="owner-select" class="{{ input_cls }} bg-white">
+        {% for u in researchers %}
+        <option value="{{ u.id }}" data-initials="{{ u.initials }}"
+                {% if (sample.owner_id or current_user.id) == u.id %}selected{% endif %}>{{ u.display_name }} ({{ u.initials }}){% if u.id == current_user.id %} — {{ _("me") }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      <p id="owner-hint" class="hidden text-xs text-gray-500 mt-1">
+        {% if current_user.is_admin %}{{ _("The sample goes straight to them.") }}
+        {% elif editing %}{{ _("They'll get an email asking them to confirm it. You keep edit access, and if they decline it comes back to you.") }}
+        {% else %}{{ _("They'll get an email asking them to confirm it. You get edit access, and if they decline it becomes yours.") }}{% endif %}
+        {% if editing %}{{ _("The ID stays the same.") }}{% endif %}
+      </p>
+    </div>
+    {% endif %}
+
     {% if users %}
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Owner
-        <span class="font-normal text-gray-400 text-xs ml-1">— admin only; controls who can see details</span></label>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Owner") }}
+        <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("admin only; controls who can see details") }}</span></label>
       <select name="owner_id" class="{{ input_cls }} bg-white">
-        <option value="" {% if not sample.owner_id %}selected{% endif %}>No owner (open to everyone)</option>
+        <option value="" {% if not sample.owner_id %}selected{% endif %}>{{ _("No owner (open to everyone)") }}</option>
         {% for u in users %}
         <option value="{{ u.id }}" {% if sample.owner_id == u.id %}selected{% endif %}>{{ u.display_name }} ({{ u.username }})</option>
         {% endfor %}
@@ -130,10 +149,10 @@
     <div class="flex gap-3 pt-2">
       <button type="submit"
               class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">
-        {% if editing %}Save changes{% else %}Create sample{% endif %}
+        {% if editing %}{{ _("Save changes") }}{% else %}{{ _("Create sample") }}{% endif %}
       </button>
       <a href="{% if editing %}/samples/{{ sample.id }}{% else %}/samples/{% endif %}"
-         class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">Cancel</a>
+         class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">{{ _("Cancel") }}</a>
     </div>
   </form>
 </div>
@@ -152,6 +171,19 @@
   }
   document.querySelectorAll('.type-radio').forEach(r => r.addEventListener('change', applyType));
   applyType();
+
+  // Creating for someone else: show their initials in the ID preview.
+  const owner = document.getElementById('owner-select');
+  if (owner) {
+    const preview = document.getElementById('id-preview');
+    const applyOwner = () => {
+      const opt = owner.selectedOptions[0];
+      if (preview) preview.textContent = `${opt.dataset.initials}-{{ now_year }}-…`;
+      document.getElementById('owner-hint').classList.toggle('hidden', opt.value === '{{ current_user.id }}');
+    };
+    owner.addEventListener('change', applyOwner);
+    applyOwner();
+  }
 
   // Tag autocomplete: suggest existing tags matching the tag being typed.
   const known = {{ known_tags|tojson }};
