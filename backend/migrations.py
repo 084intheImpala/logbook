@@ -28,6 +28,7 @@ def _upgrade_schema(conn):
     add_column("samples", "external_id", "VARCHAR(100)")
     add_column("samples", "supplier", "VARCHAR(120)")
     add_column("users", "initials", "VARCHAR(4)")
+    add_column("attachments", "thumbnail_filename", "VARCHAR(255)")
 
     # The sample "name" became an optional label, and created_by / the free-text
     # substrate material were replaced by the owner and the substrate library.

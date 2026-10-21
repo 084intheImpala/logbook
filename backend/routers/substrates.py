@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models import Substrate, Sample, Attachment, User, POLISHING
 from backend.auth import require_login
-from backend.utils import save_upload, delete_attachment
+from backend.utils import save_upload, delete_attachment, chosen_files
 
 router = APIRouter(prefix="/substrates", tags=["substrates"])
 templates = Jinja2Templates(directory="frontend/templates")
@@ -97,7 +97,7 @@ async def create_substrate(
     size: str = Form(""),
     supplier: str = Form(""),
     notes: str = Form(""),
-    files: list[UploadFile] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_login),
 ):
@@ -105,6 +105,7 @@ async def create_substrate(
     _apply_form(substrate, name, material, orientation, thickness_um, polishing, size, supplier, notes)
     db.add(substrate)
     await db.flush()
+    files = chosen_files(files)
     for f in files:
         await save_upload(f, "substrate", substrate.id, db, uploaded_by=current_user.username)
     await db.commit()
@@ -137,7 +138,7 @@ async def update_substrate(
     size: str = Form(""),
     supplier: str = Form(""),
     notes: str = Form(""),
-    files: list[UploadFile] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_login),
 ):
@@ -145,6 +146,7 @@ async def update_substrate(
     if not can_edit_substrate(current_user, substrate):
         raise HTTPException(status_code=403, detail="Only the person who added this substrate, or an admin, can edit it.")
     _apply_form(substrate, name, material, orientation, thickness_um, polishing, size, supplier, notes)
+    files = chosen_files(files)
     for f in files:
         await save_upload(f, "substrate", substrate.id, db, uploaded_by=current_user.username)
     await db.commit()

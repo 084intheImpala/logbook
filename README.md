@@ -155,6 +155,30 @@ Steps and analyses share one timeline per sample, ordered by an explicit
 chronologically, an undated one is appended. On the sample page, the ↑/↓
 arrows reorder entries and **Sort by date** reorders the dated ones.
 
+### Photos and files
+
+Each step and analysis card on a sample's page has **📷 Add photos** (opens
+the camera or gallery on a phone; pick several at once) and **📎 Attach
+files**. Uploads start as soon as files are chosen, and you can also drag
+files onto a card (images count as photos). The step and analysis forms take
+photos and files too.
+
+- **Photos** larger than 2560 px or 2 MB are rotated upright, downscaled and
+  saved as JPEG (quality 85, stepped down if needed to stay under 2 MB;
+  about 0.5–1 MB for a typical phone photo). Smaller photos are kept as
+  uploaded. iPhone HEIC photos are converted to JPEG. Re-encoding drops
+  metadata such as GPS location.
+- **Files** are always stored exactly as uploaded, so raw data images
+  (e.g. 16-bit TIFFs from SEM/AFM) keep full quality.
+- Every image gets a small thumbnail for the timeline; click it for the
+  full-size file.
+
+The limits are settings (`PHOTO_MAX_PX`, `PHOTO_MAX_MB`, `PHOTO_JPEG_QUALITY`,
+`THUMB_PX`) and can be overridden in `.env`. This needs Pillow and
+pillow-heif from `requirements.txt`; after updating, rebuild the container
+with `docker compose up -d --build`. Without them, photos are stored
+unchanged and shown without thumbnails.
+
 Mandatory: the substrate for thin-film and bulk samples, the description and
 spec sheet for commercial ones, and the type of each step/analysis. `required` in
 a type's schema is a hint shown on the form, not enforced.
@@ -202,6 +226,15 @@ is **View** (read details and download files) or **Edit** (also add and
 change steps, analyses and files). Only the owner or an admin can delete a
 sample or change who it's shared with. Samples without an owner are open to
 everyone; admins can assign an owner from the sample's Edit form.
+
+## Suggestions
+
+Everyone has a **💡 Suggestions** tab to send an idea, problem or question;
+it records which page they came from. Admins see everything in the
+**Inbox** tab (badge = open suggestions), filter by open/solved, reply, and
+mark suggestions solved or reopen them. Each suggestion is a thread: the
+author sees replies on their Suggestions page (with a badge for unread
+replies) and can answer back.
 
 ## Search and export
 

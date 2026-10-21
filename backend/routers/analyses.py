@@ -9,7 +9,8 @@ from backend.database import get_db
 from backend.models import Analysis, AnalysisType, Attachment
 from backend.params import parse_params, params_to_text, type_schemas_json, parse_datetime
 from backend.timeline import place_new, renumber
-from backend.utils import save_upload
+from backend.config import settings
+from backend.utils import save_upload, chosen_files
 from backend.auth import require_login, load_sample
 
 router = APIRouter()
@@ -33,6 +34,7 @@ async def new_analysis_form(
         "params_text": "",
         "type_schemas_json": type_schemas_json(analysis_types),
         "attachments": [],
+        "photo_max_px": settings.PHOTO_MAX_PX,
         "current_user": current_user,
     })
 
@@ -45,7 +47,8 @@ async def create_analysis(
     notes: str = Form(""),
     performed_by: str = Form(""),
     performed_at: str = Form(""),
-    file: UploadFile | None = File(None),
+    photos: list[UploadFile | str] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
@@ -63,7 +66,10 @@ async def create_analysis(
     await db.flush()  # get analysis.id
     await place_new(db, analysis)
 
-    await save_upload(file, "analysis", analysis.id, db)
+    for f in chosen_files(photos):
+        await save_upload(f, "analysis", analysis.id, db, uploaded_by=current_user.username, photo=True)
+    for f in chosen_files(files):
+        await save_upload(f, "analysis", analysis.id, db, uploaded_by=current_user.username)
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
@@ -103,6 +109,7 @@ async def edit_analysis_form(
         "params_text": params_to_text(analysis.parameters, analysis.analysis_type.parameter_schema),
         "type_schemas_json": type_schemas_json(analysis_types),
         "attachments": attachments,
+        "photo_max_px": settings.PHOTO_MAX_PX,
         "current_user": current_user,
     })
 
@@ -116,7 +123,8 @@ async def update_analysis(
     notes: str = Form(""),
     performed_by: str = Form(""),
     performed_at: str = Form(""),
-    file: UploadFile | None = File(None),
+    photos: list[UploadFile | str] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
@@ -134,7 +142,10 @@ async def update_analysis(
     analysis.performed_by = performed_by or None
     analysis.performed_at = parse_datetime(performed_at)
 
-    await save_upload(file, "analysis", analysis_id, db)
+    for f in chosen_files(photos):
+        await save_upload(f, "analysis", analysis_id, db, uploaded_by=current_user.username, photo=True)
+    for f in chosen_files(files):
+        await save_upload(f, "analysis", analysis_id, db, uploaded_by=current_user.username)
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 

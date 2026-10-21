@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.config import settings
 from backend.database import create_tables, AsyncSessionLocal
-from backend.routers import samples, steps, analyses, files, admin, search, substrates
+from backend.routers import samples, steps, analyses, files, admin, search, substrates, suggestions
 from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException, RequiresProfileException
 from backend.seed import seed_types
@@ -37,6 +37,7 @@ app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 app.include_router(auth_router.router, tags=["auth"])
 app.include_router(search.router)
 app.include_router(substrates.router)
+app.include_router(suggestions.router)
 app.include_router(samples.router, prefix="/samples", tags=["samples"])
 app.include_router(steps.router, prefix="/samples", tags=["steps"])
 app.include_router(analyses.router, prefix="/samples", tags=["analyses"])

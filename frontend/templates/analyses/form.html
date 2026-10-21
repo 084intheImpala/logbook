@@ -75,12 +75,20 @@
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">{{ analysis.notes or '' if analysis else '' }}</textarea>
     </div>
 
-    <!-- File upload -->
-    <div class="border-t border-gray-100 pt-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Attach a file <span class="text-xs font-normal text-gray-400">(optional)</span></label>
-      <input type="file" name="file"
-             class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
-      <p class="text-xs text-gray-400 mt-1">Accepted: spectra, images, PDF, CSV, ZIP — up to 50 MB</p>
+    <!-- Photos and files -->
+    <div class="border-t border-gray-100 pt-4 grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">📷 Photos <span class="text-xs font-normal text-gray-400">(optional)</span></label>
+        <input type="file" name="photos" accept="image/*" multiple
+               class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+        <p class="text-xs text-gray-400 mt-1">Pick several at once; on a phone you can use the camera. Large photos are resized to {{ photo_max_px }} px.</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">📎 Other files <span class="text-xs font-normal text-gray-400">(optional)</span></label>
+        <input type="file" name="files" multiple
+               class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 cursor-pointer">
+        <p class="text-xs text-gray-400 mt-1">Data, spectra, PDFs, raw images… stored unchanged.</p>
+      </div>
     </div>
 
     <!-- Existing attachments (edit only) -->

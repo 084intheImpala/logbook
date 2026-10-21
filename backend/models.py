@@ -191,11 +191,55 @@ class Attachment(Base):
     __tablename__ = "attachments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 'step' | 'analysis'
+    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)  # step | analysis | sample | substrate
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
     stored_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_size: Mapped[int | None] = mapped_column(BigInteger)
     mime_type: Mapped[str | None] = mapped_column(String(100))
+    # Small JPEG preview for images (created on upload, or on first view)
+    thumbnail_filename: Mapped[str | None] = mapped_column(String(255))
     uploaded_by: Mapped[str | None] = mapped_column(String(100))
     uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+SUGGESTION_KINDS = {"idea": "Idea", "problem": "Problem", "question": "Question"}
+
+
+class Suggestion(Base):
+    """Feedback from a user; admins reply and mark it solved."""
+    __tablename__ = "suggestions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    kind: Mapped[str] = mapped_column(String(20), default="idea", nullable=False)  # key of SUGGESTION_KINDS
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    page: Mapped[str | None] = mapped_column(String(300))   # where it was submitted from
+    solved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    solved_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # When the author last looked at it, to flag replies they haven't seen
+    author_seen_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    user: Mapped["User | None"] = relationship("User", lazy="selectin")
+    replies: Mapped[list["SuggestionReply"]] = relationship(
+        "SuggestionReply", back_populates="suggestion", order_by="SuggestionReply.id",
+        cascade="all, delete-orphan", lazy="selectin",
+    )
+
+    @property
+    def kind_label(self) -> str:
+        return SUGGESTION_KINDS.get(self.kind, self.kind)
+
+
+class SuggestionReply(Base):
+    __tablename__ = "suggestion_replies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    suggestion_id: Mapped[int] = mapped_column(ForeignKey("suggestions.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    suggestion: Mapped["Suggestion"] = relationship("Suggestion", back_populates="replies")
+    user: Mapped["User | None"] = relationship("User", lazy="selectin")

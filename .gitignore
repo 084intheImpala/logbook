@@ -14,3 +14,6 @@ backup_*.sql
 .DS_Store
 Thumbs.db
 *.log
+
+# Personal notes
+/todo

@@ -10,7 +10,7 @@ from backend.database import get_db
 from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
                             Substrate, User, SAMPLE_TYPES)
 from backend.sample_ids import next_code, piece_codes
-from backend.utils import save_upload
+from backend.utils import save_upload, chosen_files
 from backend.auth import require_login, load_sample, can_view, can_edit, is_owner
 from backend import timeline as tl
 from backend.lineage import load_sample_full, load_family, pieces_of
@@ -35,6 +35,10 @@ def parse_tags(text: str) -> list[str] | None:
 async def all_tags(db: AsyncSession) -> list[str]:
     rows = (await db.execute(select(Sample.tags))).scalars()
     return sorted({t for tags in rows for t in tags or []}, key=str.lower)
+
+
+def _is_image(attachment: Attachment) -> bool:
+    return (attachment.mime_type or "").startswith("image/")
 
 
 async def _attachments_for(db: AsyncSession, entity_type: str, entity_ids: list[int]) -> dict[int, list]:
@@ -145,7 +149,7 @@ async def create_sample(
     supplier: str = Form(""),
     description: str = Form(""),
     tags: str = Form(""),
-    files: list[UploadFile] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
@@ -153,6 +157,7 @@ async def create_sample(
     sample = Sample(owner_id=user_id)
     _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
                                      external_id, supplier, description, tags))
+    files = chosen_files(files)
     error = await _validate(db, sample, files, has_spec=False)
     if error:
         return templates.TemplateResponse(
@@ -220,7 +225,8 @@ async def sample_detail(
             "first_own": not inherited and own_index == 0,
             "last_own": not inherited and own_index == own_count - 1,
             "pieces": fam["pieces_by_cut"].get(e.id, []) if not inherited else [],
-            "attachments": attachments.get(e.id, []),
+            "photos": [a for a in attachments.get(e.id, []) if _is_image(a)],
+            "files": [a for a in attachments.get(e.id, []) if not _is_image(a)],
             "edit_url": f"/samples/{sample_id}/{path}/{e.id}/edit",
             "delete_url": f"/samples/{sample_id}/{path}/{e.id}/delete",
         })
@@ -281,7 +287,7 @@ async def update_sample(
     description: str = Form(""),
     tags: str = Form(""),
     owner_id: str = Form(None),
-    files: list[UploadFile] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
@@ -289,6 +295,7 @@ async def update_sample(
     _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
                                      external_id, supplier, description, tags))
     has_spec = bool((await _attachments_for(db, "sample", [sample_id]))[sample_id])
+    files = chosen_files(files)
     error = await _validate(db, sample, files, has_spec)
     if error:
         response = templates.TemplateResponse(  # renders now, before the rollback expires `sample`

@@ -231,7 +231,8 @@
       </div>
 
       <!-- Card -->
-      <div class="bg-white rounded-xl border shadow-sm overflow-hidden
+      <div id="{{ 'step' if is_process else 'analysis' }}-{{ entry.id }}"
+           class="{% if can_edit and not entry.inherited %}drop-card {% endif %}bg-white rounded-xl border shadow-sm overflow-hidden
                   {% if is_process %}border-blue-100{% else %}border-emerald-100{% endif %}">
 
         <!-- Card header -->
@@ -317,12 +318,36 @@
         </div>
         {% endif %}
 
-        <!-- Attachments -->
-        {% if entry.attachments %}
-        <div class="px-5 pb-3 border-t border-gray-100 pt-2">
-          <div class="text-xs text-gray-400 mb-1.5">Attachments</div>
+        <!-- Photos -->
+        {% set photos, other_files = entry.photos, entry.files %}
+        {% if photos %}
+        <div class="px-5 pb-3 border-t border-gray-100 pt-3">
           <div class="flex flex-wrap gap-2">
-            {% for att in entry.attachments %}
+            {% for att in photos %}
+            <div class="relative group">
+              <a href="/files/{{ att.id }}" target="_blank" title="{{ att.original_filename }}">
+                <img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" loading="lazy"
+                     class="h-28 w-28 object-cover rounded-lg border border-gray-200 hover:opacity-90">
+              </a>
+              {% if can_edit and not entry.inherited %}
+              <form method="post" action="/files/{{ att.id }}/delete"
+                    onsubmit="return confirm('Remove this photo?')"
+                    class="absolute top-1 right-1 hidden group-hover:block">
+                <button class="w-6 h-6 rounded-full bg-black/60 text-white text-sm leading-none hover:bg-red-600" title="Remove photo">×</button>
+              </form>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Other attachments -->
+        {% if other_files %}
+        <div class="px-5 pb-3 border-t border-gray-100 pt-2">
+          <div class="text-xs text-gray-400 mb-1.5">Files</div>
+          <div class="flex flex-wrap gap-2">
+            {% for att in other_files %}
             <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
               <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
               <span class="text-gray-400">({{ (att.file_size / 1024)|round(1) }} KB)</span>
@@ -339,24 +364,22 @@
 
         {% endif %}{# can_view #}
 
-        <!-- File upload -->
+        <!-- Upload: photos (camera or gallery on phones) and other files; uploads on selection -->
         {% if can_edit and not entry.inherited %}
-        <div class="px-5 pb-3 border-t border-gray-50 pt-2">
-          <form method="post" action="/files/upload/{{ sample.id }}" enctype="multipart/form-data"
-                class="flex items-center gap-2">
-            <input type="hidden" name="entity_type" value="{{ 'step' if is_process else 'analysis' }}">
-            <input type="hidden" name="entity_id" value="{{ entry.id }}">
-            <input type="file" name="file"
-                   class="text-xs text-gray-500
-                          file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs
-                          {% if is_process %}file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100
-                          {% else %}file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100{% endif %}">
-            <button type="submit"
-                    class="text-xs {% if is_process %}text-blue-600{% else %}text-emerald-600{% endif %} hover:underline">
-              Upload
-            </button>
-          </form>
-        </div>
+        <form method="post" action="/files/upload/{{ sample.id }}" enctype="multipart/form-data"
+              class="upload-form px-5 pb-3 border-t border-gray-50 pt-2 flex items-center gap-4 text-xs">
+          <input type="hidden" name="entity_type" value="{{ 'step' if is_process else 'analysis' }}">
+          <input type="hidden" name="entity_id" value="{{ entry.id }}">
+          <label class="cursor-pointer font-medium {% if is_process %}text-blue-600{% else %}text-emerald-600{% endif %} hover:underline">
+            📷 Add photos
+            <input type="file" name="photos" accept="image/*" multiple class="hidden auto-upload">
+          </label>
+          <label class="cursor-pointer text-gray-500 hover:underline">
+            📎 Attach files
+            <input type="file" name="files" multiple class="hidden auto-upload">
+          </label>
+          <span class="upload-status text-gray-400">or drop files on this card</span>
+        </form>
         {% endif %}
 
       </div><!-- /card -->
@@ -385,4 +408,45 @@
 </div>
 {% endif %}
 
+<script>
+(function () {
+  function submit(form, count) {
+    form.querySelector('.upload-status').textContent =
+      'Uploading ' + count + ' file' + (count > 1 ? 's' : '') + '…';
+    form.submit();
+  }
+
+  // "Add photos" sends to the photos field (large ones are resized on the
+  // server); "Attach files" to the files field (stored unchanged).
+  document.querySelectorAll('.auto-upload').forEach(input =>
+    input.addEventListener('change', () => {
+      input.form.querySelectorAll('.auto-upload').forEach(other => { if (other !== input) other.value = ''; });
+      if (input.files.length) submit(input.form, input.files.length);
+    }));
+
+  // Dropped files: images are treated as photos, everything else as files.
+  function drop(form, files) {
+    if (!files.length) return;
+    const photos = new DataTransfer(), others = new DataTransfer();
+    [...files].forEach(f => (f.type.startsWith('image/') ? photos : others).items.add(f));
+    form.querySelector('input[name=photos]').files = photos.files;
+    form.querySelector('input[name=files]').files = others.files;
+    submit(form, files.length);
+  }
+
+  document.querySelectorAll('.drop-card').forEach(card => {
+    const form = card.querySelector('.upload-form');
+    if (!form) return;
+    card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('ring-2', 'ring-blue-400'); });
+    card.addEventListener('dragleave', e => {
+      if (!card.contains(e.relatedTarget)) card.classList.remove('ring-2', 'ring-blue-400');
+    });
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('ring-2', 'ring-blue-400');
+      drop(form, e.dataTransfer.files);
+    });
+  });
+})();
+</script>
 {% endblock %}

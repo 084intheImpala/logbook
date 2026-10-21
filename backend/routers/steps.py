@@ -9,7 +9,8 @@ from backend.database import get_db
 from backend.models import Sample, ProcessStep, ProcessStepType, Attachment
 from backend.params import parse_params, params_to_text, type_schemas_json, parse_datetime
 from backend.timeline import place_new, renumber
-from backend.utils import save_upload
+from backend.config import settings
+from backend.utils import save_upload, chosen_files
 from backend.auth import require_login, load_sample
 
 router = APIRouter()
@@ -33,6 +34,7 @@ async def new_step_form(
         "params_text": "",
         "type_schemas_json": type_schemas_json(step_types),
         "attachments": [],
+        "photo_max_px": settings.PHOTO_MAX_PX,
         "current_user": current_user,
     })
 
@@ -45,7 +47,8 @@ async def create_step(
     notes: str = Form(""),
     performed_by: str = Form(""),
     performed_at: str = Form(""),
-    file: UploadFile | None = File(None),
+    photos: list[UploadFile | str] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
@@ -64,7 +67,10 @@ async def create_step(
     await db.flush()  # get step.id without committing
     await place_new(db, step)
 
-    await save_upload(file, "step", step.id, db)
+    for f in chosen_files(photos):
+        await save_upload(f, "step", step.id, db, uploaded_by=current_user.username, photo=True)
+    for f in chosen_files(files):
+        await save_upload(f, "step", step.id, db, uploaded_by=current_user.username)
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
@@ -104,6 +110,7 @@ async def edit_step_form(
         "params_text": params_to_text(step.parameters, step.step_type.parameter_schema),
         "type_schemas_json": type_schemas_json(step_types),
         "attachments": attachments,
+        "photo_max_px": settings.PHOTO_MAX_PX,
         "current_user": current_user,
     })
 
@@ -117,7 +124,8 @@ async def update_step(
     notes: str = Form(""),
     performed_by: str = Form(""),
     performed_at: str = Form(""),
-    file: UploadFile | None = File(None),
+    photos: list[UploadFile | str] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
@@ -135,7 +143,10 @@ async def update_step(
     step.performed_by = performed_by or None
     step.performed_at = parse_datetime(performed_at)
 
-    await save_upload(file, "step", step_id, db)
+    for f in chosen_files(photos):
+        await save_upload(f, "step", step_id, db, uploaded_by=current_user.username, photo=True)
+    for f in chosen_files(files):
+        await save_upload(f, "step", step_id, db, uploaded_by=current_user.username)
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 

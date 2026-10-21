@@ -2,10 +2,10 @@
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from backend.database import get_db
-from backend.models import User, Sample
+from backend.models import User, Sample, Suggestion, SuggestionReply
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -59,7 +59,22 @@ async def require_login(
         raise RequiresLoginException()
     if not user.initials and not request.url.path.startswith(PROFILE_EXEMPT_PATHS):
         raise RequiresProfileException()
+    user.suggestion_badge = await _suggestion_badge(db, user)
     return user
+
+
+async def _suggestion_badge(db: AsyncSession, user: User) -> int:
+    """Sidebar badge: open suggestions for admins; for everyone else, their
+    suggestions with replies from someone else they haven't seen yet."""
+    if user.is_admin:
+        q = select(func.count()).select_from(Suggestion).where(Suggestion.solved.is_(False))
+    else:
+        q = (select(func.count(func.distinct(Suggestion.id)))
+             .join(SuggestionReply, SuggestionReply.suggestion_id == Suggestion.id)
+             .where(Suggestion.user_id == user.id,
+                    SuggestionReply.user_id != user.id,
+                    SuggestionReply.created_at > func.coalesce(Suggestion.author_seen_at, Suggestion.created_at)))
+    return (await db.execute(q)).scalar() or 0
 
 
 # ── Sample permissions ───────────────────────────────────────────────────────

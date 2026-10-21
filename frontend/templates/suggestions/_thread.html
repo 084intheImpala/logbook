@@ -1,0 +1,47 @@
+{# One suggestion with its replies and a reply box. `back` is where to return after replying. #}
+{% macro thread(s, current_user, back, unread=False, admin_view=False) %}
+<article id="suggestion-{{ s.id }}"
+         class="bg-white rounded-xl border shadow-sm overflow-hidden {% if unread %}border-blue-300 ring-1 ring-blue-200{% else %}border-gray-200{% endif %}">
+  <header class="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-xs">
+    <span class="font-semibold px-2 py-0.5 rounded
+      {% if s.kind == 'problem' %}bg-red-100 text-red-700{% elif s.kind == 'question' %}bg-purple-100 text-purple-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+      {{ s.kind_label }}</span>
+    {% if admin_view %}<span class="text-gray-700 font-medium">{{ s.user.display_name if s.user else "deleted user" }}</span>{% endif %}
+    <span class="text-gray-400">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+    {% if s.page %}<span class="text-gray-400">· from <a href="{{ s.page }}" class="font-mono hover:underline">{{ s.page }}</a></span>{% endif %}
+    {% if unread %}<span class="text-blue-600 font-semibold">· new reply</span>{% endif %}
+    <span class="ml-auto">
+      {% if s.solved %}<span class="bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded">✓ Solved</span>
+      {% else %}<span class="bg-gray-200 text-gray-600 font-semibold px-2 py-0.5 rounded">Open</span>{% endif %}
+    </span>
+    {% if admin_view %}
+    <form method="post" action="/admin/suggestions/{{ s.id }}/status">
+      <input type="hidden" name="solved" value="{{ '0' if s.solved else '1' }}">
+      <input type="hidden" name="back" value="{{ back }}">
+      <button class="{% if s.solved %}text-gray-500{% else %}text-green-700{% endif %} hover:underline">
+        {{ "Reopen" if s.solved else "Mark solved" }}</button>
+    </form>
+    {% endif %}
+  </header>
+  <div class="px-4 py-3 text-sm text-gray-800 whitespace-pre-line">{{ s.text }}</div>
+
+  {% for r in s.replies %}
+  {% set from_admin = r.user and r.user.is_admin and r.user_id != s.user_id %}
+  <div class="mx-4 mb-2 px-3 py-2 rounded-lg text-sm {% if from_admin %}bg-blue-50{% else %}bg-gray-50{% endif %}">
+    <div class="text-xs text-gray-500 mb-0.5">
+      <span class="font-medium {% if from_admin %}text-blue-700{% endif %}">{{ r.user.display_name if r.user else "deleted user" }}</span>
+      {% if from_admin %}<span class="text-blue-500">(admin)</span>{% endif %}
+      · {{ r.created_at.strftime('%Y-%m-%d %H:%M') }}
+    </div>
+    <div class="text-gray-800 whitespace-pre-line">{{ r.text }}</div>
+  </div>
+  {% endfor %}
+
+  <form method="post" action="/suggestions/{{ s.id }}/reply" class="flex gap-2 px-4 pb-3 pt-1">
+    <input type="hidden" name="back" value="{{ back }}">
+    <input name="text" required placeholder="{{ 'Reply to ' ~ (s.user.display_name if s.user else 'user') if admin_view else 'Add a reply…' }}"
+           class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-700">Reply</button>
+  </form>
+</article>
+{% endmacro %}

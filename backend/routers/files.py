@@ -12,7 +12,7 @@ from backend.config import settings
 from backend.auth import require_login, load_sample, can_view, can_edit
 from backend.lineage import can_view_entry
 from backend.routers.substrates import can_edit_substrate
-from backend.utils import save_upload, delete_attachment
+from backend.utils import save_upload, delete_attachment, chosen_files, ensure_thumbnail
 
 router = APIRouter(prefix="/files", tags=["files"], dependencies=[Depends(require_login)])
 
@@ -51,47 +51,79 @@ async def upload_file_for_sample(
     sample_id: int,
     entity_type: str = Form(...),
     entity_id: int = Form(...),
-    file: UploadFile = File(...),
+    photos: list[UploadFile | str] = File([]),
+    files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_login),
 ):
-    """Attach a file to a sample or one of its steps/analyses, then go back to the sample page."""
+    """Attach photos and/or files to a sample or one of its steps/analyses,
+    then go back to the sample page. Photos may be downscaled; files aren't."""
     if await _entity_sample_id(db, entity_type, entity_id) != sample_id:
         raise HTTPException(status_code=400, detail="Entry does not belong to this sample")
     await load_sample(db, sample_id, current_user, "edit")
-    if file.size is not None and file.size > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
-        raise HTTPException(status_code=413, detail=f"File exceeds {settings.MAX_UPLOAD_SIZE_MB} MB limit")
-    await save_upload(file, entity_type, entity_id, db, uploaded_by=current_user.username)
+    photos, files = chosen_files(photos), chosen_files(files)
+    for f in photos + files:
+        if f.size is not None and f.size > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
+            raise HTTPException(status_code=413, detail=f"{f.filename} exceeds the {settings.MAX_UPLOAD_SIZE_MB} MB limit")
+    for f in photos:
+        await save_upload(f, entity_type, entity_id, db, uploaded_by=current_user.username, photo=True)
+    for f in files:
+        await save_upload(f, entity_type, entity_id, db, uploaded_by=current_user.username)
     await db.commit()
-    return RedirectResponse(f"/samples/{sample_id}", status_code=303)
+    anchor = f"#{entity_type}-{entity_id}" if entity_type != "sample" else ""
+    return RedirectResponse(f"/samples/{sample_id}{anchor}", status_code=303)
+
+
+async def _readable_attachment(db: AsyncSession, attachment_id: int, user: User) -> Attachment:
+    """The attachment, if `user` may see it (403/404 otherwise)."""
+    attachment = await _attachment(db, attachment_id)
+    if attachment.entity_type == "substrate":
+        await _substrate(db, attachment.entity_id)   # library specs are visible to everyone
+        return attachment
+    sample_id = await _entity_sample_id(db, attachment.entity_type, attachment.entity_id)
+    sample = await load_sample(db, sample_id, user, "summary")
+    if attachment.entity_type == "sample":
+        allowed = can_view(user, sample)
+    else:
+        entry = await db.get(ENTITY_MODELS[attachment.entity_type], attachment.entity_id)
+        allowed = await can_view_entry(db, user, sample, entry)
+    if not allowed:
+        raise HTTPException(status_code=403, detail="You don't have access to this file.")
+    return attachment
 
 
 @router.get("/{attachment_id}")
 async def download_file(attachment_id: int, db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_login)):
-    attachment = await _attachment(db, attachment_id)
-    if attachment.entity_type == "substrate":
-        await _substrate(db, attachment.entity_id)   # library specs are visible to everyone
-    else:
-        sample_id = await _entity_sample_id(db, attachment.entity_type, attachment.entity_id)
-        sample = await load_sample(db, sample_id, current_user, "summary")
-        if attachment.entity_type == "sample":
-            allowed = can_view(current_user, sample)
-        else:
-            entry = await db.get(ENTITY_MODELS[attachment.entity_type], attachment.entity_id)
-            allowed = await can_view_entry(db, current_user, sample, entry)
-        if not allowed:
-            raise HTTPException(status_code=403, detail="You don't have access to this file.")
-
+    attachment = await _readable_attachment(db, attachment_id, current_user)
     path = settings.UPLOAD_DIR / attachment.stored_filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="File missing from disk")
 
+    mime = attachment.mime_type or "application/octet-stream"
     return FileResponse(
         path=path,
         filename=attachment.original_filename,
-        media_type=attachment.mime_type or "application/octet-stream",
+        media_type=mime,
+        # Show images (and PDFs) in the browser instead of downloading them
+        content_disposition_type="inline" if mime.startswith("image/") or mime == "application/pdf" else "attachment",
     )
+
+
+@router.get("/{attachment_id}/thumb")
+async def thumbnail(attachment_id: int, db: AsyncSession = Depends(get_db),
+                    current_user: User = Depends(require_login)):
+    """Small JPEG preview; created on first request if it doesn't exist yet.
+    Falls back to the original when no thumbnail can be made."""
+    attachment = await _readable_attachment(db, attachment_id, current_user)
+    had_thumb = attachment.thumbnail_filename is not None
+    name = await ensure_thumbnail(attachment)
+    if name and not had_thumb:
+        await db.commit()
+    if name and (settings.UPLOAD_DIR / name).exists():
+        return FileResponse(settings.UPLOAD_DIR / name, media_type="image/jpeg",
+                            headers={"Cache-Control": "private, max-age=86400"})
+    return await download_file(attachment_id, db, current_user)
 
 
 @router.post("/{attachment_id}/delete")
