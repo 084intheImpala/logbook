@@ -11,6 +11,7 @@ from backend.models import User, SAMPLE_TYPES
 from backend.auth import require_login, can_view, is_owner
 from backend.export import samples_csv
 from backend.lineage import Family, load_samples_full
+from backend.params import flatten
 
 router = APIRouter(tags=["search"])
 from backend.templating import templates
@@ -21,6 +22,7 @@ GROUP_BY = {
     "investigator": "Researcher",
     "year": "Year",
     "sample_type": "Sample type",
+    "collaboration": "Collaboration",
     "film_material": "Film material",
     "substrate_material": "Substrate",
     "technique": "Technique",
@@ -42,6 +44,8 @@ def _group_keys(family: Family, sample, group_by: str) -> list[str]:
         keys = [str(sample.created_at.year)]
     elif group_by == "sample_type":
         keys = [sample.type_label]
+    elif group_by == "collaboration":
+        keys = [sample.collaborator.name if sample.collaborator else None]
     elif group_by == "technique":
         keys = _techniques(family, sample)
     elif group_by == "tag":
@@ -70,15 +74,16 @@ def _matches(family: Family, sample, user, q: str, investigator: str, sample_typ
         viewable = can_view(user, sample)
         haystack = [sample.code, sample.label, sample.external_id, sample.supplier, sample.film_material,
                     sample.substrate_material, sample.substrate.name if sample.substrate else None,
-                    sample.researcher, sample.type_label, *(sample.tags or [])]
+                    sample.researcher, sample.type_label, *(sample.tags or []),
+                    *((sample.collaborator.name, sample.collaborator.code) if sample.collaborator else ())]
         if viewable:
             haystack.append(sample.description)
         for item in family.timeline(sample):
             e = item.entry
             haystack.append(item.technique)
             if viewable:
-                haystack += [e.notes, e.performed_by,
-                             *(f"{k} {v}" for k, v in (e.parameters or {}).items())]
+                haystack += [e.notes, e.performer_name, e.location,
+                             *(f"{k} {v}" for k, v in flatten(e.parameters).items())]
         text = " ".join(str(h) for h in haystack if h).lower()
         if not all(word in text for word in q.lower().split()):
             return False

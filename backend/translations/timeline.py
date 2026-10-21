@@ -1,30 +1,22 @@
 """Process step and analysis forms, their routers, and the seeded step /
 analysis types (names, descriptions, parameter labels and placeholders)."""
 PT = {
-    # steps/form.html, analyses/form.html
+    # entries/form.html (steps and analyses)
     "Samples": "Amostras",
-    "Edit Step": "Editar passo",
-    "Add Step": "Adicionar passo",
     "Edit Process Step": "Editar passo de processo",
     "Add Process Step": "Adicionar passo de processo",
     "Step Type": "Tipo de passo",
     "Edit Analysis": "Editar análise",
     "Add Analysis": "Adicionar análise",
-    "Edit {name}": "Editar {name}",
     "Analysis Type": "Tipo de análise",
     "select": "escolha",
     "Performed by": "Realizado por",
     "Name": "Nome",
-    "Date & Time": "Data e hora",
     "optional": "opcional",
     "Parameters": "Parâmetros",
-    "Add fields from type": "Adicionar campos do tipo",
-    "One parameter per line:": "Um parâmetro por linha:",
     "key: value": "chave: valor",
-    "keys": "chaves",
     "Notes": "Notas",
     "Additional observations": "Observações adicionais",
-    "Instrument used, conditions, observations…": "Instrumento utilizado, condições, observações…",
     "Photos": "Fotografias",
     "Other files": "Outros ficheiros",
     "Pick several at once; on a phone you can use the camera. Large photos are resized to {px} px.":
@@ -49,9 +41,46 @@ PT = {
         "Não é possível eliminar esta divisão: {n} pedaços resultaram dela e herdam o histórico anterior. "
         "Elimine primeiro os pedaços.",
 
+    # "Performed by" (_performer.html, performers.py)
+    "Someone else (type the name)": "Outra pessoa (escreva o nome)",
+    "They can see and edit this entry. If they get an account later, pick them here instead of the typed name.":
+        "Essa pessoa pode ver e editar este registo. Se mais tarde tiver conta, escolha-a aqui em vez do nome escrito.",
+    "You can see and edit the entries you performed.": "Pode ver e editar os registos que realizou.",
+    "Couldn't email {name} ({error}).": "Não foi possível enviar email a {name} ({error}).",
+
     # Labels also used on the forms. Step/analysis types, techniques and
     # parameters themselves stay in English (technical terms).
     "Technique": "Técnica",
     "Method": "Método",
     "Description": "Descrição",
+
+    # Structured parameters, shared dropdowns, runs (entries/form.html, _params.html)
+    "Where": "Onde",
+    "Add new…": "Adicionar novo…",
+    "New value; it's saved for everyone": "Novo valor; fica guardado para todos",
+    "Add another mode": "Adicionar outro modo",
+    "Name of the new mode": "Nome do novo modo",
+    "Other parameters": "Outros parâmetros",
+    "Anything the fields above don't cover, one per line:": "O que os campos acima não cobrem, um por linha:",
+    "Choose a type.": "Escolha um tipo.",
+    "Also add to other samples": "Adicionar também a outras amostras",
+    "For things done in parallel. Each sample gets its own copy with these details and files; editing one can update the others.":
+        "Para o que foi feito em paralelo. Cada amostra recebe a sua cópia com estes dados e ficheiros; editar uma pode atualizar as outras.",
+    "Filter by ID or label": "Filtrar por ID ou rótulo",
+    "Also recorded on:": "Registado também em:",
+    "Apply these changes to them too (not the files)": "Aplicar estas alterações também a essas (exceto ficheiros)",
+    "Also on:": "Também em:",
+    # Cut form
+    "Photo of the pieces": "Fotografia dos pedaços",
+    "Recommended: photograph the pieces with each one's letter written next to it (A, B, …), so it's clear which is which.":
+        "Recomendado: fotografe os pedaços com a letra de cada um escrita ao lado (A, B, …), para se saber qual é qual.",
+    # Admin: dropdown lists and schema help
+    "Dropdown lists": "Listas de opções",
+    "Values for the dropdowns on the step and analysis forms. People add new values from the forms; here you can add values or remove typos. Entries that already use a value keep it.":
+        "Valores das listas nos formulários de passos e análises. As pessoas acrescentam valores a partir dos formulários; aqui pode adicionar valores ou remover gralhas. Os registos que já usam um valor mantêm-no.",
+    "New value": "Novo valor",
+    'Field types: number (with unit), duration, text, longtext, choice (a dropdown list, "list"), variant ("options", each with its own fields), check (a tick box with "fields" shown when ticked), modes (tick several from a list, each with "fields"). See the README.':
+        'Tipos de campo: number (com unidade), duration, text, longtext, choice (uma lista de opções, "list"), variant ("options", cada uma com os seus campos), check (uma caixa com "fields" que aparecem quando assinalada), modes (assinalar vários de uma lista, cada um com "fields"). Ver o README.',
+    "Where it is": "Onde está",
+    "place": "local",
 }

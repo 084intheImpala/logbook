@@ -109,6 +109,16 @@ def can_edit(user: User | None, sample) -> bool:
     return bool(share and share.can_edit)
 
 
+def is_performer(user: User | None, entry) -> bool:
+    """Whoever is recorded as having performed a step or analysis can see and
+    edit that entry (and its files), even without access to the sample."""
+    return user is not None and entry.performer_id == user.id
+
+
+def can_edit_entry(user: User | None, sample, entry) -> bool:
+    return can_edit(user, sample) or is_performer(user, entry)
+
+
 _CHECKS = {"summary": lambda u, s: True, "view": can_view, "edit": can_edit, "owner": is_owner}
 
 

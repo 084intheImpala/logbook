@@ -1,8 +1,9 @@
 """Ordering of a sample's timeline (process steps and analyses together).
 
 Every ProcessStep and Analysis has a `position`; positions are shared across
-both tables so a sample's timeline is one ordered list. Dates are optional and
-only used as a hint when placing a new entry.
+both tables so a sample's timeline is one ordered list. Dates (the day only)
+are optional and only used to place a new or re-dated entry; the order
+within a day, or against the dates, is up to the user.
 """
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,10 +32,11 @@ async def renumber(db: AsyncSession, sample_id: int):
 
 
 async def place_new(db: AsyncSession, entry):
-    """Insert a just-added (flushed) entry into its sample's timeline.
+    """Put a just-added (flushed) entry, or one whose date changed, in its slot.
 
-    With a date, it goes before the first dated entry that is later than it;
-    otherwise it is appended. Users can reorder manually afterwards.
+    With a date, it goes before the first dated entry later than it, so after
+    any on the same day; otherwise it is appended. Users can then reorder
+    freely, also against the dates (e.g. two entries on the same day).
     """
     others = [e for e in await ordered_entries(db, entry.sample_id) if e is not entry]
     index = len(others)

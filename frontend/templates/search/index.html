@@ -112,7 +112,7 @@
             {% if not can_view(s) %}<span class="text-xs text-gray-400" title="{{ _("Summary only — ask the owner to share it") }}">🔒</span>{% endif %}
             {% set parent = parent_of(s) %}
             {% if parent %}<div class="text-xs text-gray-400">✂ {{ _("piece of") }} <a href="/samples/{{ parent.id }}" class="font-mono hover:underline">{{ parent.title }}</a>{% if s.is_reference %} · <span class="text-amber-600">{{ _("reference") }}</span>{% endif %}</div>{% endif %}</td>
-          <td class="px-4 py-2 text-gray-600 text-xs">{{ s.type_label }}</td>
+          <td class="px-4 py-2 text-gray-600 text-xs">{{ s.type_label }}{% if s.collaborator %}<div class="text-gray-400" title="{{ s.collaborator.name }}">{{ s.collaborator.code }}</div>{% endif %}</td>
           <td class="px-4 py-2 text-gray-600">{{ s.film_material or '—' }}</td>
           <td class="px-4 py-2 text-gray-600">{{ s.substrate_material or '—' }}</td>
           <td class="px-4 py-2 text-gray-600 text-xs">{{ techniques_of(s)|join(', ') or '—' }}</td>

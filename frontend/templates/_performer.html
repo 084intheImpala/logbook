@@ -1,0 +1,42 @@
+{# "Performed by" on the step and analysis forms: a user (who then gets access
+   to this entry) or, for someone without an account, a typed name. #}
+{% macro performer_field(entry, users, ring) %}
+{% set chosen = entry.performer_id if entry and entry.performer_id
+               else ("other" if entry and entry.performed_by else ("" if entry else current_user.id)) %}
+<div>
+  <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Performed by") }}</label>
+  <select name="performer" id="performer-select"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 {{ ring }} bg-white">
+    <option value="" {% if chosen == "" %}selected{% endif %}>—</option>
+    {% for u in users %}
+    <option value="{{ u.id }}" {% if chosen == u.id %}selected{% endif %}>{{ u.display_name }}{% if u.id == current_user.id %} — {{ _("me") }}{% endif %}</option>
+    {% endfor %}
+    <option value="other" {% if chosen == "other" %}selected{% endif %}>{{ _("Someone else (type the name)") }}</option>
+  </select>
+  <input name="performed_by" id="performed-by-name" type="text" value="{{ entry.performed_by or '' if entry else '' }}"
+         placeholder="{{ _("Name") }}"
+         class="{% if chosen != 'other' %}hidden {% endif %}mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 {{ ring }}">
+  <p class="text-xs text-gray-400 mt-1">{{ _("They can see and edit this entry. If they get an account later, pick them here instead of the typed name.") }}</p>
+</div>
+<script>
+  (function () {
+    const select = document.getElementById('performer-select'), name = document.getElementById('performed-by-name');
+    select.addEventListener('change', () => {
+      name.classList.toggle('hidden', select.value !== 'other');
+      if (select.value === 'other') name.focus();
+    });
+  })();
+</script>
+{% endmacro %}
+
+{% macro date_field(entry, ring) %}
+<div>
+  <label class="block text-sm font-medium text-gray-700 mb-1">
+    {{ _("Date") }}
+    <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("optional") }}</span>
+  </label>
+  <input name="performed_at" type="date"
+         value="{% if entry and entry.performed_at %}{{ entry.performed_at.strftime('%Y-%m-%d') }}{% endif %}"
+         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 {{ ring }}">
+</div>
+{% endmacro %}

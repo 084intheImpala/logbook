@@ -2,7 +2,8 @@
 
 A new sample gets <INITIALS>-<YEAR>-<NNN>, e.g. ASS-2026-001: the
 researcher's initials, the year it was created and that researcher's
-counter for the year. Pieces cut from it add a suffix: -A, -B, … at the
+counter for the year. Collaboration samples use the partner centre's code
+instead of initials (UMIN-2026-001), with the centre's own counter. Pieces cut from it add a suffix: -A, -B, … at the
 first level, -1, -2, … at the next, alternating, so ASS-2026-001-A-1 is a
 piece of piece A. A reference piece gets -REF (then -REF2, …).
 
@@ -17,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.models import Sample
 
 INITIALS_RE = re.compile(r"^[A-Z]{2,4}$")
+COLLABORATOR_CODE_RE = re.compile(r"^[A-Z]{2,6}$")   # used like initials, for samples from a partner centre
 
 
 def normalize_initials(text: str) -> str:

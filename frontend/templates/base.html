@@ -43,6 +43,8 @@
     html.dark main input:not([type=checkbox]):not([type=radio]):not([type=file]),
     html.dark main select, html.dark main textarea { background-color: #121821; color: #e5e7eb; }
     html.dark main input::placeholder, html.dark main textarea::placeholder { color: #6b7483; }
+    html.dark main input:disabled, html.dark main select:disabled, html.dark main textarea:disabled {
+      background-color: #1a212c; color: #8a94a3; }
     /* tinted panels and badges */
     html.dark main .bg-blue-50, html.dark main .hover\:bg-blue-50:hover, html.dark main .has-\[\:checked\]\:bg-blue-50:has(:checked),
     html.dark main .file\:bg-blue-50::file-selector-button { background-color: rgba(59,130,246,.14); }
@@ -97,16 +99,14 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7l8-4 8 4-8 4-8-4zm0 5l8 4 8-4M4 17l8 4 8-4"/></svg>
           {{ _("Substrates") }}
         </a>
+        <a href="/collaborations/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/collaborations') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>
+          {{ _("Collaborations") }}
+        </a>
         {% if current_user %}
         <a href="/samples/new" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 text-gray-300">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           {{ _("New Sample") }}
-        </a>
-        {% endif %}
-        {% if current_user and current_user.is_admin %}
-        <a href="/admin/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/admin') and not request.url.path.startswith('/admin/suggestions') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          {{ _("Configurations") }}
         </a>
         {% endif %}
         {% if current_user %}
@@ -123,6 +123,13 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
           {{ _("Inbox") }}
           {% if current_user.suggestion_badge %}<span class="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">{{ current_user.suggestion_badge }}</span>{% endif %}
+        </a>
+        {% endif %}
+        {% if current_user.is_admin %}
+        <div class="my-3 border-t border-gray-800"></div>
+        <a href="/admin/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/admin') and not request.url.path.startswith('/admin/suggestions') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          {{ _("Configurations") }}
         </a>
         {% endif %}
         {% endif %}
@@ -168,6 +175,24 @@
         </script>
       </div>
     </nav>
+
+    <script>
+      // Dropdowns from shared lists (_params.html): "+ Add new…" swaps in a
+      // text box that's submitted under the dropdown's name instead.
+      document.addEventListener('change', e => {
+        const select = e.target;
+        if (!select.classList || !select.classList.contains('choice-select')) return;
+        const box = select.parentElement.querySelector('.choice-new');
+        const name = select.dataset.name || select.name;
+        select.dataset.name = name;
+        const adding = select.value === '__new__';
+        if (adding) { box.name = name; select.removeAttribute('name'); }
+        else { select.name = name; box.removeAttribute('name'); }
+        box.classList.toggle('hidden', !adding);
+        box.disabled = !adding;
+        if (adding) box.focus();
+      });
+    </script>
 
     <!-- Main content -->
     <main class="ml-56 flex-1 p-8">

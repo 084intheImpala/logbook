@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from pydantic import BaseModel, ConfigDict
 
@@ -34,13 +34,13 @@ class ProcessStepCreate(BaseModel):
     parameters: dict[str, Any] | None = None
     notes: str | None = None
     performed_by: str | None = None
-    performed_at: datetime | None = None
+    performed_at: date | None = None
 
 class ProcessStepUpdate(BaseModel):
     parameters: dict[str, Any] | None = None
     notes: str | None = None
     performed_by: str | None = None
-    performed_at: datetime | None = None
+    performed_at: date | None = None
 
 class ProcessStepOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -51,7 +51,7 @@ class ProcessStepOut(BaseModel):
     parameters: dict[str, Any] | None
     notes: str | None
     performed_by: str | None
-    performed_at: datetime | None
+    performed_at: date | None
     created_at: datetime
     attachments: list[AttachmentOut] = []
 
@@ -73,13 +73,13 @@ class AnalysisCreate(BaseModel):
     parameters: dict[str, Any] | None = None
     notes: str | None = None
     performed_by: str | None = None
-    performed_at: datetime | None = None
+    performed_at: date | None = None
 
 class AnalysisUpdate(BaseModel):
     parameters: dict[str, Any] | None = None
     notes: str | None = None
     performed_by: str | None = None
-    performed_at: datetime | None = None
+    performed_at: date | None = None
 
 class AnalysisOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -89,7 +89,7 @@ class AnalysisOut(BaseModel):
     parameters: dict[str, Any] | None
     notes: str | None
     performed_by: str | None
-    performed_at: datetime | None
+    performed_at: date | None
     created_at: datetime
     attachments: list[AttachmentOut] = []
 

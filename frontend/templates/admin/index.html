@@ -155,7 +155,7 @@
         {% if t.parameter_schema %}
         <div class="mt-1 flex flex-wrap gap-1">
           {% for f in t.parameter_schema %}
-          <span class="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded">{{ f.label or f.key }}{% if f.unit %} [{{ f.unit }}]{% endif %}</span>
+          <span class="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded">{{ _(f.label or f.key) }}{% if f.unit %} [{{ f.unit }}]{% endif %}{% if f.type == "variant" %}: {{ f.options|map(attribute="value")|join(" / ") }}{% elif f.type in ("choice", "modes") %} ▾{% endif %}</span>
           {% endfor %}
         </div>
         {% endif %}
@@ -177,6 +177,7 @@
             <textarea name="parameter_schema_json" rows="{{ [4, (t.parameter_schema or [])|length + 2]|max }}"
                       class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-mono">{{ t.parameter_schema|schema_json }}</textarea>
             <p class="text-xs text-gray-400 mt-1">{{ _("Existing entries keep their stored values. New keys appear empty the next time an entry is edited; removed keys stay on old entries.") }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ _('Field types: number (with unit), duration, text, longtext, choice (a dropdown list, "list"), variant ("options", each with its own fields), check (a tick box with "fields" shown when ticked), modes (tick several from a list, each with "fields"). See the README.') }}</p>
           </div>
           <button type="submit" class="bg-{{ color }}-600 text-white text-xs px-4 py-1.5 rounded hover:bg-{{ color }}-700">{{ _("Save") }}</button>
         </form>
@@ -215,10 +216,54 @@
 </div>
 {% endmacro %}
 
-<div class="grid grid-cols-2 gap-8">
+<div class="grid grid-cols-2 gap-8 mb-10">
   {{ type_panel(_("Process Step Types"), "step-types", step_types, step_usage, "blue",
                 '[{"key":"temperature","label":"Temperature","type":"number","unit":"°C"}]') }}
   {{ type_panel(_("Analysis Types"), "analysis-types", analysis_types, analysis_usage, "emerald",
                 '[{"key":"energy","label":"Beam Energy","type":"number","unit":"keV"}]') }}
 </div>
+<section id="choices">
+  <h3 class="text-base font-semibold text-gray-700 mb-1">{{ _("Dropdown lists") }}</h3>
+  <p class="text-sm text-gray-500 mb-4">{{ _("Values for the dropdowns on the step and analysis forms. People add new values from the forms; here you can add values or remove typos. Entries that already use a value keep it.") }}</p>
+  <div class="grid grid-cols-2 gap-4">
+    {% for name, opts in choice_lists.items() %}
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3">
+      <div class="font-mono text-xs font-semibold text-gray-600 mb-2">{{ name }}</div>
+      <div class="flex flex-wrap gap-1.5 mb-2">
+        {% for o in opts %}
+        <span class="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-xs">
+          {{ o.value }}
+          {% if name in located_lists %}
+          <form method="post" action="/admin/choices/{{ o.id }}/location" class="inline">
+            <select name="location" onchange="this.form.submit()" title="{{ _("Where it is") }}"
+                    class="text-[11px] text-gray-500 bg-transparent border-0 p-0">
+              <option value="">— {{ _("place") }} —</option>
+              {% for p in places %}<option value="{{ p }}" {% if o.location == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+            </select>
+          </form>
+          {% endif %}
+          <form method="post" action="/admin/choices/{{ o.id }}/delete" class="inline"
+                onsubmit='return confirm({{ _("Remove {name}?", name=o.value)|tojson }})'>
+            <button class="text-gray-300 hover:text-red-400 font-bold" title="{{ _("Remove") }}">×</button>
+          </form>
+        </span>
+        {% else %}
+        <span class="text-xs text-gray-400">{{ _("None yet.") }}</span>
+        {% endfor %}
+      </div>
+      <form method="post" action="/admin/choices/new" class="flex gap-2">
+        <input type="hidden" name="list_name" value="{{ name }}">
+        <input name="value" required placeholder="{{ _("New value") }}" class="flex-1 border border-gray-300 rounded px-2 py-1 text-xs">
+        {% if name in located_lists %}
+        <select name="location" class="border border-gray-300 rounded px-1 py-1 text-xs bg-white" title="{{ _("Where it is") }}">
+          <option value="">— {{ _("place") }} —</option>
+          {% for p in places %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        <button class="text-xs text-blue-600 hover:underline">{{ _("Add") }}</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

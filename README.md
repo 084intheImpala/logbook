@@ -112,6 +112,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 ```
 Substrate         (shared library: material, orientation, thickness, polishing, spec files)
+Collaborator      (partner centre: name, code used in its samples' IDs, contact)
 Sample            (generated ID, type, optional label and tags)
  ├── ProcessStep  (can repeat types, e.g. two annealings)
  │    └── Attachment (uploaded files)
@@ -128,6 +129,9 @@ reference piece adds `-REF`. IDs never change, even if the sample changes
 owner or the researcher's initials change later. The optional **Label** is
 for your own description and doesn't need to be unique.
 
+Collaboration samples use the partner centre's code instead of initials,
+with the centre's own counter, e.g. `UMIN-2026-001`, whoever receives them.
+
 Everyone sets their display name and initials (2–4 letters, unique) on first
 login; they're asked again until they do. Once someone has samples, only an
 admin can change their initials (Configurations → Users).
@@ -140,6 +144,10 @@ admin can change their initials (Configurations → Users).
   **External ID** holds the identifier given by whoever cut it.
 - **Commercial:** a description, supplier, product/batch number, and the
   spec sheet (PDF or photo), which is required.
+- **Collaboration:** any sample sent by another university or centre, thin
+  film or not. Choose the centre from the Collaborations tab and describe the
+  sample (both required); optionally add their own ID for it. Its owner is
+  the researcher who receives it.
 
 ### Substrate library
 
@@ -148,12 +156,28 @@ thickness, orientation, polishing, size, supplier, notes and spec files
 (PDF or photos). Anyone can add one; whoever added it and admins can edit
 it. A substrate used by any sample can't be deleted.
 
+### Collaborations
+
+The **Collaborations** tab lists the universities and centres that send us
+samples: name, code, country, contact person and email, notes. The code (2–6
+letters) works like a researcher's initials in sample IDs, so it can't be
+anyone's initials (and initials can't be a centre's code). It's fixed once a
+sample uses it. Anyone can add a centre; whoever added it and admins can edit
+it, and a centre with samples can't be deleted. Search can group results by
+collaboration, and the CSV has a `collaboration` column.
+
 ### Timeline
 
 Steps and analyses share one timeline per sample, ordered by an explicit
-`position`. Dates are optional: a new dated entry is slotted in
-chronologically, an undated one is appended. On the sample page, the ↑/↓
-arrows reorder entries and **Sort by date** reorders the dated ones.
+`position`. Dates are optional and record the day only:
+
+- A new dated entry goes before the first entry with a later date, so after
+  any already on the same day; an undated one is appended. Changing an
+  entry's date moves it the same way; other edits leave it where it is.
+- The ↑/↓ arrows move entries freely: to order entries from the same day,
+  or to override the dates altogether.
+- **Sort by date** puts the dated entries back in date order, keeping the
+  order you chose within a day; undated entries keep their places.
 
 ### Photos and files
 
@@ -191,7 +215,9 @@ data. Add migrations (e.g. Alembic) before the logbook holds real data.
 ## Cutting a sample into pieces
 
 **✂ Cut into pieces** on a sample's page records a "Cut" step on its
-timeline and creates one new sample per piece. A tick box adds an extra
+timeline and creates one new sample per piece. The form asks for a photo of
+the pieces; write each piece's letter next to it so it's clear which is
+which. A tick box adds an extra
 reference piece (`<ID>-REF`, marked **Reference**). Each piece:
 
 - **inherits** the parent's timeline up to the Cut step. Inherited entries
@@ -232,6 +258,15 @@ is **View** (read details and download files) or **Edit** (also add and
 change steps, analyses and files). Only the owner or an admin can delete a
 sample or change who it's shared with. Samples without an owner are open to
 everyone; admins can assign an owner from the sample's Edit form.
+
+### Who performed a step or analysis
+
+**Performed by** on a step or analysis is a list of users (you by default),
+plus **Someone else** to type a name for someone without an account; pick
+them from the list later, once they have one. A user chosen here can see and
+edit that entry (parameters, notes, date, photos and files) even without
+access to the rest of the sample, and gets an email saying so. Adding,
+deleting and reordering entries still needs edit access to the sample.
 
 ### Assigning a sample to someone else
 
@@ -276,7 +311,8 @@ or `t(request, …)` (Python); the Portuguese is in `backend/translations/`,
 one module per area, merged into one dictionary (see `backend/i18n.py`). Text
 without an entry shows in English. Technical terms and metadata stay in
 English in both languages: sample types, step/analysis types and techniques,
-parameter names, polishing. Dark
+dropdown values (machines, Furnace/RTA, XRD modes, …), units and polishing.
+Parameter labels (Method, Duration, …) are translated. Dark
 mode remaps the Tailwind colour classes in `base.html`, so a page using a new
 colour may need a line there.
 
@@ -290,33 +326,94 @@ samples you can't view. Free-text search only matches details you can see.
 Admins can download the whole database from the admin page. The CSV has one row per step/analysis, with a
 `param:<key>` column per parameter.
 
-### Process step types (seeded)
-- Deposition, Annealing, Ion Implantation, Lithography, Etching, Other
+### Steps and analyses: parameters
 
-### Analysis types (seeded)
-- XRD, XPS, SEM, TEM, RBS, AFM, Raman, Hall/4-probe, Ellipsometry, SIMS, Other
+Each step or analysis type has its own fields, filled in on the form:
 
-Add or edit types at **Configurations** in the sidebar (admins only).
+- **Numbers** have their own box and unit (pressures are in mTorr and can be typed as `1e-4`;
+  a decimal comma works too). Durations like the deposition time take
+  min:s (`12:30`), or plain minutes (`12`).
+- **Dropdowns** (machine, technique, target, atmosphere, …) offer values
+  saved earlier. **+ Add new…** types a new one, which is then offered to
+  everyone. Admins can add or remove values under **Configurations →
+  Dropdown lists**; entries keep the values they already have.
+- Some types ask first which **variant** it is, and then show that variant's
+  fields: Annealing → Furnace (temperature, duration) or RTA (atmosphere,
+  temperature, duration, ramp); XRD / HRXRD; RBS or RBS/Channeling; etc.
+- **XRD / HRXRD** has **modes** (2θ/ω, rocking curve, grazing incidence, …):
+  tick the ones measured, or add another, and fill in each one's range, step,
+  acquisition time and configuration.
+- **Where** (CTN, INESC MN, or another institute) is on every step and
+  analysis; it's a dropdown too. Equipment (deposition machines, SEMs)
+  belongs to a place, and the machine dropdown only offers what's at the
+  place chosen under Where: INESC MN has the Alcatel SCM 450, UHV1, UHV2 and
+  SentiFet. A new machine typed on the form is filed under that place.
+  Equipment with no place set is offered everywhere. Admins can move
+  equipment to another place under Dropdown lists.
+- **Other parameters** takes anything else as `key: value` lines.
+
+The step types are Deposition (machine: Alcatel SCM 450, UHV1, UHV2, SentiFet;
+technique, target, atmosphere, base and working pressure, power, gas flow,
+duration, station, the deposition rate and thickness when known, and a
+calibration sample tick box with details), Annealing, Ion
+Implantation, Lithography (optical or e-beam), Etching (dry or wet), Cut and
+Other Process. The analysis types are XRD / HRXRD, XPS, SEM (the equipment,
+e.g. Hitachi S-2500), TEM, RBS, AFM, Raman, Hall / 4-probe, Ellipsometry
+(angles of incidence, and a large box for the optical model) and Other
+Analysis. On the sample page parameters are shown with their labels and
+units, and the CSV has one `param:` column per parameter (modes as
+`param:modes/Rocking curve/range`).
+
+### One step or analysis on several samples
+
+Things done in parallel (one deposition run, one XRD session) can be
+recorded once: **Also add to other samples** on the form lists the samples
+you can edit. Each gets its own copy, linked as a run ("Also on: …" on the
+sample page), and files uploaded with it are stored once and shared.
+Editing one copy offers to apply the changes to the others (not the files),
+and each copy keeps its own place in its sample's timeline and can get its
+own data files afterwards. Deleting a copy only removes it from that sample.
 
 ---
 
-## Adding a new step / analysis type
+## Adding or changing a step / analysis type
 
-Admins manage types under **Configurations** in the sidebar: add, edit
-(name, description, schema) or delete (only when unused). Editing a schema
-never changes stored data: removed keys stay on existing entries, and new
-keys show up empty the next time an entry is edited. Each type has a
-`parameter_schema` — a JSON list of field descriptors:
+Admins manage types under **Configurations**: add, edit (name, description,
+schema) or delete (only when unused). Editing a schema never changes stored
+data: values whose field was removed stay on existing entries and are still
+shown. Each type has a `parameter_schema`, a JSON list of fields. Every
+field has a `key` and a `label`; its `type` is one of:
+
+| type | entered as | extra keys |
+|---|---|---|
+| `number` | a number box | `unit`, `placeholder` |
+| `duration` | min:s (`12:30`), h:min:s, or plain minutes; stored as `12:30` | `unit`, `placeholder` |
+| `text` | a one-line box | `placeholder` |
+| `longtext` | a large box | `placeholder` |
+| `choice` | a dropdown from a shared list | `list` (the list's name; default: the key); `located: true` for equipment that belongs to a place |
+| `variant` | pick one option; each has its own fields | `options`: `[{"value": "RTA", "fields": [...]}]` |
+| `check` | a tick box; its fields show when ticked | `fields` |
+| `modes` | tick several from a shared list; each gets the same fields | `list`, `fields` |
+
+For example, Annealing:
 
 ```json
 [
-  {"key": "temperature", "label": "Temperature", "type": "number", "unit": "°C", "required": true},
-  {"key": "atmosphere",  "label": "Atmosphere",  "type": "text",   "unit": "",   "placeholder": "e.g. Ar"}
+  {"key": "method", "label": "Method", "type": "variant", "options": [
+    {"value": "Furnace", "fields": [
+      {"key": "temperature", "label": "Temperature", "type": "number", "unit": "°C"},
+      {"key": "duration", "label": "Duration", "type": "number", "unit": "min"}]},
+    {"value": "RTA", "fields": [
+      {"key": "atmosphere", "label": "Atmosphere", "type": "choice", "list": "atmosphere"},
+      {"key": "temperature", "label": "Temperature", "type": "number", "unit": "°C"},
+      {"key": "duration", "label": "Duration", "type": "number", "unit": "s"},
+      {"key": "ramp", "label": "Ramp", "type": "number", "unit": "°C/s"}]}
+  ]}
 ]
 ```
 
-Fields: `key` (internal), `label` (display), `type` (`number` | `text`),
-`unit`, `required`, `placeholder`.
+The default types and dropdown values are in `backend/seed.py`. They're only
+added when missing, so changes made under Configurations are kept.
 
 ---
 
@@ -330,14 +427,63 @@ On Linux: `ip a` or `hostname -I`.
 
 ---
 
-## Backups
+## Backups and moving to another machine
+
+Everything the logbook holds is in three places:
+
+| What | Where |
+|---|---|
+| Database (samples, timelines, users, …) | the `pgdata` Docker volume |
+| Uploaded files (photos, data, spec sheets) | the `uploads/` folder |
+| Settings (`SECRET_KEY`, `BASE_URL`, SMTP) | `.env` |
+
+> **Careful:** `docker compose down` stops the logbook and keeps the data.
+> `docker compose down -v` also **deletes the database**. Only use `-v` when
+> you mean to start from scratch.
+
+### Backing up
+
+From the project folder, with the logbook running:
 
 ```bash
-# Dump the database
-pg_dump -U logbook logbook > backup_$(date +%Y%m%d).sql
-
-# Restore
-psql -U logbook logbook < backup_20240101.sql
+docker compose exec -T db pg_dump -U logbook logbook > backup_$(date +%Y%m%d).sql
 ```
 
-Uploaded files live in `uploads/` — back that folder up too.
+Keep that file together with a copy of `uploads/` (and `.env`, somewhere
+safe: it holds passwords). Do this regularly, e.g. weekly, and before
+updating the code.
+
+### Restoring
+
+The dump has to go into an empty database, before the app starts and creates
+its own empty tables:
+
+```bash
+docker compose down -v                                        # wipes the current database
+docker compose up -d db                                       # database only
+docker compose exec -T db psql -U logbook logbook < backup_20261021.sql
+docker compose up -d                                          # start the app
+```
+
+Put the matching `uploads/` folder back in place too.
+
+### Moving to another machine
+
+1. On the old machine, make a backup (above) and copy the `.sql` file,
+   `uploads/` and `.env` to the new machine.
+2. On the new machine, get the code **at the same commit** as the old one:
+   there are no migrations, so a dump only fits the version that wrote it.
+3. Put `uploads/` and `.env` in the project folder. Keep the same
+   `SECRET_KEY`; change `BASE_URL` to the new address so emailed links work.
+4. If the new machine isn't WSL2 with mirrored networking, apply the changes in
+   [Running on other environments](#running-on-other-environments).
+5. Restore the dump: `docker compose up -d db`, then the `psql` line above,
+   then `docker compose up -d`.
+6. Open the logbook and check a few samples and their files.
+
+If the app was started before the restore (so the dump collides with existing
+tables), run `docker compose down -v` on the new machine and repeat step 5.
+
+Without Docker, use `pg_dump -U logbook logbook > backup.sql` and
+`psql -U logbook logbook < backup.sql` against the local PostgreSQL, again
+into an empty database.

@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import UploadFile
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.concurrency import run_in_threadpool
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend import images
 from backend.models import Attachment
@@ -77,9 +78,26 @@ async def ensure_thumbnail(attachment: Attachment) -> str | None:
     return attachment.thumbnail_filename
 
 
+def copy_attachment(attachment: Attachment, entity_type: str, entity_id: int, db: AsyncSession) -> Attachment:
+    """Attach an already stored file to another entry too (e.g. every sample in
+    a run). The file on disk is shared, not duplicated."""
+    copy = Attachment(
+        entity_type=entity_type, entity_id=entity_id,
+        stored_filename=attachment.stored_filename, original_filename=attachment.original_filename,
+        file_size=attachment.file_size, mime_type=attachment.mime_type,
+        uploaded_by=attachment.uploaded_by, thumbnail_filename=attachment.thumbnail_filename,
+    )
+    db.add(copy)
+    return copy
+
+
 async def delete_attachment(attachment: Attachment, db: AsyncSession):
-    """Remove an attachment's files from disk and its record from the session."""
-    for name in (attachment.stored_filename, attachment.thumbnail_filename):
-        if name and (settings.UPLOAD_DIR / name).exists():
-            (settings.UPLOAD_DIR / name).unlink()
+    """Remove an attachment's record from the session, and its files from disk
+    unless another attachment shares them (see copy_attachment)."""
+    shared = (await db.execute(select(func.count()).select_from(Attachment).where(
+        Attachment.stored_filename == attachment.stored_filename, Attachment.id != attachment.id))).scalar()
+    if not shared:
+        for name in (attachment.stored_filename, attachment.thumbnail_filename):
+            if name and (settings.UPLOAD_DIR / name).exists():
+                (settings.UPLOAD_DIR / name).unlink()
     await db.delete(attachment)

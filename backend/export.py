@@ -8,14 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models import Sample, Attachment
 from backend.lineage import Family
+from backend.params import flatten
 
 SAMPLE_COLUMNS = [
     "sample_id", "label", "sample_type", "researcher", "created_at", "cut_from", "is_reference", "tags",
-    "film_material", "substrate", "substrate_material", "substrate_dimensions", "external_id", "supplier",
+    "collaboration", "film_material", "substrate", "substrate_material", "substrate_dimensions", "external_id",
+    "supplier",
     "description",
 ]
 ENTRY_COLUMNS = [
-    "entry_order", "entry_kind", "technique", "inherited_from", "performed_at", "performed_by", "notes", "attachments",
+    "entry_order", "entry_kind", "technique", "inherited_from", "performed_at", "performed_by", "location", "notes",
+    "attachments",
 ]
 
 
@@ -47,6 +50,7 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
             "sample_id": s.title, "label": s.label, "sample_type": s.type_label, "researcher": s.researcher,
             "cut_from": parent.title if parent else None,
             "is_reference": "yes" if s.is_reference else None, "tags": ", ".join(s.tags or []),
+            "collaboration": s.collaborator.name if s.collaborator else None,
             "film_material": s.film_material, "substrate": s.substrate.name if s.substrate else None,
             "substrate_material": s.substrate_material, "substrate_dimensions": s.substrate_dimensions,
             "external_id": s.external_id, "supplier": s.supplier,
@@ -63,10 +67,10 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
                 rows.append(row)
                 continue
             row |= {
-                "performed_at": e.performed_at, "performed_by": e.performed_by, "notes": e.notes,
+                "performed_at": e.performed_at, "performed_by": e.performer_name, "location": e.location, "notes": e.notes,
                 "attachments": "; ".join(attachments.get(("step" if kind == "process" else "analysis", e.id), [])),
             }
-            for k, v in (e.parameters or {}).items():
+            for k, v in flatten(e.parameters).items():
                 param_keys.setdefault(k, None)
                 row[f"param:{k}"] = v
             rows.append(row)

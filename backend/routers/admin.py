@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from backend.database import get_db
-from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User
+from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User, ChoiceOption
+from backend.params import validate_schema, lists_used, located_lists
+from backend.choices import LOCATION_LIST
 from backend.auth import require_login, hash_password
 from backend.email_utils import send_welcome_email
 from backend.config import settings
@@ -59,6 +61,15 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
     analysis_usage = dict((await db.execute(
         select(Analysis.analysis_type_id, func.count()).group_by(Analysis.analysis_type_id))).all())
 
+    # Dropdown lists: every list with values, plus empty ones a schema uses
+    choice_lists: dict[str, list[ChoiceOption]] = {
+        name: [] for name in lists_used(ty.parameter_schema for ty in [*step_types, *analysis_types])}
+    for opt in (await db.execute(select(ChoiceOption))).scalars():
+        choice_lists.setdefault(opt.list, []).append(opt)
+    choice_lists = {name: sorted(opts, key=lambda o: o.value.lower())
+                    for name, opts in sorted(choice_lists.items())}
+    located = set().union(*(located_lists(ty.parameter_schema) for ty in [*step_types, *analysis_types]))
+
     # Pop one-time flash from session
     flash = request.session.pop("flash", None)
     flash_error = request.session.pop("flash_error", None)
@@ -69,6 +80,9 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
         "analysis_types": analysis_types,
         "users": users,
         "step_usage": step_usage,
+        "choice_lists": choice_lists,
+        "located_lists": located,
+        "places": [o.value for o in choice_lists.get(LOCATION_LIST, [])],
         "analysis_usage": analysis_usage,
         "current_user": admin,
         "flash": flash,
@@ -242,6 +256,58 @@ async def delete_user(
     return RedirectResponse("/admin/", status_code=303)
 
 
+# ── Dropdown lists ────────────────────────────────────────────────────────────
+# Values are added from the step/analysis forms as people type them; admins
+# can also add values here, and remove typos or values no longer used.
+# Entries that already use a removed value keep it. (Registered before the
+# type routes: /admin/{kind}/new would otherwise match /admin/choices/new.)
+
+@router.post("/choices/new")
+async def add_choice(
+    request: Request,
+    list_name: str = Form(...),
+    value: str = Form(...),
+    location: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    list_name, value = list_name.strip(), value.strip()[:200]
+    exists = (await db.execute(select(ChoiceOption).where(
+        ChoiceOption.list == list_name, func.lower(ChoiceOption.value) == value.lower()))).scalar_one_or_none()
+    if list_name and value and not exists:
+        db.add(ChoiceOption(list=list_name, value=value, created_by_id=admin.id, location=location.strip() or None))
+        await db.commit()
+    return RedirectResponse("/admin/#choices", status_code=303)
+
+
+@router.post("/choices/{option_id}/location")
+async def set_choice_location(
+    option_id: int,
+    location: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Move a piece of equipment to another place."""
+    option = await db.get(ChoiceOption, option_id)
+    if option:
+        option.location = location.strip() or None
+        await db.commit()
+    return RedirectResponse("/admin/#choices", status_code=303)
+
+
+@router.post("/choices/{option_id}/delete")
+async def delete_choice(
+    option_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    option = await db.get(ChoiceOption, option_id)
+    if option:
+        await db.delete(option)
+        await db.commit()
+    return RedirectResponse("/admin/#choices", status_code=303)
+
+
 # ── Step & analysis types ─────────────────────────────────────────────────────
 # Editing a type's schema only changes the form hints for future edits; the
 # parameters already stored on steps/analyses are never touched.
@@ -256,17 +322,9 @@ def _parse_schema(request: Request, text: str) -> list[dict]:
         schema = json.loads(text or "[]")
     except json.JSONDecodeError as exc:
         raise ValueError(t(request, "Parameter schema is not valid JSON: {error}", error=exc))
-    if not isinstance(schema, list) or not all(isinstance(f, dict) for f in schema):
-        raise ValueError(t(request, "Parameter schema must be a JSON list of objects."))
-    keys = [str(f.get("key", "")).strip() for f in schema]
-    if not all(keys):
-        raise ValueError(t(request, 'Every schema field needs a "key".'))
-    if len(set(keys)) != len(keys):
-        raise ValueError(t(request, "Schema keys must be unique."))
-    if any(":" in k for k in keys):
-        raise ValueError(t(request, 'Schema keys cannot contain ":".'))
-    for f, k in zip(schema, keys):
-        f["key"] = k
+    error = validate_schema(schema)   # field types: see backend/params.py
+    if error:
+        raise ValueError(error)
     return schema
 
 

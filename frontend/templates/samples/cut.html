@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Cut {sample}", sample=sample.title) }} — Logbook{% endblock %}
 {% block content %}
+{% from "_params.html" import choice_input with context %}
 <div class="max-w-3xl">
   <div class="text-xs text-gray-400 mb-4">
     <a href="/samples/" class="hover:underline">{{ _("Samples") }}</a> /
@@ -16,7 +17,7 @@
   <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ flash_error }}</div>
   {% endif %}
 
-  <form method="post" action="/samples/{{ sample.id }}/cut"
+  <form method="post" action="/samples/{{ sample.id }}/cut" enctype="multipart/form-data"
         class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
 
     <div class="grid grid-cols-3 gap-4">
@@ -27,12 +28,11 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Method") }}</label>
-        <input name="method" type="text" placeholder="{{ _("e.g. diamond-tipped pen, dicing") }}"
-               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        {{ choice_input("method", options.get("cut_method"), none, "focus:ring-blue-500") }}
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Date & Time") }} <span class="font-normal text-gray-400 text-xs">— {{ _("optional") }}</span></label>
-        <input name="performed_at" type="datetime-local"
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Date") }} <span class="font-normal text-gray-400 text-xs">— {{ _("optional") }}</span></label>
+        <input name="performed_at" type="date"
                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
       </div>
     </div>
@@ -57,6 +57,19 @@
         <input name="reference_dimensions" placeholder="{{ _("e.g. 5×5 mm") }}"
                class="min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
         <select name="reference_owner" class="min-w-0 owner-select border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white"></select>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">📷 {{ _("Photo of the pieces") }}</label>
+        <input type="file" name="photos" accept="image/*" multiple
+               class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 cursor-pointer">
+        <p class="text-xs text-gray-400 mt-1">{{ _("Recommended: photograph the pieces with each one's letter written next to it (A, B, …), so it's clear which is which.") }}</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Where") }}</label>
+        {{ choice_input("location", options.get(location_list), default_location if default_location in options.get(location_list, []) else none, "focus:ring-blue-500") }}
       </div>
     </div>
 

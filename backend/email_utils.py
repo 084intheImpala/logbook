@@ -224,3 +224,31 @@ Hello,
 {lines}
 """
     await send_email(to, f"CTN Logbook — {sample.title} recusada por / declined by {decliner}", _bilingual(pt, en))
+
+
+async def send_performer_email(to: str, giver: str, samples: list, entry_name: str) -> None:
+    """Sent when someone records the recipient as having performed a step or
+    analysis, on one sample or (a run) several."""
+    lines, many = _sample_lines(samples), len(samples) != 1
+    pt = f"""\
+Olá,
+
+{giver} registou que realizou "{entry_name}" {'nestas amostras' if many else 'nesta amostra'} do CTN Thin Film Logbook:
+
+{lines}
+
+Pode ver e editar {'esses registos' if many else 'esse registo'} (parâmetros, notas, fotografias e ficheiros),
+mesmo sem acesso ao resto {'das amostras' if many else 'da amostra'}.
+"""
+    en = f"""\
+Hello,
+
+{giver} recorded you as having performed "{entry_name}" on {'these samples' if many else 'this sample'} in the CTN Thin Film Logbook:
+
+{lines}
+
+You can see and edit {'those entries' if many else 'that entry'} (parameters, notes, photos and files), even
+without access to the rest of the {'samples' if many else 'sample'}.
+"""
+    titles = ", ".join(s.title for s in samples)
+    await send_email(to, f"CTN Logbook — {entry_name}: {titles}", _bilingual(pt, en))

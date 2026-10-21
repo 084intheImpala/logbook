@@ -9,7 +9,7 @@ from sqlalchemy import select
 from backend.database import get_db
 from backend.models import Attachment, ProcessStep, Analysis, Substrate, User
 from backend.config import settings
-from backend.auth import require_login, load_sample, can_view, can_edit
+from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry
 from backend.lineage import can_view_entry
 from backend.routers.substrates import can_edit_substrate
 from backend.utils import save_upload, delete_attachment, chosen_files, ensure_thumbnail
@@ -60,7 +60,10 @@ async def upload_file_for_sample(
     then go back to the sample page. Photos may be downscaled; files aren't."""
     if await _entity_sample_id(db, entity_type, entity_id) != sample_id:
         raise HTTPException(status_code=400, detail="Entry does not belong to this sample")
-    await load_sample(db, sample_id, current_user, "edit")
+    sample = await load_sample(db, sample_id, current_user, "summary")
+    entry = await db.get(ENTITY_MODELS[entity_type], entity_id) if entity_type != "sample" else None
+    if not (can_edit_entry(current_user, sample, entry) if entry else can_edit(current_user, sample)):
+        raise HTTPException(status_code=403, detail="You don't have access to this sample.")
     photos, files = chosen_files(photos), chosen_files(files)
     for f in photos + files:
         if f.size is not None and f.size > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
@@ -138,7 +141,9 @@ async def delete_file(attachment_id: int, db: AsyncSession = Depends(get_db),
     else:
         sample_id = await _entity_sample_id(db, attachment.entity_type, attachment.entity_id)
         sample = await load_sample(db, sample_id, current_user, "summary")
-        if not can_edit(current_user, sample):
+        entry = (await db.get(ENTITY_MODELS[attachment.entity_type], attachment.entity_id)
+                 if attachment.entity_type != "sample" else None)
+        if not (can_edit_entry(current_user, sample, entry) if entry else can_edit(current_user, sample)):
             raise HTTPException(status_code=403, detail="You don't have access to this sample.")
         back = f"/samples/{sample_id}"
 

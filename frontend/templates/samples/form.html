@@ -20,7 +20,7 @@
     <!-- Sample type -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-2">{{ _("Sample type") }}</label>
-      <div class="grid grid-cols-3 gap-2">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {% for value, label in sample_types.items() %}
         <label class="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm cursor-pointer has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
           <input type="radio" name="sample_type" value="{{ value }}" class="type-radio"
@@ -36,6 +36,25 @@
         <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("optional, your own description") }}</span></label>
       <input name="label" type="text" value="{{ sample.label or '' }}" placeholder="{{ _("e.g. waveguide test, batch 2") }}"
              class="{{ input_cls }}">
+    </div>
+
+    <!-- Collaboration: which partner centre sent it -->
+    <div data-types="collaboration">
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Collaboration") }} <span class="text-red-500">*</span>
+        <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("who sent the sample; its code goes in the ID") }}</span></label>
+      {% if collaborators %}
+      <select name="collaborator_id" id="collaborator-select" class="{{ input_cls }} bg-white">
+        <option value="">— {{ _("choose from the list") }} —</option>
+        {% for c in collaborators %}
+        <option value="{{ c.id }}" data-code="{{ c.code }}" {% if sample.collaborator_id == c.id %}selected{% endif %}>{{ c.name }} ({{ c.code }})</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <p class="text-xs text-gray-400 mt-1">
+        {% if not collaborators %}{{ _("No collaborations yet.") }} {% endif %}
+        {{ _("Missing one?") }} <a href="/collaborations/new" target="_blank" class="text-blue-600 hover:underline">{{ _("Add a collaboration") }}</a>
+        {{ _("(opens in a new tab), then reload this page.") }}
+      </p>
     </div>
 
     <!-- Substrate (thin film, bulk) -->
@@ -70,11 +89,11 @@
         <input name="film_material" type="text" value="{{ sample.film_material or '' }}"
                placeholder="{{ _("e.g. Ga2O3, TiN") }}" class="{{ input_cls }}">
       </div>
-      <div data-types="bulk commercial">
+      <div data-types="bulk commercial collaboration">
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          <span data-types="bulk">{{ _("External ID") }}</span><span data-types="commercial">{{ _("Product / batch no.") }}</span></label>
+          <span data-types="bulk">{{ _("External ID") }}</span><span data-types="commercial">{{ _("Product / batch no.") }}</span><span data-types="collaboration">{{ _("Their sample ID") }}</span></label>
         <input name="external_id" type="text" value="{{ sample.external_id or '' }}"
-               placeholder="{{ _("ID given by the supplier or whoever cut it") }}" class="{{ input_cls }}">
+               placeholder="{{ _("ID given by the supplier, partner or whoever cut it") }}" class="{{ input_cls }}">
       </div>
     </div>
 
@@ -99,7 +118,8 @@
 
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Description") }}
-        <span data-types="commercial" class="text-red-500">*</span>
+        <span data-types="commercial collaboration" class="text-red-500">*</span>
+        <span data-types="collaboration" class="font-normal text-gray-400 text-xs">— {{ _("what the sample is: material, structure, what they want measured…") }}</span>
         <span data-types="thin_film bulk" class="font-normal text-gray-400 text-xs">— {{ _("optional") }}</span></label>
       <textarea name="description" rows="3" class="{{ input_cls }}">{{ sample.description or '' }}</textarea>
     </div>
@@ -172,18 +192,23 @@
   document.querySelectorAll('.type-radio').forEach(r => r.addEventListener('change', applyType));
   applyType();
 
-  // Creating for someone else: show their initials in the ID preview.
+  // ID preview: the owner's initials, or the centre's code for a collaboration sample.
   const owner = document.getElementById('owner-select');
-  if (owner) {
-    const preview = document.getElementById('id-preview');
-    const applyOwner = () => {
-      const opt = owner.selectedOptions[0];
-      if (preview) preview.textContent = `${opt.dataset.initials}-{{ now_year }}-…`;
-      document.getElementById('owner-hint').classList.toggle('hidden', opt.value === '{{ current_user.id }}');
-    };
-    owner.addEventListener('change', applyOwner);
-    applyOwner();
+  const centre = document.getElementById('collaborator-select');
+  const preview = document.getElementById('id-preview');
+  function applyPreview() {
+    if (owner)
+      document.getElementById('owner-hint').classList.toggle('hidden', owner.value === '{{ current_user.id }}');
+    if (!preview) return;
+    const type = document.querySelector('.type-radio:checked').value;
+    const prefix = type === 'collaboration'
+      ? (centre && centre.selectedOptions[0].dataset.code) || '…'
+      : owner ? owner.selectedOptions[0].dataset.initials : {{ (current_user.initials or '')|tojson }};
+    preview.textContent = `${prefix}-{{ now_year }}-…`;
   }
+  [owner, centre].forEach(el => el && el.addEventListener('change', applyPreview));
+  document.querySelectorAll('.type-radio').forEach(r => r.addEventListener('change', applyPreview));
+  applyPreview();
 
   // Tag autocomplete: suggest existing tags matching the tag being typed.
   const known = {{ known_tags|tojson }};

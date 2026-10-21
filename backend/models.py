@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
-from sqlalchemy import Integer, String, Text, DateTime, ForeignKey, JSON, BigInteger, Boolean, Float, UniqueConstraint, func
+from sqlalchemy import Integer, String, Text, Date, DateTime, ForeignKey, JSON, BigInteger, Boolean, Float, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.database import Base
 
@@ -28,7 +28,7 @@ class User(Base):
         return self.name or self.username
 
 
-SAMPLE_TYPES = {"thin_film": "Thin film", "bulk": "Bulk", "commercial": "Commercial"}
+SAMPLE_TYPES = {"thin_film": "Thin film", "bulk": "Bulk", "commercial": "Commercial", "collaboration": "Collaboration"}
 POLISHING = {"single": "Single side", "double": "Double side", "none": "Unpolished"}
 
 
@@ -51,6 +51,25 @@ class Substrate(Base):
     created_by: Mapped["User | None"] = relationship("User", lazy="selectin")
 
 
+class Collaborator(Base):
+    """A university or research centre that sends us samples. Its code numbers
+    their samples the way a researcher's initials do (e.g. UMIN-2026-001)."""
+    __tablename__ = "collaborators"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    # 2–6 capital letters; unique, and never the same as a researcher's initials
+    code: Mapped[str] = mapped_column(String(6), unique=True, nullable=False)
+    country: Mapped[str | None] = mapped_column(String(100))
+    contact_name: Mapped[str | None] = mapped_column(String(120))
+    contact_email: Mapped[str | None] = mapped_column(String(200))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    created_by: Mapped["User | None"] = relationship("User", lazy="selectin")
+
+
 class Sample(Base):
     __tablename__ = "samples"
 
@@ -63,6 +82,7 @@ class Sample(Base):
     sample_type: Mapped[str] = mapped_column(String(20), default="thin_film", server_default="thin_film", nullable=False)
     substrate_id: Mapped[int | None] = mapped_column(ForeignKey("substrates.id"), index=True)
     external_id: Mapped[str | None] = mapped_column(String(100))   # e.g. ID given by whoever cut a bulk piece
+    collaborator_id: Mapped[int | None] = mapped_column(ForeignKey("collaborators.id"), index=True)  # collaboration samples
     supplier: Mapped[str | None] = mapped_column(String(120))      # commercial samples
     tags: Mapped[list[str] | None] = mapped_column(JSON)
     substrate_dimensions: Mapped[str | None] = mapped_column(String(100))
@@ -83,6 +103,7 @@ class Sample(Base):
         "User", back_populates="samples", foreign_keys=[owner_id], lazy="selectin")
     requested_by: Mapped["User | None"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")
     substrate: Mapped["Substrate | None"] = relationship("Substrate", lazy="selectin")
+    collaborator: Mapped["Collaborator | None"] = relationship("Collaborator", lazy="selectin")
     process_steps: Mapped[list["ProcessStep"]] = relationship(
         "ProcessStep", back_populates="sample", foreign_keys="ProcessStep.sample_id",
         order_by="ProcessStep.position",
@@ -153,12 +174,23 @@ class ProcessStep(Base):
     position: Mapped[int | None] = mapped_column(Integer)
     parameters: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     notes: Mapped[str | None] = mapped_column(Text)
+    # Who did it: a user (who can then see and edit this entry, even without
+    # access to the sample), or a name typed in for someone without an account.
+    performer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     performed_by: Mapped[str | None] = mapped_column(String(100))
-    performed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    location: Mapped[str | None] = mapped_column(String(120))   # where it was done (shared list "location")
+    # Entries added to several samples at once share a run id
+    run_id: Mapped[str | None] = mapped_column(String(32), index=True)
+    performed_at: Mapped[date | None] = mapped_column(Date)   # the day only; order within a day is `position`
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps", foreign_keys=[sample_id])
     step_type: Mapped["ProcessStepType"] = relationship("ProcessStepType", back_populates="steps")
+    performer: Mapped["User | None"] = relationship("User", lazy="selectin")
+
+    @property
+    def performer_name(self) -> str | None:
+        return self.performer.display_name if self.performer else self.performed_by
 
 
 class AnalysisType(Base):
@@ -182,12 +214,23 @@ class Analysis(Base):
     position: Mapped[int | None] = mapped_column(Integer)
     parameters: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     notes: Mapped[str | None] = mapped_column(Text)
+    # Who did it: a user (who can then see and edit this entry, even without
+    # access to the sample), or a name typed in for someone without an account.
+    performer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     performed_by: Mapped[str | None] = mapped_column(String(100))
-    performed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    location: Mapped[str | None] = mapped_column(String(120))   # where it was done (shared list "location")
+    # Entries added to several samples at once share a run id
+    run_id: Mapped[str | None] = mapped_column(String(32), index=True)
+    performed_at: Mapped[date | None] = mapped_column(Date)   # the day only; order within a day is `position`
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="analyses")
     analysis_type: Mapped["AnalysisType"] = relationship("AnalysisType", back_populates="analyses")
+    performer: Mapped["User | None"] = relationship("User", lazy="selectin")
+
+    @property
+    def performer_name(self) -> str | None:
+        return self.performer.display_name if self.performer else self.performed_by
 
 
 class Attachment(Base):
@@ -205,6 +248,23 @@ class Attachment(Base):
     thumbnail_filename: Mapped[str | None] = mapped_column(String(255))
     uploaded_by: Mapped[str | None] = mapped_column(String(100))
     uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ChoiceOption(Base):
+    """A value in one of the shared dropdowns on the step and analysis forms
+    (machines, targets, atmospheres, where it was done, …). A list grows when
+    someone types a new value; admins can remove values."""
+    __tablename__ = "choice_options"
+    __table_args__ = (UniqueConstraint("list", "value"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    list: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    value: Mapped[str] = mapped_column(String(200), nullable=False)
+    # For equipment ("located" lists): where it is, e.g. INESC MN. The forms
+    # only offer equipment at the place chosen under Where.
+    location: Mapped[str | None] = mapped_column(String(120))
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 SUGGESTION_KINDS = {"idea": "Idea", "problem": "Problem", "question": "Question"}

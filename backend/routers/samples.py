@@ -7,13 +7,14 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
 from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
-                            Substrate, User, SAMPLE_TYPES)
+                            Substrate, Collaborator, User, SAMPLE_TYPES)
 from backend.sample_ids import next_code, piece_codes
 from backend.utils import save_upload, chosen_files
-from backend.auth import require_login, load_sample, can_view, can_edit, is_owner
+from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry, is_owner, is_performer
 from backend import timeline as tl
 from backend.lineage import load_sample_full, load_family, pieces_of
-from backend.params import parse_datetime
+from backend.params import parse_date, describe
+from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, remember
 from backend.seed import PROCESS_STEP_TYPES
 from backend.config import settings
 from backend.email_utils import send_confirm_samples_email, send_declined_email
@@ -88,6 +89,7 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "error": error,
         "sample_types": SAMPLE_TYPES,
         "substrates": (await db.execute(select(Substrate).order_by(Substrate.material, Substrate.name))).scalars().all(),
+        "collaborators": (await db.execute(select(Collaborator).order_by(Collaborator.name))).scalars().all(),
         "spec_files": await _attachments_for(db, "sample", [sample.id]) if editing else {},
         "known_tags": await all_tags(db),
         "users": (await db.execute(select(User).order_by(User.username))).scalars().all()
@@ -105,8 +107,12 @@ def _apply_form(sample: Sample, form: dict):
     """Copy submitted fields onto the sample, dropping those its type doesn't use."""
     sample.sample_type = form["sample_type"] if form["sample_type"] in SAMPLE_TYPES else "thin_film"
     commercial = sample.sample_type == "commercial"
+    collaboration = sample.sample_type == "collaboration"
     sample.label = form["label"].strip() or None
-    sample.substrate_id = None if commercial else (int(form["substrate_id"]) if form["substrate_id"].isdigit() else None)
+    sample.substrate_id = (None if commercial or collaboration
+                           else int(form["substrate_id"]) if form["substrate_id"].isdigit() else None)
+    sample.collaborator_id = (int(form["collaborator_id"]) if collaboration and form["collaborator_id"].isdigit()
+                              else None)
     sample.substrate_dimensions = form["substrate_dimensions"].strip() or None
     sample.film_material = form["film_material"].strip() or None if sample.sample_type == "thin_film" else None
     sample.external_id = form["external_id"].strip() or None if sample.sample_type != "thin_film" else None
@@ -125,12 +131,17 @@ async def _validate(request: Request, db: AsyncSession, sample: Sample, new_file
             return t(request, "A commercial sample needs a description.")
         if not has_spec and not any(f.filename for f in new_files):
             return t(request, "A commercial sample needs its spec sheet (PDF or photo).")
+    if sample.sample_type == "collaboration":
+        if not sample.collaborator_id or not await db.get(Collaborator, sample.collaborator_id):
+            return t(request, "Choose which collaboration the sample comes from (add it on the Collaborations tab if it's missing).")
+        if not sample.description:
+            return t(request, "A collaboration sample needs a description.")
     return None
 
 
-def _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
+def _form_fields(sample_type, label, substrate_id, collaborator_id, substrate_dimensions, film_material,
                  external_id, supplier, description, tags) -> dict:
-    return dict(sample_type=sample_type, label=label, substrate_id=substrate_id,
+    return dict(sample_type=sample_type, label=label, substrate_id=substrate_id, collaborator_id=collaborator_id,
                 substrate_dimensions=substrate_dimensions, film_material=film_material,
                 external_id=external_id, supplier=supplier, description=description, tags=tags)
 
@@ -152,6 +163,7 @@ async def create_sample(
     sample_type: str = Form("thin_film"),
     label: str = Form(""),
     substrate_id: str = Form(""),
+    collaborator_id: str = Form(""),
     substrate_dimensions: str = Form(""),
     film_material: str = Form(""),
     external_id: str = Form(""),
@@ -164,8 +176,9 @@ async def create_sample(
     current_user=Depends(require_login),
 ):
     """Create a sample, for yourself or on behalf of another researcher. It gets
-    the owner's initials. An admin's goes straight to the owner; anyone else's
-    waits for the owner to confirm it, and the creator gets edit access."""
+    the owner's initials (a collaboration sample gets its centre's code). An
+    admin's goes straight to the owner; anyone else's waits for the owner to
+    confirm it, and the creator gets edit access."""
     # Plain values: the retry below rolls back, which expires loaded objects.
     by_id, by_admin, username, by_name = (current_user.id, current_user.is_admin,
                                           current_user.username, current_user.display_name)
@@ -179,7 +192,7 @@ async def create_sample(
     def new_sample() -> Sample:
         nonlocal pending
         sample = Sample()
-        _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
+        _apply_form(sample, _form_fields(sample_type, label, substrate_id, collaborator_id, substrate_dimensions, film_material,
                                          external_id, supplier, description, tags))
         if user_id:
             pending = _hand_over(sample, user_id, by_id, by_admin)
@@ -188,7 +201,9 @@ async def create_sample(
     sample = new_sample()
     files = chosen_files(files)
     error = await _validate(request, db, sample, files, has_spec=False)
-    if not error and not initials:
+    if not error and sample.sample_type == "collaboration":
+        initials = (await db.get(Collaborator, sample.collaborator_id)).code
+    elif not error and not initials:
         error = t(request, "That researcher hasn't set their initials yet, so their samples can't get an ID.")
     if error:
         return templates.TemplateResponse(
@@ -264,11 +279,14 @@ async def sample_detail(
     # Viewing a piece includes its inherited history; inherited entries are
     # also visible to whoever can view the sample they're recorded on.
     def visible(item):
-        return viewable or (item.source is not sample and can_view(current_user, item.source))
+        return (viewable or is_performer(current_user, item.entry)
+                or (item.source is not sample and can_view(current_user, item.source)))
 
     shown = [i for i in items if visible(i)]
     step_attachments = await _attachments_for(db, "step", [i.entry.id for i in shown if i.kind == "process"])
     analysis_attachments = await _attachments_for(db, "analysis", [i.entry.id for i in shown if i.kind == "analysis"])
+
+    runs = await _run_samples(db, [i.entry for i in items if i.entry.run_id], sample.id)
 
     own_count = sum(1 for i in items if i.source is sample)
     timeline, own_index = [], 0
@@ -280,9 +298,12 @@ async def sample_detail(
             "kind": item.kind,
             "id": e.id,
             "type_name": item.technique,
-            "parameters": e.parameters,
+            "params": describe(e.parameters, (e.step_type if item.kind == "process" else e.analysis_type).parameter_schema),
+            "location": e.location,
+            "run": runs.get(e.run_id, []) if e.run_id else [],
             "notes": e.notes,
-            "performed_by": e.performed_by,
+            "performed_by": e.performer_name,
+            "editable": not inherited and can_edit_entry(current_user, sample, e),
             "performed_at": e.performed_at,
             "visible": visible(item),
             "inherited": inherited,
@@ -305,6 +326,7 @@ async def sample_detail(
         "sample": sample,
         "timeline": timeline,
         "has_inherited": own_count < len(items),
+        "performed_any": any(is_performer(current_user, i.entry) for i in items),
         "parent": fam["parent"],
         "cut": fam["cut"],
         "siblings": fam["siblings"],
@@ -317,6 +339,19 @@ async def sample_detail(
         "flash": request.session.pop("flash", None),
         "flash_error": request.session.pop("flash_error", None),
     })
+
+
+async def _run_samples(db: AsyncSession, entries, sample_id: int) -> dict[str, list[Sample]]:
+    """For entries recorded on several samples at once: run id → the other samples."""
+    run_ids = {e.run_id for e in entries}
+    runs: dict[str, list[Sample]] = {}
+    if run_ids:
+        for model in (ProcessStep, Analysis):
+            rows = await db.execute(select(model.run_id, Sample).join(Sample, Sample.id == model.sample_id)
+                                    .where(model.run_id.in_(run_ids), Sample.id != sample_id).order_by(Sample.code))
+            for run_id, s in rows.all():
+                runs.setdefault(run_id, []).append(s)
+    return runs
 
 
 async def _share_candidates(db: AsyncSession, sample: Sample) -> list[User]:
@@ -345,6 +380,7 @@ async def update_sample(
     sample_type: str = Form("thin_film"),
     label: str = Form(""),
     substrate_id: str = Form(""),
+    collaborator_id: str = Form(""),
     substrate_dimensions: str = Form(""),
     film_material: str = Form(""),
     external_id: str = Form(""),
@@ -358,7 +394,7 @@ async def update_sample(
 ):
     sample = await load_sample(db, sample_id, current_user, "edit")
     was_owner = sample.owner_id == current_user.id
-    _apply_form(sample, _form_fields(sample_type, label, substrate_id, substrate_dimensions, film_material,
+    _apply_form(sample, _form_fields(sample_type, label, substrate_id, collaborator_id, substrate_dimensions, film_material,
                                      external_id, supplier, description, tags))
     has_spec = bool((await _attachments_for(db, "sample", [sample_id]))[sample_id])
     files = chosen_files(files)
@@ -430,6 +466,9 @@ async def cut_form(
         "ref_code": ref_code,
         "researchers": await _researchers(db),
         "default_owner_id": sample.owner_id or current_user.id,
+        "options": await option_lists(db),
+        "location_list": LOCATION_LIST,
+        "default_location": DEFAULT_LOCATION,
         "flash_error": request.session.pop("flash_error", None),
         "current_user": current_user,
     })
@@ -447,8 +486,10 @@ async def cut_sample(
     reference_label: str = Form(""),
     reference_dimensions: str = Form(""),
     method: str = Form(""),
+    location: str = Form(""),
     notes: str = Form(""),
     performed_at: str = Form(""),
+    photos: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
@@ -484,12 +525,17 @@ async def cut_sample(
         step_type_id=cut_type.id,
         parameters=params,
         notes=notes or None,
-        performed_by=current_user.username,
-        performed_at=parse_datetime(performed_at),
+        performer_id=current_user.id,
+        performed_at=parse_date(performed_at),
+        location=location.strip() or None,
     )
     db.add(cut)
     await db.flush()
     await tl.place_new(db, cut)
+    # Photos of the pieces (ideally labelled) go on the Cut step
+    for f in chosen_files(photos):
+        await save_upload(f, "step", cut.id, db, uploaded_by=current_user.username, photo=True)
+    await remember(db, [("cut_method", method.strip()), (LOCATION_LIST, location.strip())], current_user.id)
 
     owner_id = parent.owner_id or current_user.id
     chosen = {int(o) for *_, o in pieces if o.isdigit()}
@@ -502,6 +548,7 @@ async def cut_sample(
             sample_type=parent.sample_type,
             substrate_id=parent.substrate_id,
             external_id=parent.external_id,
+            collaborator_id=parent.collaborator_id,
             supplier=parent.supplier,
             film_material=parent.film_material,
             substrate_dimensions=dims or None,

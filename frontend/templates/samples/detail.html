@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{{ sample.title }} — Logbook{% endblock %}
 {% block content %}
+{% macro param_rows(rows) %}
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
+  {% for row in rows if not row.rows is defined %}
+  <div class="{% if row.long %}col-span-2 sm:col-span-3 md:col-span-4{% endif %}">
+    <div class="text-xs text-gray-400">{{ _(row.label) }}</div>
+    <div class="text-sm {% if row.long %}text-gray-700 whitespace-pre-line{% else %}font-medium text-gray-800{% endif %}">{{ row.value if row.value != "" else "—" }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
 {% macro cut_marker() %}
 <div class="relative pl-14">
   <div class="absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-2 border-dashed border-gray-300 bg-white text-gray-500">✂</div>
@@ -57,8 +67,13 @@
       <dt class="text-gray-400">{{ _("Film") }}</dt>
       <dd><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{{ sample.film_material }}</span></dd>
       {% endif %}
+      {% if sample.collaborator %}
+      <dt class="text-gray-400">{{ _("Collaboration") }}</dt>
+      <dd class="text-gray-700"><a href="/collaborations/{{ sample.collaborator.id }}" class="text-blue-600 hover:underline">{{ sample.collaborator.name }}</a>
+        <span class="font-mono text-gray-500">({{ sample.collaborator.code }})</span></dd>
+      {% endif %}
       {% if sample.external_id %}
-      <dt class="text-gray-400">{{ _("Product / batch no.") if sample.sample_type == "commercial" else _("External ID") }}</dt>
+      <dt class="text-gray-400">{% if sample.sample_type == "commercial" %}{{ _("Product / batch no.") }}{% elif sample.sample_type == "collaboration" %}{{ _("Their sample ID") }}{% else %}{{ _("External ID") }}{% endif %}</dt>
       <dd class="text-gray-700 font-mono">{{ sample.external_id }}</dd>
       {% endif %}
       {% if sample.supplier %}
@@ -134,6 +149,7 @@
 
 {% if not can_view %}
 <div class="mb-8 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
+  {% if performed_any %}{{ _("You can see and edit the entries you performed.") }}<br>{% endif %}
   🔒 {% if has_inherited %}{{ _("You can see this sample's summary only (plus any history you can see on its parent).") }}{% else %}{{ _("You can see this sample's summary only.") }}{% endif %}
   {% if owner_user %}{{ _("Parameters, notes, dates and files are visible to the owner ({name}) and to people they share it with.", name=owner_user.display_name) }}{% else %}{{ _("Parameters, notes, dates and files are visible to the owner and to people they share it with.") }}{% endif %}
 </div>
@@ -250,7 +266,7 @@
 
       <!-- Card -->
       <div id="{{ 'step' if is_process else 'analysis' }}-{{ entry.id }}"
-           class="{% if can_edit and not entry.inherited %}drop-card {% endif %}bg-white rounded-xl border shadow-sm overflow-hidden
+           class="{% if entry.editable %}drop-card {% endif %}bg-white rounded-xl border shadow-sm overflow-hidden
                   {% if is_process %}border-blue-100{% else %}border-emerald-100{% endif %}">
 
         <!-- Card header -->
@@ -269,14 +285,15 @@
           </span>
           <div class="flex items-center gap-3 text-xs text-gray-400 shrink-0">
             {% if entry.visible and entry.performed_at %}
-              <span>{{ entry.performed_at.strftime('%Y-%m-%d') }}{% if entry.performed_at.hour or entry.performed_at.minute %} {{ entry.performed_at.strftime('%H:%M') }}{% endif %}</span>
+              <span>{{ entry.performed_at.strftime('%Y-%m-%d') }}</span>
             {% endif %}
             {% if entry.visible and entry.performed_by %}
               <span>{{ _("by {name}", name=entry.performed_by) }}</span>
             {% endif %}
           </div>
-          {% if can_edit and not entry.inherited %}
+          {% if entry.editable %}
           <div class="flex items-center gap-1 shrink-0 ml-2">
+            {% if can_edit %}
             {% for dir, arrow, show in [("up", "↑", not entry.first_own), ("down", "↓", not entry.last_own)] %}
             <form method="post" action="/samples/{{ sample.id }}/timeline/move" class="inline">
               <input type="hidden" name="kind" value="{{ entry.kind }}">
@@ -285,6 +302,7 @@
               <button class="p-1 text-gray-400 hover:text-gray-700 {% if not show %}invisible{% endif %}" title="{{ _("Move up") if dir == "up" else _("Move down") }}">{{ arrow }}</button>
             </form>
             {% endfor %}
+            {% endif %}
             <a href="{{ entry.edit_url }}"
                class="p-1 text-gray-400 hover:text-blue-600" title="{{ _("Edit") }}">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,6 +310,7 @@
                       d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
               </svg>
             </a>
+            {% if can_edit %}
             <form method="post" action="{{ entry.delete_url }}"
                   onsubmit='return confirm({{ (_("Delete this step?") if is_process else _("Delete this analysis?"))|tojson }})'>
               <button class="p-1 text-gray-400 hover:text-red-500" title="{{ _("Delete") }}">
@@ -301,18 +320,27 @@
                 </svg>
               </button>
             </form>
+            {% endif %}
           </div>
           {% endif %}
         </div>
 
         {% if entry.visible %}
-        <!-- Parameters grid -->
-        {% if entry.parameters %}
-        <div class="px-5 py-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
-          {% for k, v in entry.parameters.items() %}
-          <div>
-            <div class="text-xs text-gray-400">{{ k }}</div>
-            <div class="text-sm font-medium text-gray-800">{{ v if v != "" else "—" }}</div>
+        <!-- Where, other samples in the same run, parameters -->
+        {% if entry.location or entry.run %}
+        <div class="px-5 pt-3 text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+          {% if entry.location %}<span>📍 {{ entry.location }}</span>{% endif %}
+          {% if entry.run %}<span>🔗 {{ _("Also on:") }}
+            {% for s in entry.run %}<a href="/samples/{{ s.id }}" class="font-mono text-blue-600 hover:underline">{{ s.title }}</a>{{ ", " if not loop.last }}{% endfor %}</span>{% endif %}
+        </div>
+        {% endif %}
+        {% if entry.params %}
+        <div class="px-5 py-3 space-y-3">
+          {{ param_rows(entry.params) }}
+          {% for group in entry.params if group.rows is defined %}
+          <div class="border border-gray-100 rounded-lg px-3 py-2">
+            <div class="text-xs font-semibold text-gray-600 mb-1.5">{% if group.group %}{{ _(group.group) }}: {% endif %}{{ group.label }}</div>
+            {{ param_rows(group.rows) }}
           </div>
           {% endfor %}
         </div>
@@ -320,7 +348,7 @@
 
         <!-- Notes -->
         {% if entry.notes %}
-        <div class="px-5 pb-3 {% if entry.parameters %}border-t border-gray-50 pt-2{% endif %} text-sm text-gray-600 italic">
+        <div class="px-5 pb-3 {% if entry.params %}border-t border-gray-50 pt-2{% else %}pt-3{% endif %} text-sm text-gray-600 italic whitespace-pre-line">
           {{ entry.notes }}
         </div>
         {% endif %}
@@ -347,7 +375,7 @@
                 <img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" loading="lazy"
                      class="h-28 w-28 object-cover rounded-lg border border-gray-200 hover:opacity-90">
               </a>
-              {% if can_edit and not entry.inherited %}
+              {% if entry.editable %}
               <form method="post" action="/files/{{ att.id }}/delete"
                     onsubmit='return confirm({{ _("Remove this photo?")|tojson }})'
                     class="absolute top-1 right-1 hidden group-hover:block">
@@ -369,7 +397,7 @@
             <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
               <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
               <span class="text-gray-400">({{ (att.file_size / 1024)|round(1) }} KB)</span>
-              {% if can_edit and not entry.inherited %}
+              {% if entry.editable %}
               <form method="post" action="/files/{{ att.id }}/delete" class="inline">
                 <button class="text-gray-300 hover:text-red-400 ml-1" title="{{ _("Remove") }}">×</button>
               </form>
@@ -383,7 +411,7 @@
         {% endif %}{# can_view #}
 
         <!-- Upload: photos (camera or gallery on phones) and other files; uploads on selection -->
-        {% if can_edit and not entry.inherited %}
+        {% if entry.editable %}
         <form method="post" action="/files/upload/{{ sample.id }}" enctype="multipart/form-data"
               class="upload-form px-5 pb-3 border-t border-gray-50 pt-2 flex items-center gap-4 text-xs">
           <input type="hidden" name="entity_type" value="{{ 'step' if is_process else 'analysis' }}">

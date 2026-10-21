@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.models import Sample, ProcessStep, Analysis
-from backend.auth import can_view
+from backend.auth import can_view, is_performer
 
 _LAST = 1 << 30
 
@@ -133,7 +133,8 @@ async def pieces_of(db: AsyncSession, sample_id: int, before_position: int | Non
 
 async def can_view_entry(db: AsyncSession, user, sample: Sample, entry) -> bool:
     """Viewing a piece includes its inherited history, so an entry is visible to
-    anyone who can view its own sample or a piece that inherits it."""
-    if can_view(user, sample):
+    anyone who can view its own sample or a piece that inherits it, and to
+    whoever performed it."""
+    if can_view(user, sample) or is_performer(user, entry):
         return True
     return any(can_view(user, p) for p in await pieces_of(db, sample.id, _pos(entry)))

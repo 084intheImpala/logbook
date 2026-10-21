@@ -1,0 +1,100 @@
+{# Parameter fields for a type's schema (field types: see backend/params.py).
+   Inputs are named p::<key>, and p::<key>::<mode>::<sub-key> inside modes.
+   Blocks that don't apply (other types, other variants) are marked data-off
+   and their inputs disabled by the script in entries/form.html. #}
+{% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2" %}
+
+{# `at` (equipment lists): value → place; the form only offers equipment at the place chosen under Where. #}
+{% macro choice_input(name, opts, value, ring, empty=True, at=none) %}
+{% set opts = opts or [] %}
+<div class="choice">
+  <select name="{{ name }}" class="choice-select {{ input_cls }} {{ ring }} bg-white" {% if at is not none %}data-located{% endif %}>
+    {% if empty %}<option value="">—</option>{% endif %}
+    {% for v in opts %}<option value="{{ v }}" {% if value == v %}selected{% endif %}{% if at and at.get(v) %} data-place="{{ at[v] }}"{% endif %}>{{ v }}</option>{% endfor %}
+    {% if value and value not in opts %}<option value="{{ value }}" selected>{{ value }}</option>{% endif %}
+    <option value="__new__">+ {{ _("Add new…") }}</option>
+  </select>
+  <input type="text" class="choice-new hidden mt-2 {{ input_cls }} {{ ring }}" placeholder="{{ _("New value; it's saved for everyone") }}" disabled>
+</div>
+{% endmacro %}
+
+{% macro label(f) %}
+<label class="block text-sm font-medium text-gray-700 mb-1">{{ _(f.label or f.key) }}{% if f.unit %} <span class="font-normal text-gray-400">({{ f.unit }})</span>{% endif %}</label>
+{% endmacro %}
+
+{% macro fields(schema, values, options, prefix, ring) %}
+{% for f in schema or [] %}
+  {% set name = prefix ~ "::" ~ f.key %}
+  {% set value = values.get(f.key) %}
+  {% set kind = f.type or "text" %}
+  {% if kind == "variant" %}
+  <div class="col-span-2">
+    {{ label(f) }}
+    <select name="{{ name }}" class="variant-select {{ input_cls }} {{ ring }} bg-white">
+      {% for o in f.options %}<option value="{{ o.value }}" {% if value == o.value %}selected{% endif %}>{{ o.value }}</option>{% endfor %}
+    </select>
+  </div>
+  {% for o in f.options %}
+  <div class="variant-fields col-span-2 grid grid-cols-2 gap-4" data-variant-of="{{ name }}" data-value="{{ o.value }}">
+    {{ fields(o.fields, values, options, prefix, ring) }}
+  </div>
+  {% endfor %}
+  {% elif kind == "check" %}
+  <div class="col-span-2">
+    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+      <input type="checkbox" name="{{ name }}" value="1" class="check-toggle" {% if value %}checked{% endif %}>
+      {{ _(f.label or f.key) }}
+    </label>
+  </div>
+  <div class="check-fields col-span-2 grid grid-cols-2 gap-4" data-check-of="{{ name }}">
+    {{ fields(f.fields, values, options, prefix, ring) }}
+  </div>
+  {% elif kind == "modes" %}
+  {% set chosen = value if value is mapping else {} %}
+  {% set list_name = f.list or f.key %}
+  <div class="modes col-span-2" data-name="{{ name }}">
+    {{ label(f) }}
+    <div class="mode-list space-y-2">
+      {% for mode in (options.get(list_name, []) + (chosen.keys()|list))|unique %}
+      <div class="mode border border-gray-200 rounded-lg px-3 py-2">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" name="{{ name }}" value="{{ mode }}" class="mode-toggle" {% if mode in chosen %}checked{% endif %}>
+          <span class="mode-name font-medium">{{ mode }}</span>
+        </label>
+        <div class="mode-fields grid grid-cols-2 gap-3 mt-2 {% if mode not in chosen %}hidden{% endif %}">
+          {{ fields(f.fields, chosen.get(mode) or {}, options, name ~ "::" ~ mode, ring) }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <template class="mode-template">
+      <div class="mode border border-gray-200 rounded-lg px-3 py-2">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" name="{{ name }}" value="__MODE__" class="mode-toggle" checked>
+          <span class="mode-name font-medium"></span>
+        </label>
+        <div class="mode-fields grid grid-cols-2 gap-3 mt-2">
+          {{ fields(f.fields, {}, options, name ~ "::__MODE__", ring) }}
+        </div>
+      </div>
+    </template>
+    <button type="button" class="add-mode mt-2 text-xs text-blue-600 hover:underline">+ {{ _("Add another mode") }}</button>
+  </div>
+  {% else %}
+  <div class="{% if kind == 'longtext' %}col-span-2{% endif %}">
+    {{ label(f) }}
+    {% if kind == "choice" %}
+    {{ choice_input(name, options.get(f.list or f.key), value, ring,
+                    at=(places.get(f.list or f.key, {}) if places is defined else {}) if f.located else none) }}
+    {% elif kind == "longtext" %}
+    <textarea name="{{ name }}" rows="5" placeholder="{{ _(f.placeholder) if f.placeholder else '' }}"
+              class="{{ input_cls }} {{ ring }}">{{ value if value is not none else '' }}</textarea>
+    {% else %}
+    <input name="{{ name }}" type="text" {% if kind == "number" %}inputmode="decimal"{% endif %}
+           value="{{ value if value is not none else '' }}" placeholder="{{ _(f.placeholder) if f.placeholder else '' }}"
+           class="{{ input_cls }} {{ ring }}">
+    {% endif %}
+  </div>
+  {% endif %}
+{% endfor %}
+{% endmacro %}

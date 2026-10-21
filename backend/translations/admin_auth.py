@@ -73,10 +73,6 @@ PT = {
     "Password for '{username}' reset. New temporary password: {password}":
         "Palavra-passe de '{username}' reposta. Nova palavra-passe temporária: {password}",
     "Parameter schema is not valid JSON: {error}": "O esquema de parâmetros não é JSON válido: {error}",
-    "Parameter schema must be a JSON list of objects.": "O esquema de parâmetros tem de ser uma lista JSON de objetos.",
-    'Every schema field needs a "key".': 'Cada campo do esquema precisa de uma "key".',
-    "Schema keys must be unique.": "As chaves do esquema têm de ser únicas.",
-    'Schema keys cannot contain ":".': 'As chaves do esquema não podem conter ":".',
     "A type named '{name}' already exists.": "Já existe um tipo chamado '{name}'.",
     "Type '{name}' added.": "Tipo '{name}' adicionado.",
     "Type '{name}' updated. Existing entries keep their stored values.":
