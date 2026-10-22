@@ -91,19 +91,6 @@ def schema_keys(schema: list[dict] | None) -> set[str]:
     return keys
 
 
-def lists_used(schemas) -> set[str]:
-    """Names of the shared lists the given schemas use."""
-    names = set()
-    for schema in schemas:
-        for f in schema or []:
-            if f.get("type") in ("choice", "modes"):
-                names.add(option_list(f))
-            names |= lists_used(_side_fields(f))
-            if f.get("type") == "modes":
-                names |= lists_used([f.get("fields")])
-    return names
-
-
 def located_lists(schema: list[dict] | None) -> set[str]:
     """Lists whose values belong to a place (choice fields with "located": true)."""
     names = set()

@@ -78,15 +78,9 @@ PT = {
     "Photo of the pieces": "Fotografia dos pedaços",
     "Recommended: photograph the pieces with each one's letter written next to it (A, B, …), so it's clear which is which.":
         "Recomendado: fotografe os pedaços com a letra de cada um escrita ao lado (A, B, …), para se saber qual é qual.",
-    # Admin: dropdown lists and schema help
-    "Dropdown lists": "Listas de opções",
-    "Values for the dropdowns on the step and analysis forms. People add new values from the forms; here you can add values or remove typos. Entries that already use a value keep it.":
-        "Valores das listas nos formulários de passos e análises. As pessoas acrescentam valores a partir dos formulários; aqui pode adicionar valores ou remover gralhas. Os registos que já usam um valor mantêm-no.",
-    "New value": "Novo valor",
+    # Admin: schema help
     'Field types: number (with unit), duration, text, longtext, choice (a dropdown list, "list"), variant ("options", each with its own fields), check (a tick box with "fields" shown when ticked), modes (tick several from a list, each with "fields"). See the README.':
         'Tipos de campo: number (com unidade), duration, text, longtext, choice (uma lista de opções, "list"), variant ("options", cada uma com os seus campos), check (uma caixa com "fields" que aparecem quando assinalada), modes (assinalar vários de uma lista, cada um com "fields"). Ver o README.',
-    "Where it is": "Onde está",
-    "place": "local",
     "Today": "Hoje",
     "Saving will overwrite these values on the other samples:": "Guardar vai substituir estes valores nas outras amostras:",
     "…and {n} more": "…e mais {n}",

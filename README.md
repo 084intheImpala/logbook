@@ -364,8 +364,7 @@ Each step or analysis type has its own fields, filled in on the form:
   min:s (`12:30`), or plain minutes (`12`).
 - **Dropdowns** (machine, technique, target, atmosphere, …) offer values
   saved earlier. **+ Add new…** types a new one, which is then offered to
-  everyone. Admins can add or remove values under **Configurations →
-  Dropdown lists**; entries keep the values they already have.
+  everyone.
 - Some types ask first which **variant** it is, and then show that variant's
   fields: Annealing → Furnace (temperature, duration) or RTA (atmosphere,
   temperature, duration, ramp); XRD / HRXRD; RBS or RBS/Channeling; etc.
@@ -379,8 +378,7 @@ Each step or analysis type has its own fields, filled in on the form:
   Where (INESC MN has the Alcatel SCM 450, UHV1, UHV2 and SentiFet). A new
   piece of equipment typed on the form is filed under that place. New types
   added under Configurations get the Equipment field automatically.
-  Equipment with no place set is offered everywhere. Admins can move
-  equipment to another place under Dropdown lists.
+  Equipment with no place set is offered everywhere.
 - **Other parameters** takes anything else as `key: value` lines.
 
 The step types are Deposition (machine: Alcatel SCM 450, UHV1, UHV2, SentiFet;
