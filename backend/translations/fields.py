@@ -71,8 +71,12 @@ PT = {
     "Scan speed": "Velocidade de varrimento",
     "Roughness (Ra)": "Rugosidade (Ra)",
     "Measurement positions": "Posições de medida",
+    "Magnification(s)": "Ampliação(ões)",
+    "Observations": "Observações",
     # placeholders
     "e.g. 3 steps across the sample": "ex.: 3 degraus ao longo da amostra",
+    "e.g. 5×, 20×, 50×": "ex.: 5×, 20×, 50×",
+    "Defects, cracks, particles, colour uniformity, …": "Defeitos, fissuras, partículas, uniformidade da cor, …",
     "Substrate, number of pieces, whether they were marked, …": "Substrato, número de pedaços, se foram marcados, …",
     "e.g. 20, or 20/5 for Ar/O2": "ex.: 20, ou 20/5 para Ar/O2",
     "e.g. 12:30": "ex.: 12:30",

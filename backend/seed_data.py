@@ -172,6 +172,15 @@ ANALYSIS_TYPES = [
         ],
     },
     {
+        "name": "Optical Microscopy",
+        "description": "Optical microscope inspection",
+        "parameter_schema": [
+            choice("mode", "Mode", "optical_mode"),
+            text("magnification", "Magnification(s)", placeholder="e.g. 5×, 20×, 50×"),
+            longtext("observations", "Observations", placeholder="Defects, cracks, particles, colour uniformity, …"),
+        ],
+    },
+    {
         "name": "SEM",
         "description": "Scanning Electron Microscopy",
         "parameter_schema": [
@@ -290,4 +299,5 @@ CHOICE_OPTIONS = {
     "sem_equipment": ["Hitachi S-2500"],
     "ion_beam": ["He+", "H+"],
     "afm_mode": ["Tapping", "Contact"],
+    "optical_mode": ["Bright field", "Dark field", "DIC", "Polarized light"],
 }

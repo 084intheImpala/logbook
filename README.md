@@ -387,7 +387,9 @@ duration, station, the deposition rate and thickness when known, and a
 calibration sample tick box with details), Annealing, Ion
 Implantation, Lithography (optical or e-beam), Etching (dry or wet), Cut and
 Other Process. The analysis types are XRD / HRXRD, XPS, SEM (the equipment,
-e.g. Hitachi S-2500), TEM, RBS, AFM, Raman, Hall / 4-probe, Ellipsometry
+e.g. Hitachi S-2500), TEM, RBS, AFM, Raman, Optical Microscopy (mode, e.g.
+bright/dark field or DIC, magnifications and observations), Hall / 4-probe,
+Ellipsometry
 (angles of incidence, and a large box for the optical model), Profilometry
 (step height, scan length, stylus force, scan speed, roughness) and Other
 Analysis. On the sample page parameters are shown with their labels and
