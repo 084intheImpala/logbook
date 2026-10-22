@@ -6,6 +6,11 @@
     <h1 class="text-2xl font-bold text-gray-900">{{ _("Samples") }}</h1>
     <p class="text-sm text-gray-500 mt-1">{{ _("{n} sample", n=samples|length) if samples|length == 1 else _("{n} samples", n=samples|length) }}</p>
   </div>
+  <div class="flex items-center gap-4">
+  {% if rows|selectattr("pieces")|list %}
+  <button type="button" id="toggle-all" class="text-sm text-blue-600 hover:underline"
+          data-expand="{{ _("Expand all") }}" data-collapse="{{ _("Collapse all") }}">{{ _("Expand all") }}</button>
+  {% endif %}
   <a href="/samples/new"
      class="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -13,6 +18,7 @@
     </svg>
     {{ _("New Sample") }}
   </a>
+  </div>
 </div>
 
 {% if flash %}
@@ -48,15 +54,26 @@
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
-      {% for s in samples %}
-      <tr class="hover:bg-gray-50">
-        <td class="px-5 py-3">
-          <a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
-          {% if not can_view(current_user, s) %}<span class="text-xs text-gray-400" title="{{ _("Summary only — ask the owner to share it") }}">🔒</span>{% endif %}
-          {% if s.label %}<div class="text-xs text-gray-600">{{ s.label }}</div>{% endif %}
-          {% set parent = parents.get(s.id) %}
-          {% if s.requested_by_id %}<div class="text-xs text-amber-600">{{ _("awaiting {name}'s confirmation", name=s.researcher) }}</div>{% endif %}
-            {% if parent %}<div class="text-xs text-gray-400">✂ {{ _("piece of") }} <a href="/samples/{{ parent.id }}" class="font-mono hover:underline">{{ parent.title }}</a>{% if s.is_reference %} · <span class="text-amber-600">{{ _("reference") }}</span>{% endif %}</div>{% endif %}
+      {% for row in rows %}
+      {% set s = row.sample %}
+      <tr class="sample-row hover:bg-gray-50 {% if row.depth %}hidden bg-gray-50{% endif %}"
+          data-id="{{ s.id }}" data-ancestors="{{ row.ancestors|join(' ') }}">
+        <td class="px-5 py-3" style="padding-left: {{ 1.25 + row.depth * 1.5 }}rem">
+          <div class="flex items-start gap-1.5">
+            {% if row.depth %}<span class="text-gray-300 select-none">└</span>{% endif %}
+            <div>
+              <a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
+              {% if not can_view(current_user, s) %}<span class="text-xs text-gray-400" title="{{ _("Summary only — ask the owner to share it") }}">🔒</span>{% endif %}
+              {% if s.is_reference %}<span class="text-xs text-amber-600">{{ _("reference") }}</span>{% endif %}
+              {% if s.label %}<div class="text-xs text-gray-600">{{ s.label }}</div>{% endif %}
+              {% if s.requested_by_id %}<div class="text-xs text-amber-600">{{ _("awaiting {name}'s confirmation", name=s.researcher) }}</div>{% endif %}
+              {% if row.pieces %}
+              <button type="button" class="piece-toggle mt-0.5 text-xs text-gray-500 hover:text-blue-600" data-id="{{ s.id }}">
+                <span class="caret inline-block w-3">▸</span>{{ _("{n} piece", n=row.pieces) if row.pieces == 1 else _("{n} pieces", n=row.pieces) }}
+              </button>
+              {% endif %}
+            </div>
+          </div>
         </td>
         <td class="px-5 py-3 text-gray-600 text-xs">{{ s.type_label }}{% if s.project %}<div class="text-gray-400" title="{{ s.project.name }}">{{ s.project.code }}</div>{% endif %}</td>
         <td class="px-5 py-3 text-gray-600">{{ s.film_material or '—' }}</td>
@@ -74,6 +91,37 @@
     </tbody>
   </table>
 </div>
+<script>
+(function () {
+  // Pieces sit under their sample; a row shows when every sample above it is open
+  const rows = [...document.querySelectorAll('.sample-row')];
+  const toggles = [...document.querySelectorAll('.piece-toggle')];
+  const toggleAll = document.getElementById('toggle-all');
+  let open = new Set();
+  try { open = new Set(JSON.parse(localStorage.getItem('samples-open') || '[]')); } catch (e) {}
+
+  function render() {
+    rows.forEach(row => row.classList.toggle('hidden',
+      row.dataset.ancestors.split(' ').some(id => id && !open.has(id))));
+    toggles.forEach(btn => btn.querySelector('.caret').textContent = open.has(btn.dataset.id) ? '▾' : '▸');
+    if (toggleAll) {
+      const all = toggles.every(btn => open.has(btn.dataset.id));
+      toggleAll.textContent = all ? toggleAll.dataset.collapse : toggleAll.dataset.expand;
+    }
+    try { localStorage.setItem('samples-open', JSON.stringify([...open])); } catch (e) {}
+  }
+  toggles.forEach(btn => btn.addEventListener('click', () => {
+    open.has(btn.dataset.id) ? open.delete(btn.dataset.id) : open.add(btn.dataset.id);
+    render();
+  }));
+  if (toggleAll) toggleAll.addEventListener('click', () => {
+    const all = toggles.every(btn => open.has(btn.dataset.id));
+    open = all ? new Set() : new Set(toggles.map(btn => btn.dataset.id));
+    render();
+  });
+  render();
+})();
+</script>
 {% else %}
 <div class="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
   <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

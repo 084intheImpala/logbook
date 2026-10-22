@@ -67,13 +67,30 @@ async def list_samples(
     result = await db.execute(select(Sample).order_by(Sample.created_at.desc()))
     samples_list = result.scalars().all()
     by_id = {s.id: s for s in samples_list}
-    parent_ids = (await db.execute(
+    parent_of = dict((await db.execute(
         select(Sample.id, ProcessStep.sample_id).join(ProcessStep, Sample.cut_step_id == ProcessStep.id)
-    )).all()
+    )).all())
+    # Shown as a tree: original samples (newest first), each followed by its
+    # pieces sorted by ID, pieces of pieces nested one level further.
+    pieces: dict[int, list[Sample]] = {}
+    for s in samples_list:
+        if s.id in parent_of:
+            pieces.setdefault(parent_of[s.id], []).append(s)
+    rows = []
+
+    def add(sample, ancestors):
+        rows.append({"sample": sample, "depth": len(ancestors), "ancestors": ancestors,
+                     "pieces": len(pieces.get(sample.id, []))})
+        for piece in sorted(pieces.get(sample.id, []), key=lambda p: p.code or ""):
+            add(piece, ancestors + [sample.id])
+
+    for s in samples_list:
+        if parent_of.get(s.id) not in by_id:
+            add(s, [])
     return templates.TemplateResponse("samples/list.html", {
         "request": request,
         "samples": samples_list,
-        "parents": {piece_id: by_id[parent_id] for piece_id, parent_id in parent_ids},
+        "rows": rows,
         "to_confirm": [s for s in samples_list if s.owner_id == current_user.id and s.requested_by_id],
         "flash": request.session.pop("flash", None),
         "can_view": can_view,
