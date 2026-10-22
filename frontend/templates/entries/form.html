@@ -12,7 +12,16 @@
     <a href="/samples/" class="hover:underline">{{ _("Samples") }}</a> /
     <a href="/samples/{{ sample.id }}" class="hover:underline">{{ sample.title }}</a> / {{ heading }}
   </div>
-  <h1 class="text-2xl font-bold mb-6">{{ heading }}</h1>
+  <h1 class="text-2xl font-bold mb-2">{{ heading }}</h1>
+  <div class="mb-6 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+    <div class="flex items-baseline gap-3">
+      <span class="font-mono text-sm font-semibold">{{ sample.title }}</span>
+      {% if sample.label %}<span class="text-sm text-gray-600">{{ sample.label }}</span>{% endif %}
+    </div>
+    {% if can_view_sample and sample.description %}
+    <p class="mt-1 text-sm text-gray-600 whitespace-pre-line">{{ sample.description }}</p>
+    {% endif %}
+  </div>
 
   {% if error %}
   <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ error }}</div>

@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
 
-from backend.auth import can_edit, can_edit_entry
+from backend.auth import can_edit, can_edit_entry, can_view
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, remember
 from backend.config import settings
 from backend.i18n import t
@@ -87,6 +87,8 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
         "kind": kind.name,
         "path": kind.path,
         "sample": sample,
+        # Whoever only performed this entry sees the sample's ID and label, not its description
+        "can_view_sample": can_view(user, sample),
         "entry": entry,
         "types": types,
         "params": (entry.parameters or {}) if entry else {},
