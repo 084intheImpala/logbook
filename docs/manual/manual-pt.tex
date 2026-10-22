@@ -1,0 +1,642 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.multipart}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{accent}{HTML}{1F4E79}
+\definecolor{tipbg}{HTML}{EAF2FB}
+\definecolor{warnbg}{HTML}{FDF1E6}
+\definecolor{warnfr}{HTML}{C0611B}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{1em}{}
+
+\setlist{itemsep=2pt,topsep=4pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{gray}Thin Film Logbook}
+\fancyhead[R]{\small\color{gray}Manual de utilização}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Elementos da interface: botões, menus, nomes de campos
+\newcommand{\ui}[1]{\textsf{\textbf{#1}}}
+\newcommand{\menu}[1]{\textsf{#1}}
+\newcommand{\sid}[1]{\texttt{#1}}
+
+\newtcolorbox{tip}{colback=tipbg,colframe=accent,boxrule=0.5pt,arc=2pt,
+  left=6pt,right=6pt,top=4pt,bottom=4pt,fonttitle=\bfseries,title=Sugestão}
+\newtcolorbox{careful}{colback=warnbg,colframe=warnfr,boxrule=0.5pt,arc=2pt,
+  left=6pt,right=6pt,top=4pt,bottom=4pt,fonttitle=\bfseries,title=Atenção}
+
+\title{\color{accent}\textbf{Thin Film Logbook}\\[4pt]\large Manual de utilização}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+O Thin Film Logbook é uma aplicação web para registar o que acontece a cada
+amostra do laboratório: de onde vem, cada passo de processo (deposição,
+recozimento, implantação, \ldots), cada análise (XRD, RBS, SEM, \ldots), e
+as fotografias e ficheiros de dados correspondentes. Este manual explica a
+utilização do dia a dia. A Secção~\ref{sec:admin} descreve as tarefas
+adicionais dos administradores, e a Secção~\ref{sec:install} como manter
+o servidor e fazer cópias de segurança.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%=====================================================================
+\section{Primeiros passos}
+%=====================================================================
+
+\subsection{Abrir o logbook}
+
+O logbook corre num computador do laboratório e abre-se em qualquer
+navegador, num computador ou num telemóvel, no endereço indicado pelo
+administrador, por exemplo \texttt{http://10.10.13.172:8000}. É preciso
+estar ligado à rede do laboratório.
+
+\subsection{A sua conta}
+
+Não há registo livre: é um administrador que cria a sua conta. Recebe um
+email com o nome de utilizador e uma palavra-passe temporária (ou o
+administrador entrega-lhos).
+
+\begin{enumerate}
+  \item Inicie sessão com o nome de utilizador e a palavra-passe temporária.
+  \item Escolha uma nova palavra-passe.
+  \item Indique o seu \ui{Nome} (aparece como investigador(a) nas suas
+        amostras) e as suas \ui{Iniciais}: 2--4 letras, únicas no
+        laboratório. As iniciais entram nos IDs das suas amostras, por
+        exemplo \sid{ASS-2026-001}.
+\end{enumerate}
+
+\begin{careful}
+Escolha as iniciais com cuidado. Depois de ter amostras, só um
+administrador as pode alterar, e os IDs das amostras já criadas nunca mudam.
+\end{careful}
+
+Se se esquecer da palavra-passe, use \ui{Esqueceu-se da palavra-passe?} na
+página de início de sessão: recebe por email uma ligação de acesso válida
+uma única vez. Pode alterar a palavra-passe e o nome a qualquer momento no
+seu perfil (clique no seu nome, no fundo da barra lateral).
+
+\subsection{Orientar-se na aplicação}
+
+A barra lateral à esquerda (um botão de menu no telemóvel) tem:
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\menu{Amostras}       & Todas as amostras do laboratório, das mais recentes para as mais antigas. \\
+\menu{Pesquisa}       & Filtrar, agrupar, partilhar e exportar amostras. \\
+\menu{Substratos}     & A biblioteca partilhada de substratos a partir dos quais se fazem as amostras. \\
+\menu{Projetos}       & Projetos de colaboração com outras instituições. \\
+\menu{Nova amostra}   & Criar uma amostra. \\
+\menu{Sugestões}      & Enviar uma ideia, um problema ou uma pergunta aos administradores. \\
+\menu{Caixa de entrada}, \menu{Configurações} & Só para administradores (Secção~\ref{sec:admin}). \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+No fundo da barra lateral estão o seletor de idioma \ui{PT / EN} e o botão
+lua/sol para o modo escuro. Os termos técnicos (nomes de técnicas, unidades,
+valores das listas) ficam em inglês nos dois idiomas.
+
+%=====================================================================
+\section{Conceitos principais}
+%=====================================================================
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={draw=accent,rounded corners=2pt,fill=tipbg,minimum width=2.8cm,
+              minimum height=0.8cm,font=\sffamily\small,align=center},
+  arr/.style={-{Stealth},thick,accent!70}]
+  \node[box] (sub) {Substrato\\[-2pt]\scriptsize biblioteca};
+  \node[box,right=1.2cm of sub] (sam) {Amostra\\[-2pt]\scriptsize\texttt{ASS-2026-001}};
+  \node[box,left=1.2cm of sub, yshift=0cm] (prj) {Projeto\\[-2pt]\scriptsize colaborações};
+  \node[box,below left=1.1cm and -0.6cm of sam] (stp) {Passos de processo};
+  \node[box,below right=1.1cm and -0.6cm of sam] (ana) {Análises};
+  \node[box,below=0.9cm of stp,xshift=1.9cm,minimum width=3.5cm] (att) {Fotografias e ficheiros};
+  \draw[arr] (sub) -- node[above,font=\scriptsize]{feita de} (sam);
+  \draw[arr] (prj) to[bend left=25] node[above,font=\scriptsize]{enviada para} (sam);
+  \draw[arr] (sam) -- (stp);
+  \draw[arr] (sam) -- (ana);
+  \draw[arr] (stp) -- (att);
+  \draw[arr] (ana) -- (att);
+  \draw[arr,dashed] (sam.east) to[out=0,in=0,looseness=2.5]
+        node[right,font=\scriptsize,align=left]{dividida em\\pedaços} (sam.north east);
+\end{tikzpicture}
+\end{center}
+
+\begin{description}
+  \item[Amostra] Uma peça física de material, com um ID gerado que nunca
+    muda, um responsável (o investigador) e uma \emph{cronologia}.
+  \item[Cronologia] A lista ordenada dos passos de processo e análises
+    feitos à amostra, cada um com os seus parâmetros, notas, data,
+    fotografias e ficheiros.
+  \item[Substrato] Uma entrada na biblioteca partilhada (material,
+    orientação, espessura, polimento, fornecedor, ficha técnica). As
+    amostras de filme fino e bulk são feitas a partir de um substrato.
+  \item[Projeto] Uma colaboração com outra universidade ou centro que nos
+    envia amostras. O seu código curto substitui as iniciais nos IDs dessas
+    amostras.
+  \item[Pedaços] Dividir uma amostra cria novas amostras que herdam a sua
+    história até ao corte.
+\end{description}
+
+\subsection{IDs das amostras}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\sid{ASS-2026-001}       & Investigador(a) ASS, ano 2026, a sua primeira amostra desse ano \\
+\sid{ASS-2026-001-A}     & Pedaço A cortado dessa amostra \\
+\sid{ASS-2026-001-A-2}   & Pedaço 2 cortado do pedaço A \\
+\sid{ASS-2026-001-REF}   & Pedaço de referência \\
+\sid{UMIN1-2026-001}     & Primeira amostra de 2026 do projeto UMIN1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Os IDs são atribuídos quando a amostra é guardada e nunca mudam, mesmo que
+a amostra passe para outra pessoa. Use o \ui{Rótulo} (opcional) para a sua
+própria descrição (``teste de guia de onda, lote 2''); não precisa de ser
+único.
+
+\subsection{Quem vê o quê}
+
+Todas as pessoas com sessão iniciada veem o \emph{resumo} de todas as
+amostras: ID, rótulo, tipo, materiais, substrato, etiquetas, técnicas
+utilizadas e investigador. Os \emph{detalhes} (descrições, parâmetros,
+notas, datas, ficheiros) só são visíveis para:
+\begin{itemize}
+  \item o responsável pela amostra;
+  \item os administradores;
+  \item as pessoas com quem o responsável a partilhou (\ui{Ver} ou \ui{Editar});
+  \item num passo ou análise em particular, as pessoas indicadas em
+        \ui{Realizado por}.
+\end{itemize}
+
+As amostras sem responsável estão abertas a todos.
+
+%=====================================================================
+\section{Amostras}
+%=====================================================================
+
+\subsection{Criar uma amostra}
+
+Clique em \menu{Nova amostra} e escolha o \ui{Tipo de amostra}:
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Tipo} & \textbf{O que preencher} \\
+\midrule
+Thin film     & O substrato da biblioteca (obrigatório), as dimensões e, depois
+                da deposição, o material do filme. \\
+Bulk          & O substrato da biblioteca de que é um pedaço (obrigatório), as
+                dimensões, e um \ui{ID externo} se foi cortado por outra pessoa. \\
+Commercial    & Descrição, fornecedor, n.º de produto/lote e a ficha técnica
+                (PDF ou fotografia, obrigatória). \\
+Collaboration & O projeto (obrigatório), uma descrição (obrigatória) e,
+                opcionalmente, o ID que o parceiro lhe deu. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Os nomes dos tipos ficam em inglês, como na aplicação. Todos os tipos têm
+\ui{Rótulo} e \ui{Etiquetas}. Se o substrato ou o projeto de que precisa
+não estiver na lista, siga a ligação \ui{Falta algum?}: abre o formulário
+noutro separador; acrescente-o lá e depois recarregue o formulário da
+amostra.
+
+O campo \ui{Investigador(a)} é, por omissão, o seu. Escolha outra pessoa
+para criar a amostra em nome dela (Secção~\ref{sec:assign}).
+
+\subsection{A página da amostra}
+
+A página de uma amostra mostra o resumo no topo, depois o painel
+\ui{Partilha} (para o responsável) e depois a cronologia. A partir daqui
+pode:
+\begin{itemize}
+  \item \ui{Editar} a amostra ou \ui{Eliminar} (só o responsável e os
+        administradores; não enquanto tiver pedaços);
+  \item \ui{Adicionar passo de processo} e \ui{Adicionar análise};
+  \item \ui{Dividir em pedaços} (Secção~\ref{sec:cut});
+  \item reordenar a cronologia (Secção~\ref{sec:timeline}).
+\end{itemize}
+
+%=====================================================================
+\section{Registar passos e análises}
+%=====================================================================
+
+\subsection{O formulário}
+
+Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
+
+\begin{description}
+  \item[Data] Opcional, só o dia. O botão \ui{Hoje} preenche-a.
+  \item[Onde] CTN, INESC MN ou outro instituto.
+  \item[Equipamento] A máquina utilizada. A lista só mostra o equipamento
+    que existe no local escolhido em \ui{Onde}. (Numa deposição chama-se
+    \ui{Máquina}.)
+  \item[Realizado por] Por omissão, o próprio. Acrescente colegas, ou
+    \ui{Outra pessoa (escreva o nome)} para alguém sem conta.
+  \item[Parâmetros] Os campos próprios do tipo (ver abaixo).
+  \item[Outros parâmetros] Tudo o resto, um \texttt{chave: valor} por linha.
+  \item[Notas] Texto livre.
+  \item[Fotografias e ficheiros] Podem ser adicionados aqui ou mais tarde,
+    na cronologia.
+\end{description}
+
+\subsection{Preencher os parâmetros}
+
+\begin{itemize}
+  \item \textbf{Números} têm a sua caixa e unidade. As pressões estão em
+    mTorr e podem escrever-se como \texttt{1e-4}; a vírgula decimal também
+    funciona.
+  \item \textbf{Durações} aceitam \texttt{min:s} (\texttt{12:30}),
+    \texttt{h:min:s} ou só minutos (\texttt{12}).
+  \item \textbf{Listas} oferecem os valores já guardados. Escolha
+    \ui{+ Adicionar novo\ldots} para escrever um novo, que passa a ser
+    oferecido a todos. Veja primeiro a lista, para que o mesmo alvo ou gás
+    não fique escrito de três maneiras diferentes.
+  \item \textbf{Variantes}: alguns tipos perguntam primeiro qual a variante,
+    por exemplo Annealing $\to$ Furnace ou RTA, e mostram depois os campos
+    dessa variante.
+  \item \textbf{Modos} (XRD / HRXRD): marque cada modo medido
+    (2$\theta$/$\omega$, rocking curve, grazing incidence, \ldots) e
+    preencha a gama, o passo, o tempo de aquisição e a configuração.
+  \item \textbf{Caixas de seleção} mostram campos adicionais, por exemplo
+    \ui{Amostra de calibração} numa deposição.
+\end{itemize}
+
+\subsection{Tipos disponíveis}
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Passos de processo} & Deposition, Annealing (Furnace / RTA), Ion
+  Implantation, Lithography (optical / e-beam), Etching (dry / wet), Cut,
+  Other Process \\
+\midrule
+\textbf{Análises} & XRD / HRXRD, XPS, SEM, TEM, RBS (RBS / Channeling),
+  AFM, Raman, Optical Microscopy, Hall / 4-probe, Ellipsometry,
+  Profilometry, Other Analysis \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Os administradores podem acrescentar tipos ou alterar os seus campos
+(Secção~\ref{sec:admin}).
+
+\subsection{Um ensaio em várias amostras}
+\label{sec:runs}
+
+Quando a mesma deposição ou sessão de medidas abrange várias amostras,
+registe-a uma só vez: em \ui{Adicionar também a outras amostras}, marque
+as outras amostras. Cada uma recebe a sua cópia da entrada, ligadas entre
+si como um ensaio (``Também em: \ldots'' na página da amostra).
+
+\begin{itemize}
+  \item As fotografias e ficheiros dos campos principais vão para todas as
+        amostras (guardados uma só vez).
+  \item Ao lado de cada amostra marcada aparece um campo para os ficheiros
+        dessa amostra (por exemplo, os seus dados).
+  \item Pode acrescentar mais amostras ao ensaio mais tarde, no formulário
+        de edição.
+  \item Ao editar uma cópia, pode aplicar as alterações às outras. Se isso
+        alterar ou apagar um valor que outra amostra já tem, a aplicação
+        mostra quais e pede confirmação.
+  \item Cada cópia mantém o seu lugar na cronologia da sua amostra, e
+        eliminar uma cópia só a remove dessa amostra.
+\end{itemize}
+
+\subsection{Fotografias e ficheiros}
+
+Cada cartão da cronologia tem \ui{Adicionar fotografias} e \ui{Anexar
+ficheiros}; também pode arrastar ficheiros para um cartão. O envio começa
+assim que os ficheiros são escolhidos.
+
+\begin{description}
+  \item[Adicionar fotografias] No telemóvel, abre a câmara ou a galeria;
+    pode escolher várias de uma vez. As fotografias grandes são endireitadas
+    e reduzidas a no máximo 2560\,px / 2\,MB em JPEG; as fotografias HEIC do
+    iPhone são convertidas. Os dados de localização são removidos.
+  \item[Anexar ficheiros] Guardados exatamente como foram enviados. Use
+    esta opção para dados em bruto (por exemplo TIFFs de 16 bits de SEM ou
+    AFM, \texttt{.raw}, \texttt{.csv}), para não se perder nada.
+\end{description}
+
+As imagens têm uma miniatura na cronologia; clique nela para abrir o
+ficheiro completo.
+
+\begin{tip}
+Fotografe a amostra, o porta-amostras ou o ecrã do instrumento diretamente
+do telemóvel, na bancada: abra a página da amostra, toque em
+\ui{Adicionar fotografias} no cartão do passo e tire a fotografia.
+\end{tip}
+
+\subsection{A ordem da cronologia}
+\label{sec:timeline}
+
+Os passos e as análises partilham a mesma cronologia. Uma nova entrada com
+data fica depois de tudo o que tem data igual ou anterior; uma entrada sem
+data vai para o fim.
+
+\begin{itemize}
+  \item Use as setas para cima/baixo para mover uma entrada, por exemplo
+        para ordenar duas coisas feitas no mesmo dia.
+  \item \ui{Ordenar por data} repõe as entradas com data por ordem
+        cronológica, mantendo a sua ordem dentro de cada dia. As entradas
+        sem data ficam onde estão.
+\end{itemize}
+
+%=====================================================================
+\section{Dividir uma amostra em pedaços}
+\label{sec:cut}
+%=====================================================================
+
+\ui{Dividir em pedaços}, na página da amostra, regista um passo \emph{Cut}
+e cria uma nova amostra por cada pedaço.
+
+\begin{enumerate}
+  \item Escolha o \ui{Número de pedaços}. Marque \ui{Guardar também um
+        pedaço de referência} para acrescentar mais um (\sid{-REF}).
+  \item Tire uma fotografia dos pedaços com a letra de cada um escrita ao lado.
+  \item Para cada pedaço, indique opcionalmente um rótulo e as dimensões, e
+        escolha o investigador (por omissão, o responsável pela amostra-mãe).
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[
+  ent/.style={draw=accent,fill=tipbg,rounded corners=1pt,minimum width=2.4cm,
+              minimum height=0.5cm,font=\sffamily\scriptsize},
+  inh/.style={ent,draw=gray!60,fill=gray!10,text=gray},
+  cut/.style={ent,fill=warnbg,draw=warnfr},
+  lbl/.style={font=\sffamily\small\bfseries}]
+  % amostra-mãe
+  \node[lbl] at (0,0.6) {\sid{ASS-2026-001}};
+  \node[ent] (p1) at (0,0) {Deposition};
+  \node[ent] (p2) at (0,-0.6) {XRD};
+  \node[cut] (p3) at (0,-1.2) {Cut};
+  \node[ent] (p4) at (0,-1.8) {Annealing};
+  % pedaço A
+  \node[lbl] at (4.5,0.6) {\sid{ASS-2026-001-A}};
+  \node[inh] at (4.5,0) {Deposition};
+  \node[inh] at (4.5,-0.6) {XRD};
+  \node[inh] (a3) at (4.5,-1.2) {Cut};
+  \node[ent] at (4.5,-1.8) {RBS};
+  % pedaço B
+  \node[lbl] at (8.6,0.6) {\sid{ASS-2026-001-B}};
+  \node[inh] at (8.6,0) {Deposition};
+  \node[inh] at (8.6,-0.6) {XRD};
+  \node[inh] (b3) at (8.6,-1.2) {Cut};
+  \node[ent] at (8.6,-1.8) {SEM};
+  \draw[-{Stealth},thick,warnfr] (p3.east) -- (a3.west);
+  \draw[-{Stealth},thick,warnfr] (p3.east) .. controls (2.3,-3.0) and (6.8,-3.0) .. (b3.west);
+  \node[font=\scriptsize,text=gray] at (4.5,-3.0) {cinzento = herdado, só de leitura no pedaço};
+\end{tikzpicture}
+\end{center}
+
+Cada pedaço:
+\begin{itemize}
+  \item \textbf{herda} a cronologia da amostra-mãe até ao passo Cut,
+        mostrada a cinzento com ``de \ldots''. Nada é copiado: corrigir
+        uma entrada na amostra-mãe corrige-a em todos os pedaços. As
+        entradas herdadas editam-se na amostra-mãe.
+  \item copia o tipo, o substrato, o filme, as etiquetas e a partilha da
+        amostra-mãe.
+  \item tem as suas próprias entradas depois do corte, separadas das dos
+        outros pedaços.
+\end{itemize}
+
+A amostra-mãe continua a poder ser usada; o que lhe for acrescentado
+depois pertence só a ela. Quem vê um pedaço também vê a história herdada.
+
+%=====================================================================
+\section{Partilha e responsabilidade}
+%=====================================================================
+
+\subsection{Partilhar uma amostra}
+
+Na página da amostra, no painel \ui{Partilha}, escolha \ui{Partilhar
+com\ldots}, a pessoa, e \ui{Ver} ou \ui{Editar}:
+
+\begin{description}
+  \item[Ver] Ler os detalhes e descarregar os ficheiros.
+  \item[Editar] Também acrescentar e alterar passos, análises e ficheiros.
+\end{description}
+
+Para partilhar muitas amostras de uma vez, vá a \menu{Pesquisa}, marque as
+amostras (ou \ui{selecionar todas as minhas}) e use \ui{Partilhar as
+amostras selecionadas com}. Só o responsável ou um administrador pode
+alterar a partilha ou eliminar uma amostra.
+
+\subsection{Realizado por}
+
+Indicar alguém em \ui{Realizado por} permite-lhe ver e editar essa entrada
+(com as suas fotografias e ficheiros), mesmo sem acesso ao resto da
+amostra. A pessoa é avisada por email. É a forma mais simples de deixar o
+técnico que fez o XRD carregar os dados.
+
+\subsection{Passar uma amostra a outra pessoa}
+\label{sec:assign}
+
+Pode tornar outro investigador responsável por uma amostra:
+\begin{itemize}
+  \item no formulário \menu{Nova amostra} (o ID usa então as iniciais dessa
+        pessoa);
+  \item no formulário \ui{Editar} da amostra;
+  \item pedaço a pedaço, no formulário de divisão.
+\end{itemize}
+
+Se não for um administrador a fazê-lo, o novo responsável tem de
+confirmar. Recebe um email e vê a amostra em \emph{Atribuídas a si ---
+confirme, por favor} na página \menu{Amostras}, onde pode \ui{Aceitar} ou
+\ui{Recusar} (devolvendo-a). Até lá, e também depois, quem a atribuiu
+mantém acesso de edição.
+
+%=====================================================================
+\section{Substratos e projetos}
+%=====================================================================
+
+\subsection{Biblioteca de substratos}
+
+O separador \menu{Substratos} lista os substratos com material, espessura,
+orientação, polimento, tamanho, fornecedor, notas e fichas técnicas.
+Qualquer pessoa pode acrescentar um; quem o acrescentou e os
+administradores podem editá-lo. Um substrato usado por alguma amostra não
+pode ser eliminado.
+
+\subsection{Projetos}
+
+O separador \menu{Projetos} lista as colaborações: nome, instituição
+parceira, código, país, contacto e notas. O código (2--6 letras ou
+algarismos) é usado nos IDs das amostras do projeto; por isso não pode
+coincidir com as iniciais de ninguém, e fica fixo assim que uma amostra o
+usa. Uma instituição pode ter vários projetos; escolha-a entre as
+sugestões, para ficar sempre escrita da mesma maneira.
+
+%=====================================================================
+\section{Pesquisa e exportação}
+%=====================================================================
+
+A \menu{Pesquisa} filtra as amostras por texto livre, investigador, tipo de
+amostra, material, técnica e etiqueta, e agrupa os resultados (por
+investigador, ano, tipo, material, técnica, etiqueta ou projeto). O texto
+livre procura em IDs, rótulos, descrições, notas, parâmetros e nomes de
+projetos, mas só nas amostras cujos detalhes pode ver.
+
+\ui{Exportar resultados (CSV)} descarrega as amostras encontradas, com uma
+linha por passo ou análise e uma coluna \texttt{param:\ldots} por
+parâmetro. Abre-se no Excel, no Origin ou em Python
+(\texttt{pandas.read\_csv}). Os detalhes ficam em branco nas amostras que
+não pode ver.
+
+%=====================================================================
+\section{Sugestões}
+%=====================================================================
+
+O separador \menu{Sugestões} serve para tudo: um erro, um campo em falta,
+um valor de lista que não consegue acrescentar, uma ideia. Fica registada
+a página onde estava. Os administradores respondem aí; verá um aviso
+quando o fizerem, e pode responder de volta.
+
+%=====================================================================
+\section{Para administradores}
+\label{sec:admin}
+%=====================================================================
+
+As \menu{Configurações} têm três partes.
+
+\begin{description}
+  \item[Utilizadores] Criar contas (a palavra-passe temporária é enviada
+    por email, ou mostrada no ecrã se o email não estiver configurado),
+    repor palavras-passe, tornar ou deixar de ser administrador, alterar o
+    nome ou as iniciais de alguém, eliminar utilizadores.
+  \item[Tipos de passo de processo / Tipos de análise] Acrescentar, editar
+    ou eliminar (quando não estão em uso) tipos. Cada tipo tem um
+    \emph{esquema de parâmetros}: uma lista JSON de campos. Editá-lo nunca
+    altera os dados já guardados.
+  \item[Exportar a base de dados completa (CSV)] Tudo, independentemente
+    da partilha.
+\end{description}
+
+A \menu{Caixa de entrada} reúne as sugestões de todos; responda, e
+marque-as como resolvidas ou reabra-as.
+
+\subsection{Esquemas de parâmetros}
+
+Cada campo tem uma \texttt{key}, um \texttt{label} e um \texttt{type}:
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright}p{4.6cm}X@{}}
+\toprule
+\textbf{type} & \textbf{preenchido como} & \textbf{chaves adicionais} \\
+\midrule
+\texttt{number}   & uma caixa numérica & \texttt{unit}, \texttt{placeholder} \\
+\texttt{duration} & \texttt{min:s}, \texttt{h:min:s} ou minutos & \texttt{unit}, \texttt{placeholder} \\
+\texttt{text}     & uma caixa de uma linha & \texttt{placeholder} \\
+\texttt{longtext} & uma caixa grande & \texttt{placeholder} \\
+\texttt{choice}   & uma lista partilhada & \texttt{list}; \texttt{located: true} para equipamento \\
+\texttt{variant}  & escolher uma opção, cada uma com os seus campos & \texttt{options} \\
+\texttt{check}    & uma caixa de seleção que mostra campos & \texttt{fields} \\
+\texttt{modes}    & marcar vários; cada um tem os mesmos campos & \texttt{list}, \texttt{fields} \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Exemplo (Annealing):
+
+\begin{tcolorbox}[colback=gray!5,colframe=gray!40,boxrule=0.4pt,arc=1pt]
+\footnotesize
+\begin{verbatim}
+[{"key": "method", "label": "Method", "type": "variant", "options": [
+   {"value": "Furnace", "fields": [
+     {"key": "temperature", "label": "Temperature", "type": "number", "unit": "°C"},
+     {"key": "duration", "label": "Duration", "type": "number", "unit": "min"}]},
+   {"value": "RTA", "fields": [
+     {"key": "atmosphere", "label": "Atmosphere", "type": "choice", "list": "atmosphere"},
+     {"key": "temperature", "label": "Temperature", "type": "number", "unit": "°C"},
+     {"key": "duration", "label": "Duration", "type": "number", "unit": "s"},
+     {"key": "ramp", "label": "Ramp", "type": "number", "unit": "°C/s"}]}]}]
+\end{verbatim}
+\end{tcolorbox}
+
+Os rótulos (\texttt{label}) escrevem-se em inglês; a tradução portuguesa
+fica em \texttt{backend/translations/}.
+
+%=====================================================================
+\section{Manter o servidor}
+\label{sec:install}
+%=====================================================================
+
+Os detalhes completos estão no \texttt{README.md} do repositório. Em resumo:
+
+\begin{tcolorbox}[colback=gray!5,colframe=gray!40,boxrule=0.4pt,arc=1pt]
+\footnotesize
+\begin{verbatim}
+cp .env.example .env          # definir SECRET_KEY, BASE_URL, SMTP_PASSWORD
+docker compose up -d
+docker compose exec app python -m backend.create_admin
+\end{verbatim}
+\end{tcolorbox}
+
+\subsection{O que guardar nas cópias de segurança}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Base de dados (amostras, cronologias, utilizadores) & o volume Docker \texttt{pgdata} \\
+Fotografias e ficheiros de dados                    & a pasta \texttt{uploads/} \\
+Definições e palavras-passe                         & \texttt{.env} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{tcolorbox}[colback=gray!5,colframe=gray!40,boxrule=0.4pt,arc=1pt]
+\footnotesize
+\begin{verbatim}
+docker compose exec -T db pg_dump -U logbook logbook > backup_$(date +%Y%m%d).sql
+\end{verbatim}
+\end{tcolorbox}
+
+Guarde a cópia da base de dados junto com uma cópia de \texttt{uploads/}.
+Essa pasta tem uma subpasta por ID de amostra e, dentro dela, uma por
+passo ou análise, com os ficheiros com os nomes originais (por exemplo
+\nolinkurl{ASS-2026-001/2026-10-22_XRD-HRXRD/scan01.raw}), mas é a base de
+dados que liga cada ficheiro à sua entrada.
+
+\begin{careful}
+\texttt{docker compose down} para o logbook e mantém os dados.
+\texttt{docker compose down -v} \textbf{apaga a base de dados}.
+\end{careful}
+
+\end{document}

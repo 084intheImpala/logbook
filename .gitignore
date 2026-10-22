@@ -17,3 +17,14 @@ Thumbs.db
 
 # Personal notes
 /todo
+
+# LaTeX build files (docs/)
+*.aux
+*.log
+*.out
+*.toc
+*.nav
+*.snm
+*.fls
+*.fdb_latexmk
+*.synctex.gz

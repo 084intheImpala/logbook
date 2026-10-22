@@ -1,0 +1,276 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usetheme[progressbar=frametitle,numbering=fraction]{metropolis}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+
+\definecolor{accent}{HTML}{1F4E79}
+\definecolor{soft}{HTML}{EAF2FB}
+\definecolor{warm}{HTML}{C0611B}
+\definecolor{warmsoft}{HTML}{FDF1E6}
+\setbeamercolor{frametitle}{bg=accent}
+\setbeamercolor{progress bar}{fg=warm}
+\setbeamercolor{alerted text}{fg=warm}
+
+\newcommand{\ui}[1]{\textsf{\textbf{#1}}}
+\newcommand{\sid}[1]{\texttt{#1}}
+
+\tikzset{
+  box/.style={draw=accent,rounded corners=2pt,fill=soft,minimum width=2.6cm,
+              minimum height=0.75cm,font=\sffamily\small,align=center},
+  arr/.style={-{Stealth},thick,accent!70},
+  ent/.style={draw=accent,fill=soft,rounded corners=1pt,minimum width=2.3cm,
+              minimum height=0.48cm,font=\sffamily\scriptsize},
+  inh/.style={ent,draw=gray!60,fill=gray!10,text=gray},
+  cutent/.style={ent,fill=warmsoft,draw=warm},
+}
+
+\title{Thin Film Logbook}
+\subtitle{Um só sítio para cada amostra, passo, análise e ficheiro de dados}
+\date{\today}
+\institute{CTN}
+
+\begin{document}
+
+\maketitle
+
+%---------------------------------------------------------------------
+\begin{frame}{Porquê um logbook?}
+  \small
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+    \textbf{Hoje}
+    \begin{itemize}
+      \item Cadernos em papel e folhas de cálculo pessoais
+      \item Ficheiros de dados espalhados por PCs de instrumentos e pens USB
+      \item ``Que substrato era aquele? A que temperatura foi o RTA?''
+      \item Difícil passar amostras a outra pessoa ou encontrar resultados de colegas
+    \end{itemize}
+    \column{0.48\textwidth}
+    \textbf{Com o logbook}
+    \begin{itemize}
+      \item Um ID único e a história completa de cada amostra
+      \item Parâmetros em campos estruturados, por isso pesquisáveis
+      \item Fotografias e dados em bruto anexados onde pertencem
+      \item Partilhado, pesquisável, exportável para CSV
+    \end{itemize}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Como está organizado}
+  \centering
+  \begin{tikzpicture}
+    \node[box] (sub) {Substrato\\[-2pt]\scriptsize biblioteca partilhada};
+    \node[box,right=2.1cm of sub] (sam) {Amostra\\[-2pt]\scriptsize\texttt{ASS-2026-001}};
+    \node[box,right=2.3cm of sam] (prj) {Projeto\\[-2pt]\scriptsize colaborações};
+    \node[box,below left=1.0cm and -0.4cm of sam] (stp) {Passos de processo\\[-2pt]\scriptsize deposição, recozimento, \ldots};
+    \node[box,below right=1.0cm and -0.4cm of sam] (ana) {Análises\\[-2pt]\scriptsize XRD, RBS, SEM, \ldots};
+    \node[box,below=2.3cm of sam,minimum width=3.4cm] (att) {Fotografias e ficheiros};
+    \draw[arr] (sub) -- node[above,font=\scriptsize]{feita de} (sam);
+    \draw[arr] (prj) -- node[above,font=\scriptsize]{enviada para} (sam);
+    \draw[arr] (sam) -- (stp);
+    \draw[arr] (sam) -- (ana);
+    \draw[arr] (stp) -- (att);
+    \draw[arr] (ana) -- (att);
+  \end{tikzpicture}
+
+  \vspace{0.4cm}
+  \small Passos e análises partilham uma \alert{cronologia} por amostra.
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{IDs das amostras}
+  \centering
+  \Large\sid{\alert{ASS}-\alert{2026}-\alert{001}-A-2}
+  \normalsize
+
+  \vspace{0.3cm}
+  {\small iniciais \quad ano \quad contador \quad pedaço \quad pedaço do pedaço}
+
+  \vspace{0.6cm}
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \sid{ASS-2026-001}     & primeira amostra de ASS em 2026 \\
+    \sid{ASS-2026-001-REF} & um pedaço de referência dessa amostra \\
+    \sid{UMIN1-2026-001}   & amostra de colaboração (código do projeto) \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4cm}
+  \small Gerados automaticamente e nunca alterados. Use o \ui{Rótulo}
+  para a sua própria descrição.
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Quatro tipos de amostra}
+  \begin{tabular}{@{}lp{9.5cm}@{}}
+    \toprule
+    \textbf{Thin film}     & um substrato da biblioteca + dimensões; material do filme depois da deposição \\
+    \textbf{Bulk}          & um pedaço de um substrato da biblioteca; ID externo se foi outra pessoa a cortá-lo \\
+    \textbf{Commercial}    & descrição, fornecedor, n.º de lote, \alert{ficha técnica obrigatória} \\
+    \textbf{Collaboration} & enviada por uma instituição parceira: o projeto, uma descrição, o ID de origem \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.5cm}
+  Todas: rótulo e etiquetas opcionais, e um investigador (o próprio, ou
+  alguém em nome de quem a cria).
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Registar um passo ou análise}
+  \begin{columns}[T]
+    \column{0.5\textwidth}
+    \begin{itemize}
+      \item Escolha o tipo e o formulário mostra os seus campos
+      \item \textbf{Onde} + \textbf{Equipamento}: só as máquinas desse local
+      \item Unidades incluídas; \texttt{1e-4} e \texttt{12:30} funcionam
+      \item As listas lembram valores; \ui{+ Adicionar novo\ldots} para um novo
+      \item \textbf{Realizado por}: quem o fez pode ver e editar essa entrada
+    \end{itemize}
+    \column{0.46\textwidth}
+    \small
+    \textbf{Passos:} Deposition, Annealing (Furnace / RTA), Ion
+    Implantation, Lithography, Etching, Cut, Other
+
+    \vspace{0.3cm}
+    \textbf{Análises:} XRD / HRXRD (with modes), XPS, SEM, TEM, RBS, AFM,
+    Raman, Optical Microscopy, Hall / 4-probe, Ellipsometry, Profilometry, Other
+
+    \vspace{0.3cm}
+    \footnotesize Os administradores podem acrescentar tipos e campos sem mexer no código.
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Fotografias e ficheiros de dados}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+    \textbf{\ui{Adicionar fotografias}}
+    \begin{itemize}
+      \item Abre a câmara do telemóvel na bancada
+      \item Várias de uma vez, ou arrastar para um cartão
+      \item Reduzidas a $\leq$\,2\,MB, HEIC convertido, GPS removido
+    \end{itemize}
+    \column{0.48\textwidth}
+    \textbf{\ui{Anexar ficheiros}}
+    \begin{itemize}
+      \item Dados em bruto, \alert{guardados exatamente como enviados}
+      \item 16-bit TIFFs, \texttt{.raw}, \texttt{.csv}, PDFs, \ldots
+      \item Miniaturas na cronologia, e uma pasta por amostra no disco
+    \end{itemize}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Um ensaio, várias amostras}
+  A mesma deposição ou sessão de XRD para várias amostras?
+  \begin{itemize}
+    \item Preencha o formulário uma vez e marque \ui{Adicionar também a outras amostras}
+    \item Cada amostra recebe a sua cópia ligada (``Também em: \ldots'')
+    \item As fotografias comuns são guardadas uma vez; cada amostra pode ter os seus dados
+    \item As alterações podem aplicar-se a todo o ensaio, com aviso antes
+          de substituir valores que outra amostra já tem
+  \end{itemize}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Dividir uma amostra em pedaços}
+  \centering
+  \begin{tikzpicture}
+    \node[font=\sffamily\scriptsize\bfseries] at (0,0.55) {\sid{ASS-2026-001}};
+    \node[ent] at (0,0) {Deposition};
+    \node[ent] at (0,-0.55) {XRD};
+    \node[cutent] (p3) at (0,-1.1) {Cut};
+    \node[ent] at (0,-1.65) {Annealing};
+    \node[font=\sffamily\scriptsize\bfseries] at (4.3,0.55) {\sid{ASS-2026-001-A}};
+    \node[inh] at (4.3,0) {Deposition};
+    \node[inh] at (4.3,-0.55) {XRD};
+    \node[inh] (a3) at (4.3,-1.1) {Cut};
+    \node[ent] at (4.3,-1.65) {RBS};
+    \node[font=\sffamily\scriptsize\bfseries] at (8.3,0.55) {\sid{ASS-2026-001-B}};
+    \node[inh] at (8.3,0) {Deposition};
+    \node[inh] at (8.3,-0.55) {XRD};
+    \node[inh] (b3) at (8.3,-1.1) {Cut};
+    \node[ent] at (8.3,-1.65) {SEM};
+    \draw[-{Stealth},thick,warm] (p3.east) -- (a3.west);
+    \draw[-{Stealth},thick,warm] (p3.east) .. controls (2.2,-2.7) and (6.6,-2.7) .. (b3.west);
+  \end{tikzpicture}
+
+  \vspace{0.3cm}
+  \raggedright\small
+  \begin{itemize}
+    \item Os pedaços \alert{herdam} a história até ao corte (a cinzento):
+          uma correção na amostra-mãe chega a todos os pedaços
+    \item Depois, cada pedaço tem as suas entradas; pode ir para outra pessoa
+    \item Pedaço de referência opcional \sid{-REF}
+  \end{itemize}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Quem vê o quê}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+    \textbf{Todos}: o resumo de cada amostra
+    \begin{itemize}\small
+      \item ID, rótulo, tipo, materiais, substrato
+      \item etiquetas, técnicas usadas, investigador
+    \end{itemize}
+    \column{0.48\textwidth}
+    \textbf{Detalhes} (parâmetros, notas, ficheiros) visíveis para:
+    \begin{itemize}\small
+      \item o responsável e os administradores
+      \item quem tem partilha: \ui{Ver} ou \ui{Editar}
+      \item numa entrada, quem a realizou
+    \end{itemize}
+  \end{columns}
+
+  \vspace{0.5cm}
+  \small As amostras podem passar para outro investigador, que confirma
+  com \ui{Aceitar}/\ui{Recusar}; o ID mantém-se.
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Pesquisa e exportação}
+  \begin{itemize}
+    \item Filtrar por texto, investigador, tipo, material, técnica, etiqueta
+    \item Agrupar por investigador, ano, tipo, material, técnica, etiqueta, projeto
+    \item \ui{Exportar resultados (CSV)}: uma linha por passo/análise, uma
+          coluna por parâmetro, pronto para Origin, Excel ou pandas
+    \item Selecionar várias amostras e partilhá-las de uma vez
+  \end{itemize}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Também}
+  \begin{itemize}
+    \item \textbf{Biblioteca de substratos}: características e fichas técnicas introduzidas uma vez
+    \item \textbf{Projetos}: instituições parceiras e as suas amostras
+    \item \textbf{Sugestões}: comunicar um erro ou pedir um campo; os administradores respondem
+    \item Português / inglês, modo escuro, funciona no telemóvel
+  \end{itemize}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{Como começar}
+  \begin{enumerate}
+    \item Peça uma conta a um administrador
+    \item Inicie sessão, defina palavra-passe, nome e \alert{iniciais}
+    \item Crie uma amostra: \ui{Nova amostra}
+    \item Acrescente passos e análises à medida que avança, com fotografias do telemóvel
+  \end{enumerate}
+
+  \vspace{0.5cm}
+  Os detalhes estão no manual de utilização (\texttt{docs/manual}).
+\end{frame}
+
+\begin{frame}[standout]
+  Perguntas?
+\end{frame}
+
+\end{document}
