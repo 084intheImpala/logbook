@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
 from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
-                            Substrate, Collaborator, User, SAMPLE_TYPES)
+                            Substrate, Project, User, SAMPLE_TYPES)
 from backend.sample_ids import next_code, piece_codes
 from backend.utils import save_upload, chosen_files
 from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry, is_owner, is_performer
@@ -89,7 +89,7 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "error": error,
         "sample_types": SAMPLE_TYPES,
         "substrates": (await db.execute(select(Substrate).order_by(Substrate.material, Substrate.name))).scalars().all(),
-        "collaborators": (await db.execute(select(Collaborator).order_by(Collaborator.name))).scalars().all(),
+        "projects": (await db.execute(select(Project).order_by(Project.name))).scalars().all(),
         "spec_files": await _attachments_for(db, "sample", [sample.id]) if editing else {},
         "known_tags": await all_tags(db),
         "users": (await db.execute(select(User).order_by(User.username))).scalars().all()
@@ -111,7 +111,7 @@ def _apply_form(sample: Sample, form: dict):
     sample.label = form["label"].strip() or None
     sample.substrate_id = (None if commercial or collaboration
                            else int(form["substrate_id"]) if form["substrate_id"].isdigit() else None)
-    sample.collaborator_id = (int(form["collaborator_id"]) if collaboration and form["collaborator_id"].isdigit()
+    sample.project_id = (int(form["project_id"]) if collaboration and form["project_id"].isdigit()
                               else None)
     sample.substrate_dimensions = form["substrate_dimensions"].strip() or None
     sample.film_material = form["film_material"].strip() or None if sample.sample_type == "thin_film" else None
@@ -132,16 +132,16 @@ async def _validate(request: Request, db: AsyncSession, sample: Sample, new_file
         if not has_spec and not any(f.filename for f in new_files):
             return t(request, "A commercial sample needs its spec sheet (PDF or photo).")
     if sample.sample_type == "collaboration":
-        if not sample.collaborator_id or not await db.get(Collaborator, sample.collaborator_id):
-            return t(request, "Choose which collaboration the sample comes from (add it on the Collaborations tab if it's missing).")
+        if not sample.project_id or not await db.get(Project, sample.project_id):
+            return t(request, "Choose the project the sample belongs to (add it on the Projects tab if it's missing).")
         if not sample.description:
             return t(request, "A collaboration sample needs a description.")
     return None
 
 
-def _form_fields(sample_type, label, substrate_id, collaborator_id, substrate_dimensions, film_material,
+def _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                  external_id, supplier, description, tags) -> dict:
-    return dict(sample_type=sample_type, label=label, substrate_id=substrate_id, collaborator_id=collaborator_id,
+    return dict(sample_type=sample_type, label=label, substrate_id=substrate_id, project_id=project_id,
                 substrate_dimensions=substrate_dimensions, film_material=film_material,
                 external_id=external_id, supplier=supplier, description=description, tags=tags)
 
@@ -163,7 +163,7 @@ async def create_sample(
     sample_type: str = Form("thin_film"),
     label: str = Form(""),
     substrate_id: str = Form(""),
-    collaborator_id: str = Form(""),
+    project_id: str = Form(""),
     substrate_dimensions: str = Form(""),
     film_material: str = Form(""),
     external_id: str = Form(""),
@@ -176,7 +176,7 @@ async def create_sample(
     current_user=Depends(require_login),
 ):
     """Create a sample, for yourself or on behalf of another researcher. It gets
-    the owner's initials (a collaboration sample gets its centre's code). An
+    the owner's initials (a collaboration sample gets its project's code). An
     admin's goes straight to the owner; anyone else's waits for the owner to
     confirm it, and the creator gets edit access."""
     # Plain values: the retry below rolls back, which expires loaded objects.
@@ -192,7 +192,7 @@ async def create_sample(
     def new_sample() -> Sample:
         nonlocal pending
         sample = Sample()
-        _apply_form(sample, _form_fields(sample_type, label, substrate_id, collaborator_id, substrate_dimensions, film_material,
+        _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                                          external_id, supplier, description, tags))
         if user_id:
             pending = _hand_over(sample, user_id, by_id, by_admin)
@@ -202,7 +202,7 @@ async def create_sample(
     files = chosen_files(files)
     error = await _validate(request, db, sample, files, has_spec=False)
     if not error and sample.sample_type == "collaboration":
-        initials = (await db.get(Collaborator, sample.collaborator_id)).code
+        initials = (await db.get(Project, sample.project_id)).code
     elif not error and not initials:
         error = t(request, "That researcher hasn't set their initials yet, so their samples can't get an ID.")
     if error:
@@ -380,7 +380,7 @@ async def update_sample(
     sample_type: str = Form("thin_film"),
     label: str = Form(""),
     substrate_id: str = Form(""),
-    collaborator_id: str = Form(""),
+    project_id: str = Form(""),
     substrate_dimensions: str = Form(""),
     film_material: str = Form(""),
     external_id: str = Form(""),
@@ -394,7 +394,7 @@ async def update_sample(
 ):
     sample = await load_sample(db, sample_id, current_user, "edit")
     was_owner = sample.owner_id == current_user.id
-    _apply_form(sample, _form_fields(sample_type, label, substrate_id, collaborator_id, substrate_dimensions, film_material,
+    _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                                      external_id, supplier, description, tags))
     has_spec = bool((await _attachments_for(db, "sample", [sample_id]))[sample_id])
     files = chosen_files(files)
@@ -548,7 +548,7 @@ async def cut_sample(
             sample_type=parent.sample_type,
             substrate_id=parent.substrate_id,
             external_id=parent.external_id,
-            collaborator_id=parent.collaborator_id,
+            project_id=parent.project_id,
             supplier=parent.supplier,
             film_material=parent.film_material,
             substrate_dimensions=dims or None,

@@ -112,7 +112,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 ```
 Substrate         (shared library: material, orientation, thickness, polishing, spec files)
-Collaborator      (partner centre: name, code used in its samples' IDs, contact)
+Project           (collaboration: name, partner institution, code used in its samples' IDs, contact)
 Sample            (generated ID, type, optional label and tags)
  ├── ProcessStep  (can repeat types, e.g. two annealings)
  │    └── Attachment (uploaded files)
@@ -129,8 +129,8 @@ reference piece adds `-REF`. IDs never change, even if the sample changes
 owner or the researcher's initials change later. The optional **Label** is
 for your own description and doesn't need to be unique.
 
-Collaboration samples use the partner centre's code instead of initials,
-with the centre's own counter, e.g. `UMIN-2026-001`, whoever receives them.
+Collaboration samples use their project's code instead of initials, with
+the project's own counter, e.g. `UMIN1-2026-001`, whoever receives them.
 
 Everyone sets their display name and initials (2–4 letters, unique) on first
 login; they're asked again until they do. Once someone has samples, only an
@@ -145,7 +145,7 @@ admin can change their initials (Configurations → Users).
 - **Commercial:** a description, supplier, product/batch number, and the
   spec sheet (PDF or photo), which is required.
 - **Collaboration:** any sample sent by another university or centre, thin
-  film or not. Choose the centre from the Collaborations tab and describe the
+  film or not. Choose its project from the Projects tab and describe the
   sample (both required); optionally add their own ID for it. Its owner is
   the researcher who receives it.
 
@@ -156,15 +156,18 @@ thickness, orientation, polishing, size, supplier, notes and spec files
 (PDF or photos). Anyone can add one; whoever added it and admins can edit
 it. A substrate used by any sample can't be deleted.
 
-### Collaborations
+### Projects
 
-The **Collaborations** tab lists the universities and centres that send us
-samples: name, code, country, contact person and email, notes. The code (2–6
-letters) works like a researcher's initials in sample IDs, so it can't be
-anyone's initials (and initials can't be a centre's code). It's fixed once a
-sample uses it. Anyone can add a centre; whoever added it and admins can edit
-it, and a centre with samples can't be deleted. Search can group results by
-collaboration, and the CSV has a `collaboration` column.
+The **Projects** tab lists collaboration projects with universities and
+centres that send us samples: name, partner institution, code, country,
+contact person and email, notes. One institution can have several projects,
+each with its own samples. The institution field suggests the ones already
+entered, so each is spelled the same way. The code (2–6 letters or digits)
+works like a researcher's initials in sample IDs, so it can't be anyone's
+initials (and initials can't be a project's code). It's fixed once a sample
+uses it. Anyone can add a project; whoever added it and admins can edit it,
+and a project with samples can't be deleted. Search can group results by
+project, and the CSV has `project` and `institution` columns.
 
 ### Timeline
 

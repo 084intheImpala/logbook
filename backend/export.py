@@ -12,7 +12,7 @@ from backend.params import flatten
 
 SAMPLE_COLUMNS = [
     "sample_id", "label", "sample_type", "researcher", "created_at", "cut_from", "is_reference", "tags",
-    "collaboration", "film_material", "substrate", "substrate_material", "substrate_dimensions", "external_id",
+    "project", "institution", "film_material", "substrate", "substrate_material", "substrate_dimensions", "external_id",
     "supplier",
     "description",
 ]
@@ -50,7 +50,8 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
             "sample_id": s.title, "label": s.label, "sample_type": s.type_label, "researcher": s.researcher,
             "cut_from": parent.title if parent else None,
             "is_reference": "yes" if s.is_reference else None, "tags": ", ".join(s.tags or []),
-            "collaboration": s.collaborator.name if s.collaborator else None,
+            "project": s.project.name if s.project else None,
+            "institution": s.project.institution if s.project else None,
             "film_material": s.film_material, "substrate": s.substrate.name if s.substrate else None,
             "substrate_material": s.substrate_material, "substrate_dimensions": s.substrate_dimensions,
             "external_id": s.external_id, "supplier": s.supplier,

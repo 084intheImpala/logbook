@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from backend.database import get_db
-from backend.models import User, Sample, Collaborator
+from backend.models import User, Sample, Project
 from backend.auth import hash_password, verify_password, require_login
 from backend.sample_ids import INITIALS_RE, normalize_initials
 from backend.i18n import t
@@ -120,9 +120,9 @@ async def validate_profile(request: Request, db: AsyncSession, user: User, name:
         select(User).where(User.initials == initials, User.id != user.id))).scalar_one_or_none()
     if taken:
         return t(request, "The initials {initials} are already used by {name}.", initials=initials, name=taken.display_name)
-    centre = (await db.execute(select(Collaborator).where(Collaborator.code == initials))).scalar_one_or_none()
+    centre = (await db.execute(select(Project).where(Project.code == initials))).scalar_one_or_none()
     if centre:
-        return t(request, "{initials} is the code of the collaboration {name}; choose other initials.",
+        return t(request, "{initials} is the code of the project {name}; choose other initials.",
                  initials=initials, name=centre.name)
     return None
 

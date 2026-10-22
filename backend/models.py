@@ -51,13 +51,15 @@ class Substrate(Base):
     created_by: Mapped["User | None"] = relationship("User", lazy="selectin")
 
 
-class Collaborator(Base):
-    """A university or research centre that sends us samples. Its code numbers
-    their samples the way a researcher's initials do (e.g. UMIN-2026-001)."""
-    __tablename__ = "collaborators"
+class Project(Base):
+    """A collaboration project with a university or research centre that sends
+    us samples (one institution can have several). Its code numbers its
+    samples the way a researcher's initials do (e.g. UMIN-2026-001)."""
+    __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    institution: Mapped[str | None] = mapped_column(String(200))   # the partner, e.g. Universidade do Minho
     # 2–6 capital letters; unique, and never the same as a researcher's initials
     code: Mapped[str] = mapped_column(String(6), unique=True, nullable=False)
     country: Mapped[str | None] = mapped_column(String(100))
@@ -82,7 +84,7 @@ class Sample(Base):
     sample_type: Mapped[str] = mapped_column(String(20), default="thin_film", server_default="thin_film", nullable=False)
     substrate_id: Mapped[int | None] = mapped_column(ForeignKey("substrates.id"), index=True)
     external_id: Mapped[str | None] = mapped_column(String(100))   # e.g. ID given by whoever cut a bulk piece
-    collaborator_id: Mapped[int | None] = mapped_column(ForeignKey("collaborators.id"), index=True)  # collaboration samples
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"), index=True)  # collaboration samples: their project
     supplier: Mapped[str | None] = mapped_column(String(120))      # commercial samples
     tags: Mapped[list[str] | None] = mapped_column(JSON)
     substrate_dimensions: Mapped[str | None] = mapped_column(String(100))
@@ -103,7 +105,7 @@ class Sample(Base):
         "User", back_populates="samples", foreign_keys=[owner_id], lazy="selectin")
     requested_by: Mapped["User | None"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")
     substrate: Mapped["Substrate | None"] = relationship("Substrate", lazy="selectin")
-    collaborator: Mapped["Collaborator | None"] = relationship("Collaborator", lazy="selectin")
+    project: Mapped["Project | None"] = relationship("Project", lazy="selectin")
     process_steps: Mapped[list["ProcessStep"]] = relationship(
         "ProcessStep", back_populates="sample", foreign_keys="ProcessStep.sample_id",
         order_by="ProcessStep.position",

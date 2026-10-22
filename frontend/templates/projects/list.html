@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}{{ _("Collaborations") }} — Logbook{% endblock %}
+{% block title %}{{ _("Projects") }} — Logbook{% endblock %}
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">{{ _("Collaborations") }}</h1>
-    <p class="text-sm text-gray-500 mt-1">{{ _("Universities and centres that send us samples. Each code numbers its samples like a researcher's initials.") }}</p>
+    <h1 class="text-2xl font-bold text-gray-900">{{ _("Projects") }}</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ _("Collaborations with universities and centres that send us samples. Each project's code numbers its samples like a researcher's initials.") }}</p>
   </div>
-  <a href="/collaborations/new"
+  <a href="/projects/new"
      class="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
-    + {{ _("Add collaboration") }}
+    + {{ _("Add project") }}
   </a>
 </div>
 
@@ -19,23 +19,25 @@
 <div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ flash_error }}</div>
 {% endif %}
 
-{% if collaborators %}
+{% if projects %}
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
   <table class="w-full text-sm">
     <thead>
       <tr class="bg-gray-50 border-b border-gray-200">
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Code") }}</th>
-        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Name") }}</th>
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Project") }}</th>
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Institution") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Country") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Contact") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Samples") }}</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
-      {% for c in collaborators %}
+      {% for c in projects %}
       <tr class="hover:bg-gray-50">
         <td class="px-4 py-2 font-mono font-semibold text-gray-700">{{ c.code }}</td>
-        <td class="px-4 py-2"><a href="/collaborations/{{ c.id }}" class="font-semibold text-blue-600 hover:underline">{{ c.name }}</a></td>
+        <td class="px-4 py-2"><a href="/projects/{{ c.id }}" class="font-semibold text-blue-600 hover:underline">{{ c.name }}</a></td>
+        <td class="px-4 py-2 text-gray-600">{{ c.institution or '—' }}</td>
         <td class="px-4 py-2 text-gray-600">{{ c.country or '—' }}</td>
         <td class="px-4 py-2 text-gray-600">
           {{ c.contact_name or '' }}{% if c.contact_email %} <a href="mailto:{{ c.contact_email }}" class="text-blue-600 hover:underline">{{ c.contact_email }}</a>{% endif %}
@@ -49,8 +51,8 @@
 </div>
 {% else %}
 <div class="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
-  <p class="text-gray-500 mb-4 text-sm">{{ _("No collaborations yet. Add a centre before registering samples it sends.") }}</p>
-  <a href="/collaborations/new" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add the first collaboration") }}</a>
+  <p class="text-gray-500 mb-4 text-sm">{{ _("No projects yet. Add one before registering the samples it sends.") }}</p>
+  <a href="/projects/new" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add the first project") }}</a>
 </div>
 {% endif %}
 {% endblock %}

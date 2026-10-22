@@ -22,7 +22,7 @@ GROUP_BY = {
     "investigator": "Researcher",
     "year": "Year",
     "sample_type": "Sample type",
-    "collaboration": "Collaboration",
+    "project": "Project",
     "film_material": "Film material",
     "substrate_material": "Substrate",
     "technique": "Technique",
@@ -44,8 +44,9 @@ def _group_keys(family: Family, sample, group_by: str) -> list[str]:
         keys = [str(sample.created_at.year)]
     elif group_by == "sample_type":
         keys = [sample.type_label]
-    elif group_by == "collaboration":
-        keys = [sample.collaborator.name if sample.collaborator else None]
+    elif group_by == "project":
+        keys = [f"{sample.project.name} ({sample.project.institution})" if sample.project and sample.project.institution
+                else sample.project.name if sample.project else None]
     elif group_by == "technique":
         keys = _techniques(family, sample)
     elif group_by == "tag":
@@ -75,7 +76,7 @@ def _matches(family: Family, sample, user, q: str, investigator: str, sample_typ
         haystack = [sample.code, sample.label, sample.external_id, sample.supplier, sample.film_material,
                     sample.substrate_material, sample.substrate.name if sample.substrate else None,
                     sample.researcher, sample.type_label, *(sample.tags or []),
-                    *((sample.collaborator.name, sample.collaborator.code) if sample.collaborator else ())]
+                    *((sample.project.name, sample.project.code, sample.project.institution) if sample.project else ())]
         if viewable:
             haystack.append(sample.description)
         for item in family.timeline(sample):

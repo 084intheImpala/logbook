@@ -58,7 +58,7 @@
           {% if s.requested_by_id %}<div class="text-xs text-amber-600">{{ _("awaiting {name}'s confirmation", name=s.researcher) }}</div>{% endif %}
             {% if parent %}<div class="text-xs text-gray-400">✂ {{ _("piece of") }} <a href="/samples/{{ parent.id }}" class="font-mono hover:underline">{{ parent.title }}</a>{% if s.is_reference %} · <span class="text-amber-600">{{ _("reference") }}</span>{% endif %}</div>{% endif %}
         </td>
-        <td class="px-5 py-3 text-gray-600 text-xs">{{ s.type_label }}{% if s.collaborator %}<div class="text-gray-400" title="{{ s.collaborator.name }}">{{ s.collaborator.code }}</div>{% endif %}</td>
+        <td class="px-5 py-3 text-gray-600 text-xs">{{ s.type_label }}{% if s.project %}<div class="text-gray-400" title="{{ s.project.name }}">{{ s.project.code }}</div>{% endif %}</td>
         <td class="px-5 py-3 text-gray-600">{{ s.film_material or '—' }}</td>
         <td class="px-5 py-3 text-gray-600">{{ s.substrate_material or '—' }}</td>
         <td class="px-5 py-3">

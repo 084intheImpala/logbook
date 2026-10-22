@@ -67,10 +67,11 @@
       <dt class="text-gray-400">{{ _("Film") }}</dt>
       <dd><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{{ sample.film_material }}</span></dd>
       {% endif %}
-      {% if sample.collaborator %}
-      <dt class="text-gray-400">{{ _("Collaboration") }}</dt>
-      <dd class="text-gray-700"><a href="/collaborations/{{ sample.collaborator.id }}" class="text-blue-600 hover:underline">{{ sample.collaborator.name }}</a>
-        <span class="font-mono text-gray-500">({{ sample.collaborator.code }})</span></dd>
+      {% if sample.project %}
+      <dt class="text-gray-400">{{ _("Project") }}</dt>
+      <dd class="text-gray-700"><a href="/projects/{{ sample.project.id }}" class="text-blue-600 hover:underline">{{ sample.project.name }}</a>
+        <span class="font-mono text-gray-500">({{ sample.project.code }})</span>{% if sample.project.institution %}
+        <span class="text-gray-500">· {{ sample.project.institution }}</span>{% endif %}</dd>
       {% endif %}
       {% if sample.external_id %}
       <dt class="text-gray-400">{% if sample.sample_type == "commercial" %}{{ _("Product / batch no.") }}{% elif sample.sample_type == "collaboration" %}{{ _("Their sample ID") }}{% else %}{{ _("External ID") }}{% endif %}</dt>
