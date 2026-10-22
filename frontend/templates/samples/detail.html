@@ -109,8 +109,6 @@
   </div>
   {% if can_edit %}
   <div class="flex gap-2 shrink-0">
-    <a href="/samples/{{ sample.id }}/cut"
-       class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">✂ {{ _("Cut into pieces") }}</a>
     <a href="/samples/{{ sample.id }}/edit"
        class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Edit") }}</a>
     {% if is_owner %}
@@ -224,6 +222,10 @@
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
     </svg>
     {{ _("Add Analysis") }}
+  </a>
+  <a href="/samples/{{ sample.id }}/cut"
+     class="inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 shadow-sm">
+    ✂ {{ _("Cut into pieces") }}
   </a>
   {% if can_edit and timeline|length > 1 %}
   <form method="post" action="/samples/{{ sample.id }}/timeline/sort-by-date" class="ml-auto"
@@ -448,6 +450,10 @@
     <a href="/samples/{{ sample.id }}/analyses/new"
        class="text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
       {{ _("Add Analysis") }}
+    </a>
+    <a href="/samples/{{ sample.id }}/cut"
+       class="text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700">
+      ✂ {{ _("Cut into pieces") }}
     </a>
   </div>
   {% endif %}

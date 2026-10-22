@@ -14,6 +14,9 @@ from sqlalchemy.orm import selectinload
 from backend.models import Sample, ProcessStep, Analysis
 from backend.auth import can_view, is_performer
 
+# The step type that cutting records; only the cut form adds it.
+CUT_TYPE_NAME = "Cut"
+
 _LAST = 1 << 30
 
 

@@ -243,8 +243,10 @@ data. Add migrations (e.g. Alembic) before the logbook holds real data.
 
 ## Cutting a sample into pieces
 
-**✂ Cut into pieces** on a sample's page records a "Cut" step on its
-timeline and creates one new sample per piece. The form asks for a photo of
+**✂ Cut into pieces**, next to Add Process Step and Add Analysis on a
+sample's page, records a "Cut" step on its timeline and creates one new
+sample per piece. It's the only way to add a Cut: Add Process Step doesn't
+offer it, and an existing step can't be changed to or from Cut. The form asks for a photo of
 the pieces; write each piece's letter next to it so it's clear which is
 which. A tick box adds an extra
 reference piece (`<ID>-REF`, marked **Reference**). Each piece:
@@ -256,8 +258,10 @@ reference piece (`<ID>-REF`, marked **Reference**). Each piece:
 - gets the parent's ID plus a suffix (see Sample IDs) and an optional label.
 - copies the parent's type, substrate, film, tags and shares (whoever cuts
   someone else's sample also gets edit access to the pieces).
-- belongs to the researcher picked for it on the cut form, by default the
-  parent's owner. A piece given to someone else is assigned as described in
+- belongs to the researcher picked for it on the cut form, by default
+  whoever cut it (**Cut by**, you unless you pick someone else; they're
+  recorded as the Cut step's performer). A piece given to someone other
+  than the parent's owner is assigned as described in
   [Assigning a sample to someone else](#assigning-a-sample-to-someone-else),
   and the parent's owner keeps edit access to it.
 - gets its own steps and analyses after the cut, separate from its siblings.

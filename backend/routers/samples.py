@@ -12,7 +12,7 @@ from backend.sample_ids import next_code, piece_codes
 from backend.utils import save_upload, chosen_files
 from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry, is_owner, is_performer
 from backend import timeline as tl
-from backend.lineage import load_sample_full, load_family, pieces_of
+from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_family, pieces_of
 from backend.params import parse_date, describe
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, remember
 from backend.seed import PROCESS_STEP_TYPES
@@ -447,8 +447,6 @@ async def delete_sample(
 
 # ── Cutting into pieces ───────────────────────────────────────────────────────
 
-CUT_TYPE_NAME = "Cut"
-
 
 @router.get("/{sample_id}/cut", response_class=HTMLResponse)
 async def cut_form(
@@ -465,7 +463,6 @@ async def cut_form(
         "next_codes": codes,
         "ref_code": ref_code,
         "researchers": await _researchers(db),
-        "default_owner_id": sample.owner_id or current_user.id,
         "options": await option_lists(db),
         "location_list": LOCATION_LIST,
         "default_location": DEFAULT_LOCATION,
@@ -489,18 +486,20 @@ async def cut_sample(
     location: str = Form(""),
     notes: str = Form(""),
     performed_at: str = Form(""),
+    cut_by: str = Form(""),
     photos: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
     """Record a Cut step on the sample and create one sample per piece.
 
-    Pieces get the parent's ID plus a suffix, copy its type, substrate,
-    materials, tags and shares, and by default its owner; if the person
-    cutting isn't the owner, they get edit access to the pieces. A piece can
-    instead be given to another researcher (see _hand_over); the parent's
-    owner then keeps edit access to it."""
+    Pieces get the parent's ID plus a suffix and copy its type, substrate,
+    materials, tags and shares. Each goes to the researcher chosen for it,
+    by default whoever cut the sample ("Cut by", recorded as the Cut step's
+    performer). Giving a piece to someone other than the parent's owner goes
+    through _hand_over; the parent's owner keeps edit access to it."""
     parent = await load_sample(db, sample_id, current_user, "edit")
+    cutter = (await db.get(User, int(cut_by)) if cut_by.isdigit() else None) or current_user
     piece_owners += [""] * (len(piece_labels) - len(piece_owners))
     pieces = [(lbl.strip(), dims.strip(), False, own)
               for lbl, dims, own in zip(piece_labels, piece_dimensions, piece_owners)]
@@ -525,7 +524,7 @@ async def cut_sample(
         step_type_id=cut_type.id,
         parameters=params,
         notes=notes or None,
-        performer_id=current_user.id,
+        performer_id=cutter.id,
         performed_at=parse_date(performed_at),
         location=location.strip() or None,
     )
@@ -538,7 +537,8 @@ async def cut_sample(
     await remember(db, [("cut_method", method.strip()), (LOCATION_LIST, location.strip())], current_user.id)
 
     owner_id = parent.owner_id or current_user.id
-    chosen = {int(o) for *_, o in pieces if o.isdigit()}
+    pieces = [(*rest, o if o.isdigit() else str(cutter.id)) for *rest, o in pieces]
+    chosen = {int(o) for *_, o in pieces}
     users = {u.id: u for u in (await db.execute(select(User).where(User.id.in_(chosen)))).scalars()} if chosen else {}
     to_confirm: dict[int, list[Sample]] = {}
     for label, dims, is_ref, piece_owner in pieces:
@@ -558,7 +558,7 @@ async def cut_sample(
             is_reference=is_ref,
         )
         piece.shares = [SampleShare(user_id=sh.user_id, can_edit=sh.can_edit) for sh in parent.shares]
-        target = users.get(int(piece_owner)) if piece_owner.isdigit() else None
+        target = users.get(int(piece_owner))
         if target and target.id != owner_id:
             if _hand_over(piece, target.id, current_user.id, current_user.is_admin):
                 to_confirm.setdefault(target.id, []).append(piece)

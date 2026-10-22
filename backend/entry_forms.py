@@ -20,6 +20,7 @@ from backend.auth import can_edit, can_edit_entry, can_view
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, remember
 from backend.config import settings
 from backend.i18n import t
+from backend.lineage import CUT_TYPE_NAME
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
 from backend.params import (describe, extra_params, located_lists, params_to_text, parse_date, parse_form,
                             parse_params, schema_keys)
@@ -74,6 +75,11 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
                     error: str | None = None, status_code: int = 200):
     types = (await db.execute(select(kind.type_model).order_by(kind.type_model.name))).scalars().all()
     current_type = next((ty for ty in types if entry and ty.id == getattr(entry, kind.type_field)), None)
+    if kind is STEP:
+        # Cuts are made with "Cut into pieces", which also creates the pieces. A
+        # Cut stays a Cut when edited, and nothing else becomes one.
+        is_cut = current_type is not None and current_type.name == CUT_TYPE_NAME
+        types = [ty for ty in types if (ty.name == CUT_TYPE_NAME) == is_cut]
     options = await option_lists(db)
     run = await run_entries(db, kind, entry) if entry else []
     attachments = []
@@ -120,6 +126,14 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
     if entry_type is None:
         return await form_page(request, db, kind, sample, entry, user,
                                t(request, "Choose a type."), status_code=400)
+    if kind is STEP:
+        old_type = await db.get(ProcessStepType, entry.step_type_id) if entry else None
+        if entry is None and entry_type.name == CUT_TYPE_NAME:
+            return RedirectResponse(f"/samples/{sample.id}/cut", status_code=303)
+        if old_type and (old_type.name == CUT_TYPE_NAME) != (entry_type.name == CUT_TYPE_NAME):
+            return await form_page(request, db, kind, sample, entry, user,
+                                   t(request, "A Cut can't be changed to another type, or another step to a Cut."),
+                                   status_code=400)
 
     params, picked = parse_form(form, entry_type.parameter_schema)
     params = parse_params(form.get("params_extra", "")) | params

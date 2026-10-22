@@ -66,8 +66,9 @@ PT = {
     "Optional": "Opcional",
     "Pieces copy the sample type, substrate, film and tags, and are shared with the same people as {sample}.":
         "Os pedaços copiam o tipo de amostra, o substrato, o filme e as etiquetas, e são partilhados com as mesmas pessoas que {sample}.",
-    "Each piece belongs to the researcher chosen for it (by default {sample}'s owner).":
-        "Cada pedaço pertence ao/à investigador(a) escolhido(a) para ele (por omissão, o responsável de {sample}).",
+    "Each piece belongs to the researcher chosen for it (by default whoever cut it).":
+        "Cada pedaço pertence ao/à investigador(a) escolhido(a) para ele (por omissão, quem o cortou).",
+    "Cut by": "Cortado por",
     "Anyone else you give a piece to gets an email asking them to confirm it.":
         "Qualquer outra pessoa a quem entregue um pedaço receberá um email a pedir que o confirme.",
     "{name} keeps edit access to pieces given to someone else.":

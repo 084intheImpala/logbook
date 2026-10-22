@@ -63,6 +63,8 @@ PT = {
     "Other parameters": "Outros parâmetros",
     "Anything the fields above don't cover, one per line:": "O que os campos acima não cobrem, um por linha:",
     "Choose a type.": "Escolha um tipo.",
+    "A Cut can't be changed to another type, or another step to a Cut.":
+        "Um Cut não pode passar a outro tipo, nem outro passo a Cut.",
     "Also add to other samples": "Adicionar também a outras amostras",
     "For things done in parallel. Each ticked sample gets its own copy with the details above; files for one sample only go in the field that appears next to it.":
         "Para o que foi feito em paralelo. Cada amostra assinalada recebe a sua cópia com os dados acima; os ficheiros só de uma amostra vão no campo que aparece ao lado dela.",
