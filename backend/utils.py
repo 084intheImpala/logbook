@@ -1,6 +1,8 @@
 """Shared utilities."""
-import uuid
+import re
 import mimetypes
+import unicodedata
+from datetime import date
 from pathlib import Path
 from fastapi import UploadFile
 from starlette.datastructures import UploadFile as StarletteUploadFile
@@ -8,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend import images
-from backend.models import Attachment
+from backend.models import Attachment, Analysis, AnalysisType, ProcessStep, ProcessStepType, Sample, Substrate
 from backend.config import settings
 
 
@@ -30,6 +32,9 @@ async def save_upload(
 
     With `photo=True` the image may be downscaled/converted (see images.py);
     other files are stored exactly as uploaded. Images get a thumbnail.
+    Files keep their original names, in one folder per sample and one
+    subfolder per entry (see upload_folder), e.g.
+    ASS-2026-001/2026-10-22_XRD-HRXRD/scan 01.raw.
     Returns the Attachment (not yet committed) or None if no file provided."""
     if not file or not file.filename:
         return None
@@ -43,8 +48,8 @@ async def save_upload(
         if processed:
             content, filename, mime = processed
 
-    stored_name = f"{uuid.uuid4().hex}{Path(filename).suffix}"
-    (settings.UPLOAD_DIR / stored_name).write_bytes(content)
+    folder = await upload_folder(db, entity_type, entity_id, date.today())
+    stored_name = write_new_file(folder, clean_filename(filename), content)
     attachment = Attachment(
         entity_type=entity_type,
         entity_id=entity_id,
@@ -59,11 +64,86 @@ async def save_upload(
     return attachment
 
 
+def _safe(text: str) -> str:
+    """Letters, digits, '.', '_' and '-' only, for the folder names we make up."""
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()   # ção → cao
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-._") or "file"
+
+
+async def upload_folder(db: AsyncSession, entity_type: str, entity_id: int, fallback_day: date) -> str:
+    """The folder (relative to UPLOAD_DIR) for a file of this sample, step,
+    analysis or substrate: the sample's ID, plus <date>_<technique> for a step
+    or analysis (the entry's date, or `fallback_day` if it has none), e.g.
+    ASS-2026-001/2026-10-22_XRD-HRXRD. Substrates: substrates/<name>."""
+    if entity_type == "substrate":
+        name = (await db.execute(select(Substrate.name).where(Substrate.id == entity_id))).scalar_one_or_none()
+        return f"substrates/{_safe(name or str(entity_id))}"
+    if entity_type == "sample":
+        sample_id, entry_folder = entity_id, None
+    else:
+        model, type_model, type_fk = ((ProcessStep, ProcessStepType, ProcessStep.step_type_id) if entity_type == "step"
+                                      else (Analysis, AnalysisType, Analysis.analysis_type_id))
+        row = (await db.execute(select(model.sample_id, type_model.name, model.performed_at)
+                                .join(type_model, type_model.id == type_fk).where(model.id == entity_id))).first()
+        if row is None:
+            return "unsorted"
+        sample_id, type_name, day = row
+        entry_folder = f"{(day or fallback_day).isoformat()}_{_safe(type_name)[:40]}"
+    code = (await db.execute(select(Sample.code).where(Sample.id == sample_id))).scalar_one_or_none()
+    folder = _safe(code or f"sample-{sample_id}")
+    return f"{folder}/{entry_folder}" if entry_folder else folder
+
+
+WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+
+
+def clean_filename(filename: str) -> str:
+    """The uploaded file's own name, unchanged except for what a file system
+    can't hold: any folders in it, characters Windows forbids (<>:"|?*),
+    control characters, trailing dots/spaces and reserved names like CON."""
+    name = filename.replace("\\", "/").rsplit("/", 1)[-1]
+    name = re.sub(r'[<>:"|?*\x00-\x1f]', "_", name).rstrip(". ")
+    if not name.strip("."):
+        return "file"
+    if name.split(".")[0].upper() in WINDOWS_RESERVED:
+        name = f"_{name}"
+    return name
+
+
+MAX_STORED_NAME = 240   # Attachment.stored_filename is 255, and thumbnails add "thumbs/" and ".jpg"
+
+
+def write_new_file(folder: str, name: str, content: bytes) -> str:
+    """Write `content` to UPLOAD_DIR/folder/name, adding " (2)", " (3)", … to
+    the name if it's taken. Returns the path relative to UPLOAD_DIR."""
+    directory = settings.UPLOAD_DIR / folder
+    directory.mkdir(parents=True, exist_ok=True)
+    stem, suffix = Path(name).stem, Path(name).suffix
+    n = 1
+    while True:
+        tag = "" if n == 1 else f" ({n})"
+        room = MAX_STORED_NAME - len(folder) - 1 - len(suffix) - len(tag)   # very long names only
+        candidate = f"{stem[:room]}{tag}{suffix}"
+        try:
+            with open(directory / candidate, "xb") as f:   # "x": fails if it exists, so two uploads can't collide
+                f.write(content)
+            return f"{folder}/{candidate}"
+        except FileExistsError:
+            n += 1
+
+
+def thumbnail_name(stored_name: str) -> str:
+    """Thumbnails sit in a thumbs/ folder next to the file: …/thumbs/<file name>.jpg"""
+    path = Path(stored_name)
+    return (path.parent / "thumbs" / f"{path.name}.jpg").as_posix()
+
+
 async def _write_thumbnail(content: bytes, stored_name: str) -> str | None:
     thumb = await run_in_threadpool(images.make_thumbnail, content)
     if thumb is None:
         return None
-    name = f"thumb_{Path(stored_name).stem}.jpg"
+    name = thumbnail_name(stored_name)
+    (settings.UPLOAD_DIR / name).parent.mkdir(parents=True, exist_ok=True)
     (settings.UPLOAD_DIR / name).write_bytes(thumb)
     return name
 

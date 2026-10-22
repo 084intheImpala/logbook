@@ -206,6 +206,32 @@ pillow-heif from `requirements.txt`; after updating, rebuild the container
 with `docker compose up -d --build`. Without them, photos are stored
 unchanged and shown without thumbnails.
 
+On disk, `uploads/` has one folder per sample ID and, inside it, one per
+step or analysis (its date, or the upload date if it has none, and its
+technique), so the folder can be browsed without the app. Files keep the
+names they were uploaded with:
+
+```
+uploads/
+  ASS-2026-001/
+    spec sheet.pdf                        ← the sample's own files
+    2026-10-20_Deposition/
+      IMG_1234.jpg
+      thumbs/                             ← timeline previews
+    2026-10-22_XRD-HRXRD/
+      scan 01 (final).raw
+      scan 01 (final) (2).raw             ← same name taken: (2), (3), …
+  substrates/
+    Si-100-wafer/datasheet.pdf
+```
+
+Only characters Windows can't store in a name (`<>:"|?*`) are replaced by
+`_`. Folders are fixed when the file is uploaded: changing an entry's type
+or date later doesn't move its files. A file shared by several samples (a
+run) is stored once, in the folder of the sample it was uploaded on. The
+database still links every file to its entry, so keep `uploads/` and the
+database together (see Backups).
+
 Mandatory: the substrate for thin-film and bulk samples, the description and
 spec sheet for commercial ones, and the type of each step/analysis. `required` in
 a type's schema is a hint shown on the form, not enforced.
