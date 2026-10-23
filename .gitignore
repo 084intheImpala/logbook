@@ -29,3 +29,4 @@ Thumbs.db
 *.fdb_latexmk
 *.synctex.gz
 scripts/start-logbook.log
+scripts/.docker-up.sh

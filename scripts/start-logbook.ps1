@@ -22,16 +22,19 @@ try {
     $wslDir = (wsl wslpath -a ($ProjectDir -replace '\\', '/')).Trim()
     Log "Project: $ProjectDir  (WSL: $wslDir)"
 
-    # Wait until WSL answers, then start Docker and the containers.
-    $bash = @'
+    # Wait until Docker answers, then bring the containers up. The commands go
+    # through a generated file (LF endings): passing them to `wsl bash -c`
+    # gets mangled by PowerShell's argument quoting.
+    $sh = @'
 service docker start >/dev/null 2>&1
 for i in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done
 cd 'WSLDIR' && docker compose up -d
 '@ -replace 'WSLDIR', $wslDir
-    $bash = $bash -replace "`r", ''
+    $shFile = Join-Path $PSScriptRoot '.docker-up.sh'
+    [IO.File]::WriteAllText($shFile, ($sh -replace "`r", '') + "`n")
     # docker compose reports progress on stderr; don't let that abort the script.
     $ErrorActionPreference = 'Continue'
-    wsl -u root -- bash -c $bash 2>&1 | ForEach-Object { Log "docker: $_" }
+    wsl -u root -- bash "$wslDir/scripts/.docker-up.sh" 2>&1 | ForEach-Object { Log "docker: $_" }
     $dockerExit = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     if ($dockerExit -ne 0) { throw "docker compose failed (exit code $dockerExit)" }
