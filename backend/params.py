@@ -216,6 +216,33 @@ def parse_form(form, schema: list[dict] | None, prefix="p") -> tuple[dict, list[
     return params, picked
 
 
+def scalar_fields(schema: list[dict] | None) -> list[dict]:
+    """The single-value fields a form can vary from sample to sample (not
+    modes or tick boxes), including those inside variants and checks."""
+    found = []
+    for f in schema or []:
+        if f.get("type", "text") not in ("modes", "check", "variant"):
+            found.append(f)
+        for fields in _side_fields(f):
+            found += scalar_fields(fields)
+    return found
+
+
+def varied_params(form, schema: list[dict] | None, sample_id: int) -> tuple[dict, list[tuple[str, str]]]:
+    """Values typed for one sample under "differs per sample" (named
+    vary::<sample id>::<key>), and the (list, value) pairs of any dropdown
+    values that may be new. Empty boxes are left out: that sample keeps the common value."""
+    params, picked = {}, []
+    for f in scalar_fields(schema):
+        value = _value(f, form.get(f"vary{SEP}{sample_id}{SEP}{f['key']}", ""))
+        if value is None:
+            continue
+        params[f["key"]] = value
+        if f.get("type") == "choice":
+            picked.append((option_list(f), value))
+    return params, picked
+
+
 # ── Showing stored parameters ────────────────────────────────────────────────
 
 def format_value(value, unit: str = "") -> str:

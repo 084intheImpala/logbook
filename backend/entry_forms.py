@@ -23,7 +23,7 @@ from backend.i18n import t
 from backend.lineage import CUT_TYPE_NAME
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
 from backend.params import (describe, extra_params, located_lists, params_to_text, parse_date, parse_form,
-                            parse_params, schema_keys)
+                            parse_params, scalar_fields, schema_keys, varied_params)
 from backend.performers import apply_performer, tell_performer, users_for_form
 from backend.templating import templates
 from backend.timeline import place_new
@@ -63,12 +63,22 @@ async def run_entries(db: AsyncSession, kind: Kind, entry) -> list[tuple]:
     return list(rows.all())
 
 
-async def _run_candidates(db: AsyncSession, user, sample, run) -> list[Sample]:
+async def _run_candidates(db: AsyncSession, user, sample, run) -> list[tuple[Sample, str]]:
     """Samples the user could add the same entry to (they need edit access),
-    leaving out those already in its run."""
+    leaving out those already in its run, as (sample, group): first the
+    siblings (cut from the same step), then the same researcher's, newest
+    first, then the rest."""
     taken = {sample.id} | {s.id for _, s in run}
-    samples = (await db.execute(select(Sample).order_by(Sample.code.desc()))).scalars()
-    return [s for s in samples if s.id not in taken and can_edit(user, s)]
+    samples = (await db.execute(
+        select(Sample).order_by(Sample.created_at.desc(), Sample.id.desc()))).scalars()
+
+    def group(s):
+        if sample.cut_step_id and s.cut_step_id == sample.cut_step_id:
+            return "sibling"
+        return "owner" if sample.owner_id and s.owner_id == sample.owner_id else "other"
+
+    picked = [(s, group(s)) for s in samples if s.id not in taken and can_edit(user, s)]
+    return sorted(picked, key=lambda p: ("sibling", "owner", "other").index(p[1]))   # stable: newest first
 
 
 async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entry, user,
@@ -108,6 +118,11 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
         "users": await users_for_form(db),
         "attachments": attachments,
         "run": run,
+        # Single-value fields that can differ from sample to sample, per type
+        "vary_fields": {ty.id: [{"key": f["key"], "label": t(request, f.get("label") or f["key"]),
+                                 "unit": f.get("unit", ""), "options": options.get(f.get("list") or f["key"], [])
+                                 if f.get("type") == "choice" else None}
+                                for f in scalar_fields(ty.parameter_schema)] for ty in types},
         "run_candidates": await _run_candidates(db, user, sample, run),
         "photo_max_px": settings.PHOTO_MAX_PX,
         "error": error,
@@ -155,6 +170,12 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
     async def apply(target):
         for name, value in fields.items():
             setattr(target, name, value)
+        # What this sample has different from the others (new copies only)
+        if target.sample_id in new_sample_ids:
+            own, own_picked = varied_params(form, entry_type.parameter_schema, target.sample_id)
+            if own:
+                target.parameters = (params | own)
+                picked.extend(own_picked)
         newly = await apply_performer(db, target, performer, performed_by)
         if performed_at != target.performed_at or target.position is None:
             target.performed_at = performed_at
@@ -175,6 +196,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
                      if can_edit(user, s)] if others else []
 
     is_new = entry is None
+    # Samples getting a new copy now (they may have their own values)
+    new_sample_ids = {s.id for s in extra_samples} | ({sample.id} if is_new else set())
     if is_new:
         entry = kind.model(sample_id=sample.id)
         db.add(entry)

@@ -120,21 +120,34 @@
       <summary class="cursor-pointer font-medium text-gray-700">{{ _("Also add to other samples") }}
         <span id="run-count" class="font-normal text-gray-400"></span></summary>
       <p class="text-xs text-gray-400 my-1.5">{{ _("For things done in parallel. Each ticked sample gets its own copy with the details above; files for one sample only go in the field that appears next to it.") }}</p>
+      <div class="mb-2 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
+        <div class="text-gray-600 font-medium">{{ _("What differs between samples?") }}</div>
+        <p class="text-gray-400 mb-1">{{ _("Tick the parameters that have a different value on each sample; an input appears next to every ticked sample. Empty means the value above.") }}</p>
+        <div id="vary-keys" class="flex flex-wrap gap-x-4 gap-y-1"></div>
+      </div>
       {% if not entry %}
-      <div class="flex items-center gap-3 mb-2 text-xs">
+      <div class="run-vary-row flex flex-wrap items-center gap-x-3 gap-y-1 mb-2 text-xs px-3" data-sample="{{ sample.id }}">
+        <span class="font-mono w-56 shrink-0">{{ sample.title }} <span class="text-gray-400">({{ _("this one") }})</span></span>
+        <span class="vary-cell flex flex-wrap gap-2"></span>
         <span class="text-gray-600">{{ _("Files only for {title}", title=sample.title) }}</span>
         <input type="file" name="files_for_{{ sample.id }}" multiple class="min-w-0 text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 cursor-pointer">
       </div>
       {% endif %}
       <input type="text" id="run-filter" placeholder="{{ _("Filter by ID or label") }}" class="{{ input_cls }} mb-2">
       <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
-        {% for s in run_candidates %}
-        <div class="run-option flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50" data-search="{{ (s.title ~ ' ' ~ (s.label or ''))|lower }}">
+        {% for s, group in run_candidates %}
+        {% if loop.first or group != loop.previtem[1] %}
+        <div class="run-group px-3 py-1 text-xs font-medium text-gray-500 bg-gray-50">
+          {{ {"sibling": _("Siblings (cut from the same step)"), "owner": _("Recent samples of the same researcher"), "other": _("Other samples")}[group] }}
+        </div>
+        {% endif %}
+        <div class="run-option run-vary-row flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 hover:bg-gray-50" data-sample="{{ s.id }}" data-search="{{ (s.title ~ ' ' ~ (s.label or ''))|lower }}">
           <label class="flex items-center gap-2 cursor-pointer w-56 shrink-0">
             <input type="checkbox" name="run_samples" value="{{ s.id }}" class="run-check">
             <span class="font-mono text-xs">{{ s.title }}</span>
             {% if s.label %}<span class="text-xs text-gray-500 truncate">{{ s.label }}</span>{% endif %}
           </label>
+          <span class="vary-cell flex flex-wrap gap-2"></span>
           <input type="file" name="files_for_{{ s.id }}" multiple disabled class="run-files hidden min-w-0 text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 cursor-pointer">
         </div>
         {% endfor %}
@@ -247,10 +260,71 @@
     filter.addEventListener('input', () => {
       const q = filter.value.trim().toLowerCase();
       document.querySelectorAll('.run-option').forEach(o => o.classList.toggle('hidden', q && !o.dataset.search.includes(q)));
+      document.querySelectorAll('.run-group').forEach(g => g.classList.toggle('hidden', !!q));
     });
     // Enter in the filter box shouldn't submit the form
     filter.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
     const count = document.getElementById('run-count');
+
+    // Parameters that differ per sample: tick them, and every ticked sample
+    // (and this one, on a new entry) gets an input for each, named
+    // vary::<sample id>::<key>. What's typed is kept while the inputs are rebuilt.
+    const varyFields = {{ vary_fields|tojson }};
+    const varyBox = document.getElementById('vary-keys');
+    const typed = {}, chosenKeys = new Set();
+    const inputClass = 'w-28 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 {{ ring }}';
+    function renderVary() {
+      const fields = varyFields[typeSelect.value] || [];
+      [...chosenKeys].forEach(k => { if (!fields.some(f => f.key === k)) chosenKeys.delete(k); });
+      varyBox.replaceChildren(...fields.map(f => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-1 cursor-pointer';
+        const box = document.createElement('input');
+        box.type = 'checkbox'; box.dataset.key = f.key; box.checked = chosenKeys.has(f.key);
+        label.append(box, f.label);
+        return label;
+      }));
+      if (!fields.length) varyBox.textContent = {{ _("This type has no single-value parameters to vary.")|tojson }};
+      document.querySelectorAll('.run-vary-row').forEach(row => {
+        const cell = row.querySelector('.vary-cell');
+        const active = row.dataset.sample === '{{ sample.id }}' || row.querySelector('.run-check:checked');
+        cell.replaceChildren(...(active ? fields.filter(f => chosenKeys.has(f.key)) : []).map(f => {
+          const input = document.createElement('input');
+          input.type = 'text'; input.className = inputClass;
+          input.name = `vary::${row.dataset.sample}::${f.key}`;
+          input.placeholder = f.label + (f.unit ? ` (${f.unit})` : '');
+          input.value = typed[input.name] || '';
+          if (f.options) {
+            input.setAttribute('list', 'vary-list-' + f.key);
+            if (!document.getElementById('vary-list-' + f.key)) {
+              const list = document.createElement('datalist');
+              list.id = 'vary-list-' + f.key;
+              list.append(...f.options.map(v => Object.assign(document.createElement('option'), {value: v})));
+              document.body.append(list);
+            }
+          }
+          input.addEventListener('input', () => { typed[input.name] = input.value; });
+          // Enter moves down to the next sample's box instead of submitting
+          input.addEventListener('keydown', ev => {
+            if (ev.key !== 'Enter') return;
+            ev.preventDefault();
+            const all = [...document.querySelectorAll(`.vary-cell input[name$="::${f.key}"]`)];
+            const next = all[all.indexOf(input) + 1];
+            if (next) next.focus();
+          });
+          return input;
+        }));
+      });
+    }
+    varyBox.addEventListener('change', e => {
+      if (e.target.dataset.key) {
+        e.target.checked ? chosenKeys.add(e.target.dataset.key) : chosenKeys.delete(e.target.dataset.key);
+        renderVary();
+      }
+    });
+    typeSelect.addEventListener('change', renderVary);
+    renderVary();
+
     document.getElementById('run-picker').addEventListener('change', e => {
       if (e.target.classList.contains('run-check')) {   // the sample's own file field shows once it's ticked
         const files = e.target.closest('.run-option').querySelector('.run-files');
@@ -259,6 +333,7 @@
       }
       const n = document.querySelectorAll('input[name="run_samples"]:checked').length;
       count.textContent = n ? `· ${n}` : '';
+      renderVary();
     });
   }
 

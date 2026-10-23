@@ -431,7 +431,12 @@ every sample (stored once). Editing one copy lists the others, each with its
 own file field, and offers to apply the changes to them (not the files).
 That copies the whole form onto them, so if it would change or clear a value
 another sample already has, you're shown which and asked first;
-each copy keeps its own place in its sample's timeline. Deleting a copy only
+each copy keeps its own place in its sample's timeline.
+The list starts with sibling samples (cut from the same step), then the
+same researcher's newest samples, then the rest. For a series where one
+parameter changes, tick **What differs between samples?** in that section:
+every ticked sample (and the current one) gets a box for it, and Enter moves
+to the next sample's box. Empty boxes keep the common value. Deleting a copy only
 removes it from that sample.
 
 ---

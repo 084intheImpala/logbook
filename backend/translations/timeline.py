@@ -66,6 +66,14 @@ PT = {
     "A Cut can't be changed to another type, or another step to a Cut.":
         "Um Cut não pode passar a outro tipo, nem outro passo a Cut.",
     "Also add to other samples": "Adicionar também a outras amostras",
+    "What differs between samples?": "O que difere entre amostras?",
+    "Tick the parameters that have a different value on each sample; an input appears next to every ticked sample. Empty means the value above.":
+        "Marque os parâmetros com um valor diferente em cada amostra; aparece uma caixa junto a cada amostra marcada. Vazio significa o valor acima.",
+    "this one": "esta",
+    "Siblings (cut from the same step)": "Irmãs (cortadas do mesmo passo)",
+    "Recent samples of the same researcher": "Amostras recentes do mesmo investigador",
+    "Other samples": "Outras amostras",
+    "This type has no single-value parameters to vary.": "Este tipo não tem parâmetros de valor único para variar.",
     "For things done in parallel. Each ticked sample gets its own copy with the details above; files for one sample only go in the field that appears next to it.":
         "Para o que foi feito em paralelo. Cada amostra assinalada recebe a sua cópia com os dados acima; os ficheiros só de uma amostra vão no campo que aparece ao lado dela.",
     "Files only for {title}": "Ficheiros só para {title}",
