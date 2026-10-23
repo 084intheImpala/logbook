@@ -27,39 +27,62 @@ docker compose exec app python -m backend.create_admin
 
 That's it. Tables and seed data are created automatically on first run.
 
-> **Note:** `docker-compose.yml` uses normal port publishing, so it works with
-> Rancher Desktop (dockerd engine), Docker Desktop and Docker Engine on Linux.
-> See [Running on Windows](#running-on-windows-rancher-desktop).
+> **Note:** `docker-compose.yml` is set up for **Docker running inside WSL2 with
+> mirrored networking** (see below). On any other setup, make the changes in
+> [Running on other environments](#running-on-other-environments) first.
 
 ---
 
-## Running on Windows (Rancher Desktop)
+## Docker networking
 
-1. Install [Rancher Desktop](https://rancherdesktop.io/) (free, no account).
-   Under *Preferences → Container Engine*, choose **dockerd (moby)** so the
-   `docker` and `docker compose` commands work.
-2. Allow the app through the Windows firewall (admin PowerShell), so other
-   PCs on the LAN can reach it:
+### WSL2 (default configuration)
 
-   ```powershell
-   New-NetFirewallRule -DisplayName "Logbook 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
-   ```
+The `app` service uses `network_mode: host`, and its `DATABASE_URL` points at
+`localhost:5432`. With WSL2 mirrored networking, Docker's normal port
+publishing (`ports: "8000:8000"`) can't be reached from Windows, so uvicorn
+binds directly on the WSL host network instead.
 
-3. In the project folder: `docker compose up -d`, then create the admin user
-   (see Quick start).
-4. Set `BASE_URL` in `.env` to the address users will open (e.g.
-   `http://<pc-ip>:8000`), so emailed login links point to the right place.
+You also need these settings in `C:\Users\<you>\.wslconfig`:
 
-Notes:
+```ini
+[wsl2]
+networkingMode=mirrored
 
-- Postgres is published on `127.0.0.1:5432` only (handy for `pg_dump` from the
-  host); it is not reachable from the LAN.
-- To start the logbook automatically after a reboot, enable *Preferences →
-  Application → Behavior → Automatically start at login* in Rancher Desktop.
-  The containers use `restart: unless-stopped`.
-- If you previously used the old WSL2 host-networking setup, the
-  `.wslconfig` settings (`mirrored`, `hostAddressLoopback`) are no longer
-  needed.
+[experimental]
+hostAddressLoopback=true
+```
+
+`hostAddressLoopback` lets the Windows machine itself open the app through its
+own LAN IP (e.g. `http://10.10.13.172:8000`), not just `localhost`. After
+editing the file, run `wsl --shutdown` in PowerShell and start the containers
+again.
+
+### Running on other environments
+
+On plain Linux, Docker Desktop (Windows/macOS) or WSL2 with the default NAT
+networking, use regular port publishing. In `docker-compose.yml`, change the
+`app` service:
+
+```diff
+     environment:
+-      # Host networking: reach Postgres through its published port on localhost
+-      DATABASE_URL: postgresql+asyncpg://logbook:logbook@localhost:5432/logbook
++      DATABASE_URL: postgresql+asyncpg://logbook:logbook@db:5432/logbook
+     ...
+-    # Docker's port publishing isn't reachable from Windows under WSL mirrored
+-    # networking, so bind uvicorn directly on the WSL host network instead.
+-    network_mode: host
++    ports:
++      - "8000:8000"
+```
+
+- `DATABASE_URL` must use `db` (the Postgres service name), because the app
+  is no longer on the host network.
+- The `ports:` line in the `db` service (`5432:5432`) is then optional. It's
+  only needed if you want to reach Postgres from outside Docker (e.g. for
+  `pg_dump` from the host).
+- Set `BASE_URL` in `.env` to the address users will open, so emailed login
+  links point to the right place.
 
 ---
 
@@ -493,8 +516,8 @@ Put the matching `uploads/` folder back in place too.
    there are no migrations, so a dump only fits the version that wrote it.
 3. Put `uploads/` and `.env` in the project folder. Keep the same
    `SECRET_KEY`; change `BASE_URL` to the new address so emailed links work.
-4. On Windows, set up Rancher Desktop first
-   ([Running on Windows](#running-on-windows-rancher-desktop)).
+4. If the new machine isn't WSL2 with mirrored networking, apply the changes in
+   [Running on other environments](#running-on-other-environments).
 5. Restore the dump: `docker compose up -d db`, then the `psql` line above,
    then `docker compose up -d`.
 6. Open the logbook and check a few samples and their files.

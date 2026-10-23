@@ -9,7 +9,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:5432:5432"   # local only (pg_dump etc.); not exposed to the LAN
+      - "5432:5432"
 
   app:
     build: .
@@ -18,13 +18,15 @@ services:
       - db
     env_file: .env   # SECRET_KEY, BASE_URL, SMTP_PASSWORD — see .env.example
     environment:
-      DATABASE_URL: postgresql+asyncpg://logbook:logbook@db:5432/logbook
+      # Host networking: reach Postgres through its published port on localhost
+      DATABASE_URL: postgresql+asyncpg://logbook:logbook@localhost:5432/logbook
     volumes:
       - ./uploads:/app/uploads
       - ./backend:/app/backend
       - ./frontend:/app/frontend
-    ports:
-      - "8000:8000"
+    # Docker's port publishing isn't reachable from Windows under WSL mirrored
+    # networking, so bind uvicorn directly on the WSL host network instead.
+    network_mode: host
     # Hot-reload in development — comment out for production
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
