@@ -28,3 +28,4 @@ Thumbs.db
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+scripts/start-logbook.log

@@ -86,6 +86,25 @@ networking, use regular port publishing. In `docker-compose.yml`, change the
 
 ---
 
+## Windows 10 (WSL2 in NAT mode)
+
+Windows 10 has no mirrored networking, so other PCs can't reach the app
+directly. `scripts/start-logbook.ps1` fixes that: it starts WSL, Docker and the
+containers, keeps WSL alive, and forwards port 8000 to WSL's current IP
+(which changes at every restart). To run it automatically at every login, open
+an **administrator** PowerShell in the project folder, once:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1
+```
+
+This registers the "Logbook autostart" task, adds the firewall rule for TCP
+8000 and starts the logbook. Progress is logged to `scripts/start-logbook.log`.
+The task runs when the user logs in, so after a reboot someone must log in
+(or the PC must be set to sign in automatically).
+
+---
+
 ## Quick start (without Docker)
 
 ```bash
