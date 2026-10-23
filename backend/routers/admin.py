@@ -13,7 +13,7 @@ from backend.database import get_db
 from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User
 from backend.params import validate_schema, with_equipment
 from backend.auth import require_login, hash_password
-from backend.email_utils import send_welcome_email
+from backend.email_utils import send_welcome_email, send_admin_message
 from backend.config import settings
 from backend.i18n import t
 from backend.export import samples_csv
@@ -145,6 +145,53 @@ async def create_user(
     else:
         request.session["flash"] = t(request, "User '{username}' created. Temporary password: {password}", username=username, password=temp_password)
 
+    return RedirectResponse("/admin/", status_code=303)
+
+
+@router.post("/message")
+async def send_message(
+    request: Request,
+    to: str = Form(...),
+    subject: str = Form(...),
+    body: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Email everyone ("all") or one user (their id). Each person gets their
+    own copy, so recipients don't see each other's addresses."""
+    subject, body = subject.strip(), body.strip()
+    if not subject or not body:
+        request.session["flash_error"] = t(request, "A message needs a subject and some text.")
+        return RedirectResponse("/admin/", status_code=303)
+    if not settings.SMTP_PASSWORD:
+        request.session["flash_error"] = t(request, "Email is not configured, so the message was not sent.")
+        return RedirectResponse("/admin/", status_code=303)
+
+    if to == "all":
+        recipients = (await db.execute(select(User).where(User.email.is_not(None)).order_by(User.username))).scalars().all()
+    elif to.isdigit():
+        target = await db.get(User, int(to))
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+        recipients = [target]
+    else:
+        raise HTTPException(status_code=400, detail="Unknown recipient")
+    recipients = [u for u in recipients if u.email]
+    if not recipients:
+        request.session["flash_error"] = t(request, "No recipient has an email address.")
+        return RedirectResponse("/admin/", status_code=303)
+
+    failed = []
+    for user in recipients:
+        try:
+            await send_admin_message(user.email, subject, body)
+        except Exception as exc:
+            failed.append(f"{user.username} ({exc})")
+    sent = len(recipients) - len(failed)
+    if sent:
+        request.session["flash"] = t(request, "Message sent to {count} user(s).", count=sent)
+    if failed:
+        request.session["flash_error"] = t(request, "Could not send to: {users}", users=", ".join(failed))
     return RedirectResponse("/admin/", status_code=303)
 
 

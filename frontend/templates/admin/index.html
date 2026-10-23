@@ -133,6 +133,35 @@
       </button>
     </form>
   </details>
+
+  <details class="bg-white rounded-xl border border-gray-200 shadow-sm mt-4">
+    <summary class="px-4 py-3 text-sm font-medium text-blue-600 cursor-pointer">✉ {{ _("Send a message") }}</summary>
+    <form method="post" action="/admin/message" class="px-4 pb-4 space-y-3"
+          onsubmit='return this.to.value !== "all" || confirm({{ _("Send this message to all users?")|tojson }})'>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("To") }}</label>
+        <select name="to" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+          <option value="all">{{ _("Everyone") }} ({{ users|selectattr("email")|list|length }})</option>
+          {% for u in users if u.email %}
+          <option value="{{ u.id }}">{{ u.display_name }} — {{ u.email }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Subject") }}</label>
+        <input name="subject" required class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Message") }}</label>
+        <textarea name="body" rows="8" required class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"></textarea>
+      </div>
+      <p class="text-xs text-gray-400">{{ _("Each person receives their own copy, so addresses are not shown to the others.") }}</p>
+      <button type="submit" class="bg-blue-600 text-white text-xs px-4 py-1.5 rounded hover:bg-blue-700"
+              {% if not email_configured %}disabled title="{{ _('Email is not configured') }}"{% endif %}>
+        {{ _("Send") }}
+      </button>
+    </form>
+  </details>
 </section>
 
 <!-- ═══ CONFIGURATIONS ═══════════════════════════════════════════════════════ -->

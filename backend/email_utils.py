@@ -25,6 +25,11 @@ async def send_email(to: str, subject: str, body: str) -> None:
     )
 
 
+async def send_admin_message(to: str, subject: str, body: str) -> None:
+    """A free-text message written by an admin, sent as-is."""
+    await send_email(to, subject, f"{body.rstrip()}\n\n— CTN Logbook\n")
+
+
 def _bilingual(pt: str, en: str) -> str:
     return f"""\
 {pt.rstrip()}
