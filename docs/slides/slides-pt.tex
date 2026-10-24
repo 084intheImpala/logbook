@@ -136,7 +136,7 @@
     \column{0.46\textwidth}
     \small
     \textbf{Passos:} Deposition, Annealing (Furnace / RTA), Ion
-    Implantation, Lithography, Etching, Cut, Other
+    Implantation, Lithography, Etching, Other
 
     \vspace{0.3cm}
     \textbf{Análises:} XRD / HRXRD (with modes), XPS, SEM, TEM, RBS, AFM,
@@ -162,7 +162,7 @@
     \begin{itemize}
       \item Dados em bruto, \alert{guardados exatamente como enviados}
       \item 16-bit TIFFs, \texttt{.raw}, \texttt{.csv}, PDFs, \ldots
-      \item Miniaturas na cronologia, e uma pasta por amostra no disco
+      \item Miniaturas na cronologia, e uma pasta por amostra no disco, com um \texttt{sample.json} (cópia da sua cronologia)
     \end{itemize}
   \end{columns}
 \end{frame}
@@ -174,6 +174,9 @@
     \item Preencha o formulário uma vez e marque \ui{Adicionar também a outras amostras}
     \item Cada amostra recebe a sua cópia ligada (``Também em: \ldots'')
     \item As fotografias comuns são guardadas uma vez; cada amostra pode ter os seus dados
+    \item As amostras irmãs (cortadas do mesmo passo) são sugeridas primeiro
+    \item \ui{O que difere entre amostras?}: uma caixa por amostra para o
+          parâmetro que muda numa série
     \item As alterações podem aplicar-se a todo o ensaio, com aviso antes
           de substituir valores que outra amostra já tem
   \end{itemize}
@@ -182,7 +185,7 @@
 %---------------------------------------------------------------------
 \begin{frame}{Dividir uma amostra em pedaços}
   \centering
-  \begin{tikzpicture}
+  \begin{tikzpicture}[scale=0.7,transform shape]
     \node[font=\sffamily\scriptsize\bfseries] at (0,0.55) {\sid{ASS-2026-001}};
     \node[ent] at (0,0) {Deposition};
     \node[ent] at (0,-0.55) {XRD};
@@ -209,6 +212,8 @@
           uma correção na amostra-mãe chega a todos os pedaços
     \item Depois, cada pedaço tem as suas entradas; pode ir para outra pessoa
     \item Pedaço de referência opcional \sid{-REF}
+    \item Em \ui{Amostras}, os pedaços ficam sob a sua amostra
+          (\ui{$\triangleright$ N pedaços}); \ui{Expandir tudo} abre todos os grupos
   \end{itemize}
 \end{frame}
 
@@ -252,6 +257,7 @@
     \item \textbf{Biblioteca de substratos}: características e fichas técnicas introduzidas uma vez
     \item \textbf{Projetos}: instituições parceiras e as suas amostras
     \item \textbf{Sugestões}: comunicar um erro ou pedir um campo; os administradores respondem
+    \item \textbf{Administradores}: acrescentam tipos e utilizadores, e enviam email a todos ou a uma pessoa
     \item Português / inglês, modo escuro, funciona no telemóvel
   \end{itemize}
 \end{frame}

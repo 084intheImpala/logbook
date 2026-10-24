@@ -4,8 +4,9 @@
 \usepackage[utf8]{inputenc}
 \usepackage[portuguese]{babel}
 \usepackage{lmodern}
+\renewcommand{\familydefault}{\sfdefault}
 \usepackage{microtype}
-\usepackage[margin=2.5cm]{geometry}
+\usepackage[left=2cm,right=2cm,top=3.2cm,bottom=3.2cm]{geometry}
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -56,16 +57,6 @@
 \maketitle
 \thispagestyle{empty}
 
-\begin{abstract}
-O Thin Film Logbook é uma aplicação web para registar o que acontece a cada
-amostra do laboratório: de onde vem, cada passo de processo (deposição,
-recozimento, implantação, \ldots), cada análise (XRD, RBS, SEM, \ldots), e
-as fotografias e ficheiros de dados correspondentes. Este manual explica a
-utilização do dia a dia. A Secção~\ref{sec:admin} descreve as tarefas
-adicionais dos administradores, e a Secção~\ref{sec:install} como manter
-o servidor e fazer cópias de segurança.
-\end{abstract}
-
 \tableofcontents
 \newpage
 
@@ -112,7 +103,7 @@ A barra lateral à esquerda (um botão de menu no telemóvel) tem:
 \begin{center}
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
-\menu{Amostras}       & Todas as amostras do laboratório, das mais recentes para as mais antigas. \\
+\menu{Amostras}       & Todas as amostras do laboratório, das mais recentes para as mais antigas, com os pedaços agrupados sob a amostra de que foram cortados. \\
 \menu{Pesquisa}       & Filtrar, agrupar, partilhar e exportar amostras. \\
 \menu{Substratos}     & A biblioteca partilhada de substratos a partir dos quais se fazem as amostras. \\
 \menu{Projetos}       & Projetos de colaboração com outras instituições. \\
@@ -238,6 +229,15 @@ amostra.
 O campo \ui{Investigador(a)} é, por omissão, o seu. Escolha outra pessoa
 para criar a amostra em nome dela (Secção~\ref{sec:assign}).
 
+\subsection{A lista de amostras}
+
+\menu{Amostras} mostra as amostras originais, das mais recentes para as
+mais antigas. Uma amostra que foi dividida tem um botão \ui{$\triangleright$ N
+pedaços}: clique para mostrar os seus pedaços por baixo, por ordem de ID,
+com os pedaços de pedaços encaixados mais à frente. Os grupos começam
+fechados; \ui{Expandir tudo} / \ui{Recolher tudo} abre ou fecha todos, e o
+navegador lembra-se dos que deixou abertos.
+
 \subsection{A página da amostra}
 
 A página de uma amostra mostra o resumo no topo, depois o painel
@@ -302,8 +302,7 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
 \textbf{Passos de processo} & Deposition, Annealing (Furnace / RTA), Ion
-  Implantation, Lithography (optical / e-beam), Etching (dry / wet), Cut,
-  Other Process \\
+  Implantation, Lithography (optical / e-beam), Etching (dry / wet), Other Process \\
 \midrule
 \textbf{Análises} & XRD / HRXRD, XPS, SEM, TEM, RBS (RBS / Channeling),
   AFM, Raman, Optical Microscopy, Hall / 4-probe, Ellipsometry,
@@ -311,6 +310,10 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \bottomrule
 \end{tabularx}
 \end{center}
+
+O Cut não está na lista: um corte regista-se com \ui{Dividir em pedaços}
+(Secção~\ref{sec:cut}), e um passo existente não pode passar a Cut nem
+deixar de o ser.
 
 Os administradores podem acrescentar tipos ou alterar os seus campos
 (Secção~\ref{sec:admin}).
@@ -328,6 +331,13 @@ si como um ensaio (``Também em: \ldots'' na página da amostra).
         amostras (guardados uma só vez).
   \item Ao lado de cada amostra marcada aparece um campo para os ficheiros
         dessa amostra (por exemplo, os seus dados).
+  \item A lista começa pelas amostras irmãs (cortadas do mesmo passo),
+        depois as mais recentes do mesmo investigador, e por fim as outras.
+  \item Numa série em que um parâmetro muda, marque-o em \ui{O que difere
+        entre amostras?}: cada amostra marcada (e a atual) ganha uma caixa
+        para esse parâmetro, e Enter passa à caixa da amostra seguinte. Uma
+        caixa vazia mantém o valor comum. Aplica-se aos campos de valor
+        único (números, durações, listas, texto) quando as cópias são criadas.
   \item Pode acrescentar mais amostras ao ensaio mais tarde, no formulário
         de edição.
   \item Ao editar uma cópia, pode aplicar as alterações às outras. Se isso
@@ -554,6 +564,14 @@ As \menu{Configurações} têm três partes.
 A \menu{Caixa de entrada} reúne as sugestões de todos; responda, e
 marque-as como resolvidas ou reabra-as.
 
+\subsection{Enviar mensagens aos utilizadores}
+
+Em \ui{Enviar uma mensagem}, nas \menu{Configurações}, escolha \ui{Todos} ou
+uma pessoa, escreva o assunto e a mensagem e clique em \ui{Enviar}. Cada
+pessoa recebe a sua própria cópia, por isso os endereços não são mostrados
+aos outros. Requer o email configurado e só chega a utilizadores com
+endereço de email; o envio a todos pede confirmação antes.
+
 \subsection{Esquemas de parâmetros}
 
 Cada campo tem uma \texttt{key}, um \texttt{label} e um \texttt{type}:
@@ -636,6 +654,27 @@ Essa pasta tem uma subpasta por ID de amostra e, dentro dela, uma por
 passo ou análise, com os ficheiros com os nomes originais (por exemplo
 \nolinkurl{ASS-2026-001/2026-10-22_XRD-HRXRD/scan01.raw}), mas é a base de
 dados que liga cada ficheiro à sua entrada.
+
+Cada pasta de amostra tem também um ficheiro \texttt{sample.json}: uma
+cópia de tudo o que a base de dados sabe sobre essa amostra (dados,
+responsável, partilha, substrato, projeto, a sua cronologia com parâmetros,
+notas, quem fez o quê e quando, e os ficheiros de cada entrada). É
+reescrito a cada alteração e, para todas as amostras, quando a aplicação
+arranca (ou a pedido: \texttt{docker compose exec app python -m backend.sample\_backup}). Serve para que, se a base de dados se perder, a pasta
+\texttt{uploads/} continue a dizer o que é cada ficheiro. Os utilizadores,
+os tipos de entrada, os valores das listas e as sugestões não estão lá: a
+cópia da base de dados continua a ser a cópia de segurança principal.
+
+\subsection{Windows 10}
+
+O Windows 10 não tem rede espelhada (\emph{mirrored}), por isso os outros
+computadores não chegam diretamente ao WSL. Numa PowerShell de
+administrador, na pasta do projeto, execute uma vez
+\texttt{powershell -ExecutionPolicy Bypass -File .$\backslash$scripts$\backslash$install-autostart.ps1}.
+Cria uma tarefa que, em cada início de sessão, arranca o WSL, o Docker e os
+contentores e reencaminha o porto 8000, e abre a \emph{firewall} para ele.
+Depois de reiniciar, alguém tem de iniciar sessão; o progresso fica em
+\texttt{scripts/start-logbook.log}.
 
 \begin{careful}
 \texttt{docker compose down} para o logbook e mantém os dados.
