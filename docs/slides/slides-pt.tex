@@ -1,20 +1,74 @@
 \documentclass[aspectratio=169,11pt]{beamer}
 
-\usetheme[progressbar=frametitle,numbering=fraction]{metropolis}
+\usetheme{Boadilla}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[portuguese]{babel}
 \usepackage{booktabs}
+\usepackage{array}
 \usepackage{tikz}
+\usepackage{graphicx}
 \usetikzlibrary{positioning,arrows.meta}
 
-\definecolor{accent}{HTML}{1F4E79}
-\definecolor{soft}{HTML}{EAF2FB}
-\definecolor{warm}{HTML}{C0611B}
-\definecolor{warmsoft}{HTML}{FDF1E6}
-\setbeamercolor{frametitle}{bg=accent}
-\setbeamercolor{progress bar}{fg=warm}
+% Técnico (IST) blue, with its complement (orange) and an amber accent
+\definecolor{istblue}{HTML}{009DE0}
+\definecolor{istdark}{HTML}{4A5660}
+\definecolor{accent}{HTML}{007AB3}
+\definecolor{soft}{HTML}{E5F4FB}
+\definecolor{warm}{HTML}{E8710A}
+\definecolor{warmsoft}{HTML}{FDF0E3}
+\definecolor{amber}{HTML}{F2B01E}
+\setbeamercolor{structure}{fg=istblue}
+\setbeamercolor{palette primary}{bg=istblue,fg=white}
+\setbeamercolor{palette secondary}{bg=accent,fg=white}
+\setbeamercolor{palette tertiary}{bg=istdark,fg=white}
+\setbeamercolor{palette quaternary}{bg=istdark,fg=white}
+\setbeamercolor{frametitle}{bg=istblue,fg=white}
+\setbeamercolor{title}{bg=istblue,fg=white}
 \setbeamercolor{alerted text}{fg=warm}
+\setbeamercolor{item}{fg=istblue}
+\setbeamercolor{subitem}{fg=amber}
+\setbeamercolor{section in head/foot}{fg=white}
+\setbeamercolor{subsection in head/foot}{fg=white}
+\setbeamercolor{section in head/foot shaded}{fg=white!60!istdark}
+\setbeamertemplate{page number in head/foot}[totalframenumber]
+\setbeamertemplate{navigation symbols}{}
+% Narrower title box on the cover
+\setbeamertemplate{title page}{
+  \vbox{}\vfill
+  \begingroup\centering
+  \makebox[\textwidth][c]{\begin{beamercolorbox}[wd=0.74\paperwidth,sep=8pt,center,rounded=true,shadow=true]{title}
+    \usebeamerfont{title}\inserttitle\par
+    \ifx\insertsubtitle\@empty\else\vskip0.25em{\usebeamerfont{subtitle}\insertsubtitle\par}\fi
+  \end{beamercolorbox}}%
+  \vskip1em\par
+  \begin{beamercolorbox}[sep=8pt,center]{author}\usebeamerfont{author}\insertauthor\end{beamercolorbox}
+  \begin{beamercolorbox}[sep=8pt,center]{date}\usebeamerfont{date}\insertdate\end{beamercolorbox}%
+  \ifx\inserttitlegraphic\@empty\else\vskip0.5em{\usebeamercolor[fg]{titlegraphic}\inserttitlegraphic\par}\fi
+  \endgroup\vfill
+}
+% Thicker bottom bar, larger and not bold
+\setbeamerfont{author in head/foot}{size=\footnotesize,series=\mdseries}
+\setbeamerfont{title in head/foot}{size=\footnotesize,series=\mdseries}
+\setbeamerfont{date in head/foot}{size=\footnotesize,series=\mdseries}
+\setbeamerfont{page number in head/foot}{size=\small,series=\mdseries}
+\setbeamertemplate{footline}{%
+  \leavevmode%
+  \hbox{%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=4.5ex,dp=2.5ex,center]{author in head/foot}%
+    \usebeamerfont{author in head/foot}\insertshortauthor
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=4.5ex,dp=2.5ex,center]{title in head/foot}%
+    \usebeamerfont{title in head/foot}\insertshorttitle
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=4.5ex,dp=2.5ex,leftskip=2ex,rightskip=2ex,sep=0pt]{date in head/foot}%
+    \hfill\usebeamerfont{date in head/foot}\insertshortdate{}\hfill
+    \usebeamercolor[fg]{page number in head/foot}\usebeamerfont{page number in head/foot}%
+    \usebeamertemplate{page number in head/foot}%
+  \end{beamercolorbox}}%
+  \vskip0pt%
+}
+\setbeamertemplate{blocks}[rounded]
 
 \newcommand{\ui}[1]{\textsf{\textbf{#1}}}
 \newcommand{\sid}[1]{\texttt{#1}}
@@ -32,31 +86,36 @@
 \title{Thin Film Logbook}
 \subtitle{Um só sítio para cada amostra, passo, análise e ficheiro de dados}
 \date{\today}
-\institute{CTN}
+\author[Grupo WBS (CTN)]{CTN • Grupo WBS\\[0.15cm]\footnotesize\url{https://github.com/084intheImpala/logbook}}
+\titlegraphic{\includegraphics[height=0.9cm]{img/tecnico.png}\hspace{1.2cm}\includegraphics[height=0.9cm]{img/inesc-mn.png}}
 
 \begin{document}
 
-\maketitle
+{\setbeamertemplate{footline}{}
+\begin{frame}[plain]
+  \titlepage
+\end{frame}}
 
 %---------------------------------------------------------------------
+\section{Visão geral}
 \begin{frame}{Porquê um logbook?}
   \small
   \begin{columns}[T]
     \column{0.48\textwidth}
     \textbf{Hoje}
     \begin{itemize}
-      \item Cadernos em papel e folhas de cálculo pessoais
-      \item Ficheiros de dados espalhados por PCs de instrumentos e pens USB
-      \item ``Que substrato era aquele? A que temperatura foi o RTA?''
-      \item Difícil passar amostras a outra pessoa ou encontrar resultados de colegas
+      \item Cadernos em papel e\\ folhas de cálculo pessoais
+      \item Ficheiros de dados espalhados por\\ PCs de instrumentos e pens USB
+      \item ``Que substrato era aquele?\\ A que temperatura foi o RTA?''
+      \item Difícil passar amostras a outra pessoa\\ ou encontrar resultados de colegas
     \end{itemize}
     \column{0.48\textwidth}
     \textbf{Com o logbook}
     \begin{itemize}
-      \item Um ID único e a história completa de cada amostra
-      \item Parâmetros em campos estruturados, por isso pesquisáveis
-      \item Fotografias e dados em bruto anexados onde pertencem
-      \item Partilhado, pesquisável, exportável para CSV
+      \item Um ID único e a história completa\\ de cada amostra
+      \item Parâmetros em campos estruturados,\\ por isso pesquisáveis
+      \item Fotografias e dados em bruto\\ anexados onde pertencem
+      \item Partilhado, pesquisável,\\ exportável para CSV
     \end{itemize}
   \end{columns}
 \end{frame}
@@ -84,6 +143,7 @@
 \end{frame}
 
 %---------------------------------------------------------------------
+\section{Amostras}
 \begin{frame}{IDs das amostras}
   \centering
   \Large\sid{\alert{ASS}-\alert{2026}-\alert{001}-A-2}
@@ -108,30 +168,31 @@
 
 %---------------------------------------------------------------------
 \begin{frame}{Quatro tipos de amostra}
-  \begin{tabular}{@{}lp{9.5cm}@{}}
+  \centering
+  \begin{tabular}{@{}l>{\raggedright\arraybackslash}p{9.5cm}@{}}
     \toprule
-    \textbf{Thin film}     & um substrato da biblioteca + dimensões; material do filme depois da deposição \\
-    \textbf{Bulk}          & um pedaço de um substrato da biblioteca; ID externo se foi outra pessoa a cortá-lo \\
-    \textbf{Commercial}    & descrição, fornecedor, n.º de lote, \alert{ficha técnica obrigatória} \\
-    \textbf{Collaboration} & enviada por uma instituição parceira: o projeto, uma descrição, o ID de origem \\
+    \textbf{Thin film}     & um substrato da biblioteca + dimensões;\newline material do filme depois da deposição \\
+    \textbf{Bulk}          & um pedaço de um substrato da biblioteca;\newline ID externo do fabricante \\
+    \textbf{Commercial}    & descrição, fornecedor, n.º de lote,\newline ficha técnica como anexo \\
+    \textbf{Collaboration} & enviada por uma instituição parceira:\newline o projeto, uma descrição, o ID de origem \\
     \bottomrule
   \end{tabular}
 
   \vspace{0.5cm}
-  Todas: rótulo e etiquetas opcionais, e um investigador (o próprio, ou
-  alguém em nome de quem a cria).
+  Todas: rótulo e etiquetas opcionais, e um investigador (o próprio ou outra pessoa).
 \end{frame}
 
 %---------------------------------------------------------------------
+\section{Registos}
 \begin{frame}{Registar um passo ou análise}
   \begin{columns}[T]
     \column{0.5\textwidth}
     \begin{itemize}
-      \item Escolha o tipo e o formulário mostra os seus campos
-      \item \textbf{Onde} + \textbf{Equipamento}: só as máquinas desse local
+      \item Escolha o tipo e o formulário\\ mostra os seus campos
+      \item \textbf{Onde} + \textbf{Equipamento}:\\ só as máquinas desse local
       \item Unidades incluídas; \texttt{1e-4} e \texttt{12:30} funcionam
-      \item As listas lembram valores; \ui{+ Adicionar novo\ldots} para um novo
-      \item \textbf{Realizado por}: quem o fez pode ver e editar essa entrada
+      \item As listas lembram valores;\\ \ui{+ Adicionar novo\ldots} para um novo
+      \item \textbf{Realizado por}: quem o fez pode ver\\ e editar essa entrada
     \end{itemize}
     \column{0.46\textwidth}
     \small
@@ -153,8 +214,8 @@
     \column{0.48\textwidth}
     \textbf{\ui{Adicionar fotografias}}
     \begin{itemize}
-      \item Abre a câmara do telemóvel na bancada
-      \item Várias de uma vez, ou arrastar para um cartão
+      \item Diretamente da câmara do telemóvel, ou do disco
+      \item Várias de uma vez
       \item Reduzidas a $\leq$\,2\,MB, HEIC convertido, GPS removido
     \end{itemize}
     \column{0.48\textwidth}
@@ -173,7 +234,7 @@
   \begin{itemize}
     \item Preencha o formulário uma vez e marque \ui{Adicionar também a outras amostras}
     \item Cada amostra recebe a sua cópia ligada (``Também em: \ldots'')
-    \item As fotografias comuns são guardadas uma vez; cada amostra pode ter os seus dados
+    \item As fotografias comuns são guardadas uma vez,\\ e cada amostra tem os seus dados
     \item As amostras irmãs (cortadas do mesmo passo) são sugeridas primeiro
     \item \ui{O que difere entre amostras?}: uma caixa por amostra para o
           parâmetro que muda numa série
@@ -183,6 +244,7 @@
 \end{frame}
 
 %---------------------------------------------------------------------
+\section{Pedaços e acesso}
 \begin{frame}{Dividir uma amostra em pedaços}
   \centering
   \begin{tikzpicture}[scale=0.7,transform shape]
@@ -213,7 +275,7 @@
     \item Depois, cada pedaço tem as suas entradas; pode ir para outra pessoa
     \item Pedaço de referência opcional \sid{-REF}
     \item Em \ui{Amostras}, os pedaços ficam sob a sua amostra
-          (\ui{$\triangleright$ N pedaços}); \ui{Expandir tudo} abre todos os grupos
+          (\ui{$\triangleright$ N pedaços});\\ \ui{Expandir tudo} abre todos os grupos
   \end{itemize}
 \end{frame}
 
@@ -227,7 +289,7 @@
       \item etiquetas, técnicas usadas, investigador
     \end{itemize}
     \column{0.48\textwidth}
-    \textbf{Detalhes} (parâmetros, notas, ficheiros) visíveis para:
+    \textbf{Detalhes} (notas, ficheiros) só para:
     \begin{itemize}\small
       \item o responsável e os administradores
       \item quem tem partilha: \ui{Ver} ou \ui{Editar}
@@ -237,10 +299,11 @@
 
   \vspace{0.5cm}
   \small As amostras podem passar para outro investigador, que confirma
-  com \ui{Aceitar}/\ui{Recusar}; o ID mantém-se.
+  com \ui{Aceitar}/\ui{Recusar};\\ o ID mantém-se.
 \end{frame}
 
 %---------------------------------------------------------------------
+\section{Utilização}
 \begin{frame}{Pesquisa e exportação}
   \begin{itemize}
     \item Filtrar por texto, investigador, tipo, material, técnica, etiqueta
@@ -257,7 +320,7 @@
     \item \textbf{Biblioteca de substratos}: características e fichas técnicas introduzidas uma vez
     \item \textbf{Projetos}: instituições parceiras e as suas amostras
     \item \textbf{Sugestões}: comunicar um erro ou pedir um campo; os administradores respondem
-    \item \textbf{Administradores}: acrescentam tipos e utilizadores, e enviam email a todos ou a uma pessoa
+    \item \textbf{Administradores}: acrescentam tipos e utilizadores, podem enviar e-mails aos utilizadores
     \item Português / inglês, modo escuro, funciona no telemóvel
   \end{itemize}
 \end{frame}
@@ -273,10 +336,16 @@
 
   \vspace{0.5cm}
   Os detalhes estão no manual de utilização (\texttt{docs/manual}).
+
+  \vspace{0.2cm}
+  Código e documentação: \url{https://github.com/084intheImpala/logbook}
 \end{frame}
 
-\begin{frame}[standout]
-  Perguntas?
+{
+\setbeamercolor{background canvas}{bg=istblue}
+\begin{frame}[plain]
+  \centering\vfill\color{white}\Huge\textbf{Perguntas?}\vfill
 \end{frame}
+}
 
 \end{document}
