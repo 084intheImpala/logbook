@@ -233,6 +233,7 @@ names they were uploaded with:
 ```
 uploads/
   ASS-2026-001/
+    sample.json                           ← the sample's record (see below)
     spec sheet.pdf                        ← the sample's own files
     2026-10-20_Deposition/
       IMG_1234.jpg
@@ -250,6 +251,18 @@ or date later doesn't move its files. A file shared by several samples (a
 run) is stored once, in the folder of the sample it was uploaded on. The
 database still links every file to its entry, so keep `uploads/` and the
 database together (see Backups).
+
+Each sample folder also has a `sample.json`: a copy of everything the
+database holds about that sample (details, owner, sharing, substrate,
+project, its own timeline with parameters, notes, who did what and when, and
+the files of each entry). It is rewritten after every change and for all
+samples when the app starts (or on demand:
+`docker compose exec app python -m backend.sample_backup`), so it's always current. It's there so that, if
+the database is lost, `uploads/` still says what every file is. A piece's
+file doesn't repeat the entries it inherits: `cut_from` names the parent
+and the Cut step, and they are in the parent's file. Users, entry types,
+dropdown values and suggestions aren't in these files; the database dump is
+still the real backup.
 
 Mandatory: the substrate for thin-film and bulk samples, the description and
 spec sheet for commercial ones, and the type of each step/analysis. `required` in

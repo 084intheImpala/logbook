@@ -11,6 +11,7 @@ from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException, RequiresProfileException
 from backend.seed import seed_types
 from backend.i18n import LANGS
+from backend.sample_backup import write_all, write_pending
 
 
 @asynccontextmanager
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI):
     await create_tables()
     async with AsyncSessionLocal() as session:
         await seed_types(session)
+    await write_all()
     yield
 
 
@@ -30,6 +32,14 @@ app.add_middleware(
     max_age=60 * 60 * 24 * 30,  # 30 days
     https_only=False,            # set True in production with HTTPS
 )
+
+@app.middleware("http")
+async def write_sample_backups(request: Request, call_next):
+    response = await call_next(request)
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        await write_pending()
+    return response
+
 
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
