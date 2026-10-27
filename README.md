@@ -154,8 +154,9 @@ ID* gives it the next free number under a researcher's initials or a project's
 code (or an ID you type). Its pieces are renamed with it (`ASS-2026-005-A`
 becomes `UMIN-2026-001-A`), the folders in `uploads/` are renamed and the
 stored file names updated, and the owner gets an email listing the old and new
-IDs. The old ID is free again, so if it was the highest number of that year a
-new sample gets it. A piece's ID can't be changed on its own; change the
+IDs. The old ID is kept on the sample (shown as *Previously*, searchable, and
+in the exports) and is never given to another sample, so an old ID can't end up
+meaning two things. A piece's ID can't be changed on its own; change the
 sample it was cut from. Samples are not renumbered in the emails, links or
 notes people kept: the owner's email is how they find out.
 

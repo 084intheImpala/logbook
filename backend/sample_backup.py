@@ -90,7 +90,7 @@ def _document(sample: Sample, parent: tuple | None, attachments: dict) -> dict:
     return {
         "format": FORMAT,
         "written_at": datetime.now().replace(microsecond=0),
-        "id": sample.id, "code": sample.code, "label": sample.label, "sample_type": sample.sample_type,
+        "id": sample.id, "code": sample.code, "previous_codes": sample.previous_codes, "label": sample.label, "sample_type": sample.sample_type,
         "is_reference": sample.is_reference, "tags": sample.tags, "description": sample.description,
         "film_material": sample.film_material, "substrate_dimensions": sample.substrate_dimensions,
         "external_id": sample.external_id, "supplier": sample.supplier, "created_at": sample.created_at,

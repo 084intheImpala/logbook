@@ -80,6 +80,9 @@ class Sample(Base):
     # Generated, kept when the owner changes (admins can recode it, see recode.py): <researcher initials>-<year>-<number>, and
     # pieces append -A, -B, -REF (pieces of pieces -1, -2, …). See sample_ids.py.
     code: Mapped[str | None] = mapped_column(String(60), unique=True)
+    # IDs it had before an admin changed it, oldest first. They stay reserved:
+    # no sample is ever given one of them again (see recode.py).
+    previous_codes: Mapped[list[str] | None] = mapped_column(JSON)
     # Optional personal description
     label: Mapped[str | None] = mapped_column(String(100), index=True)
     sample_type: Mapped[str] = mapped_column(String(20), default="thin_film", server_default="thin_film", nullable=False)

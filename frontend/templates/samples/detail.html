@@ -34,6 +34,9 @@
       {% if sample.is_reference %}<span class="align-middle font-sans bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded">{{ _("Reference") }}</span>{% endif %}
     </h1>
     {% if sample.label %}<div class="text-lg text-gray-600">{{ sample.label }}</div>{% endif %}
+    {% if sample.previous_codes %}
+    <div class="mt-1 text-sm text-gray-500">{{ _("Previously") }}: <span class="font-mono">{{ sample.previous_codes|join(", ") }}</span></div>
+    {% endif %}
     {% if parent %}
     <div class="mt-1 text-sm text-gray-500">
       ✂ {{ _("Cut from") }} <a href="/samples/{{ parent.id }}" class="text-blue-600 hover:underline font-mono">{{ parent.title }}</a>

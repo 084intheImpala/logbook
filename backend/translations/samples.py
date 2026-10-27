@@ -4,12 +4,13 @@ PT = {
     "admin only": "só administradores",
     "Change this sample's ID? Its pieces and its files folder are renamed too, and the owner is emailed.":
         "Alterar o ID desta amostra? As peças e a pasta de ficheiros também são renomeadas, e o dono recebe um email.",
-    "For a sample created under the wrong owner or type. It gets the next free number under the initials or project code you choose; the old ID becomes free again.":
-        "Para uma amostra criada com o dono ou o tipo errados. Recebe o próximo número livre sob as iniciais ou o código de projeto escolhidos; o ID antigo volta a ficar livre.",
+    "For a sample created under the wrong owner or type. It gets the next free number under the initials or project code you choose. The old ID is kept on the sample and never reused.":
+        "Para uma amostra criada com o dono ou o tipo errados. Recebe o próximo número livre sob as iniciais ou o código de projeto escolhidos. O ID antigo fica registado na amostra e nunca é reutilizado.",
     "Number it under": "Numerar sob",
     "Researchers": "Investigadores",
     "or type the ID": "ou escreva o ID",
     "Change ID": "Alterar ID",
+    "Previously": "Anteriormente",
     "ID changed from {old} to {new}.": "ID alterado de {old} para {new}.",
     "Choose whose initials or which project's code to use, or type an ID.":
         "Escolha as iniciais ou o código de projeto a usar, ou escreva um ID.",

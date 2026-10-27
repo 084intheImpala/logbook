@@ -6,7 +6,7 @@ A sample's ID names its folder in uploads/ and is the start of its pieces' IDs
 (ASS-2026-005-A), so changing it renames those pieces and moves their folders
 too, and repoints the stored file names of every attachment that lives in them
 (a file shared by a run of samples is stored once, in the first one's folder).
-The old ID is free again afterwards.
+The old ID stays on the sample (previous_codes) and is never reused.
 """
 import logging
 import os
@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
 from backend.models import Attachment, Sample
+from backend.sample_ids import retired_codes
 from backend.utils import _safe
 
 log = logging.getLogger("uvicorn.error")
@@ -51,8 +52,10 @@ async def plan(db: AsyncSession, sample: Sample, new_code: str) -> Plan:
     codes = {old: new_code, **{c: new_code + c[len(old):] for c in pieces}}
 
     taken = set((await db.execute(select(Sample.code).where(Sample.code.in_(codes.values())))).scalars())
+    taken |= set(codes.values()) & await retired_codes(db)
     if taken:
-        raise RecodeError(f"{', '.join(sorted(taken))} already exist{'s' if len(taken) == 1 else ''}.")
+        raise RecodeError(f"{', '.join(sorted(taken))} {'is' if len(taken) == 1 else 'are'} already in use "
+                          "or was used by a sample before, and IDs are never reused.")
 
     folders = {_safe(o): _safe(n) for o, n in codes.items()}
     for new in folders.values():
@@ -67,6 +70,7 @@ async def apply(db: AsyncSession, plan: Plan) -> None:
     fails here the folders are put back and the caller should roll back."""
     samples = (await db.execute(select(Sample).where(Sample.code.in_(plan.codes)))).scalars().all()
     for s in samples:
+        s.previous_codes = [*(s.previous_codes or []), s.code]   # a new list, so the change is noticed
         s.code = plan.codes[s.code]
 
     for old, new in plan.folders.items():
