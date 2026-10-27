@@ -1,4 +1,28 @@
 PT = {
+    # sample ID change (admin)
+    "Change the sample ID": "Alterar o ID da amostra",
+    "admin only": "só administradores",
+    "Change this sample's ID? Its pieces and its files folder are renamed too, and the owner is emailed.":
+        "Alterar o ID desta amostra? As peças e a pasta de ficheiros também são renomeadas, e o dono recebe um email.",
+    "For a sample created under the wrong owner or type. It gets the next free number under the initials or project code you choose; the old ID becomes free again.":
+        "Para uma amostra criada com o dono ou o tipo errados. Recebe o próximo número livre sob as iniciais ou o código de projeto escolhidos; o ID antigo volta a ficar livre.",
+    "Number it under": "Numerar sob",
+    "Researchers": "Investigadores",
+    "or type the ID": "ou escreva o ID",
+    "Change ID": "Alterar ID",
+    "ID changed from {old} to {new}.": "ID alterado de {old} para {new}.",
+    "Choose whose initials or which project's code to use, or type an ID.":
+        "Escolha as iniciais ou o código de projeto a usar, ou escreva um ID.",
+    "{name} has no email address, so tell them about the new ID.":
+        "{name} não tem endereço de email; avise-o do novo ID.",
+    "Couldn't email {name} ({error}); tell them about the new ID.":
+        "Não foi possível enviar email a {name} ({error}); avise-o do novo ID.",
+    "This sample has no ID to change.": "Esta amostra não tem ID para alterar.",
+    "This sample is a piece; change the ID of the sample it was cut from instead.":
+        "Esta amostra é uma peça; altere antes o ID da amostra de que foi cortada.",
+    "An ID looks like ABC-2026-001: 2–6 capital letters or digits, the year and a number.":
+        "Um ID tem a forma ABC-2026-001: 2–6 letras maiúsculas ou algarismos, o ano e um número.",
+    "That is already this sample's ID.": "Esse já é o ID desta amostra.",
     # samples/form.html
     "Edit {sample}": "Editar {sample}",
     "Edit": "Editar",

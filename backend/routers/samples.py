@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,6 +10,7 @@ from backend.database import get_db
 from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
                             Substrate, Project, User, SAMPLE_TYPES)
 from backend.sample_ids import next_code, piece_codes
+from backend import recode
 from backend.utils import save_upload, chosen_files
 from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry, is_owner, is_performer
 from backend import timeline as tl
@@ -17,10 +19,11 @@ from backend.params import parse_date, describe
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, remember
 from backend.seed import PROCESS_STEP_TYPES
 from backend.config import settings
-from backend.email_utils import send_confirm_samples_email, send_declined_email
+from backend.email_utils import send_confirm_samples_email, send_declined_email, send_recoded_email
 from backend.i18n import t
 
 router = APIRouter()
+log = logging.getLogger("uvicorn.error")
 from backend.templating import templates
 
 
@@ -438,6 +441,62 @@ async def update_sample(
             request, "Given to {name}. They'll be asked to confirm it; you keep edit access.",
             name=new_owner.display_name)
         await _ask_to_confirm(request, current_user.display_name, new_owner.display_name, new_owner.email, [sample])
+    return RedirectResponse(f"/samples/{sample_id}", status_code=303)
+
+
+@router.post("/{sample_id}/recode")
+async def recode_sample(
+    request: Request,
+    sample_id: int,
+    prefix: str = Form(""),
+    code: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    """Admins: give the sample a new ID, either the next free number under a
+    researcher's initials / a project's code, or one typed in. Its pieces and
+    uploads folders follow. The old ID becomes free."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can change a sample's ID.")
+    sample = await load_sample(db, sample_id, current_user, "owner")
+    back = RedirectResponse(f"/samples/{sample_id}/edit", status_code=303)
+    old = sample.code
+    new_code = code.strip().upper()
+    if not new_code:
+        kind, _, ident = prefix.partition(":")
+        source = (await db.get(User if kind == "user" else Project, int(ident))
+                  if ident.isdigit() and kind in ("user", "project") else None)
+        initials = (source.initials if kind == "user" else source.code) if source else None
+        year = int(old.split("-")[1]) if old and old.count("-") >= 2 and old.split("-")[1].isdigit() else None
+        if not initials:
+            request.session["flash_error"] = t(request, "Choose whose initials or which project's code to use, or type an ID.")
+            return back
+        new_code = await next_code(db, initials, year)
+    try:
+        change = await recode.plan(db, sample, new_code)
+        await recode.apply(db, change)
+        try:
+            await db.commit()
+        except Exception:
+            recode.undo_move(change.folders)
+            raise
+    except recode.RecodeError as e:
+        await db.rollback()
+        request.session["flash_error"] = t(request, str(e))
+        return back
+    log.info("%s changed sample ID %s to %s (%d samples renamed)", current_user.username, old, new_code, len(change.codes))
+    request.session["flash"] = t(request, "ID changed from {old} to {new}.", old=old, new=new_code)
+    owner = sample.owner
+    if owner and owner.id != current_user.id and settings.SMTP_PASSWORD:
+        if not owner.email:
+            request.session["flash_error"] = t(request, "{name} has no email address, so tell them about the new ID.",
+                                               name=owner.display_name)
+        else:
+            try:
+                await send_recoded_email(owner.email, current_user.display_name, sample, old, change.codes)
+            except Exception as exc:
+                request.session["flash_error"] = t(request, "Couldn't email {name} ({error}); tell them about the new ID.",
+                                                   name=owner.display_name, error=exc)
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
 

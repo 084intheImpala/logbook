@@ -77,7 +77,7 @@ class Sample(Base):
     __tablename__ = "samples"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Generated, never changes: <researcher initials>-<year>-<number>, and
+    # Generated, kept when the owner changes (admins can recode it, see recode.py): <researcher initials>-<year>-<number>, and
     # pieces append -A, -B, -REF (pieces of pieces -1, -2, …). See sample_ids.py.
     code: Mapped[str | None] = mapped_column(String(60), unique=True)
     # Optional personal description

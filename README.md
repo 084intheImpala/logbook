@@ -144,9 +144,20 @@ Sample            (generated ID, type, optional label and tags)
 Every sample gets an ID when it's created: the researcher's initials, the
 year, and that researcher's counter for the year, e.g. `ASS-2026-001`. Pieces
 cut from it add `-A`, `-B`, … (pieces of pieces `-1`, `-2`, …), and a
-reference piece adds `-REF`. IDs never change, even if the sample changes
-owner or the researcher's initials change later. The optional **Label** is
-for your own description and doesn't need to be unique.
+reference piece adds `-REF`. IDs don't change when the sample changes
+owner or the researcher's initials change later. Only an admin can change one,
+for a sample created under the wrong owner or type (see below). The optional
+**Label** is for your own description and doesn't need to be unique.
+
+**Changing an ID (admins).** On the sample's *Edit* page, *Change the sample
+ID* gives it the next free number under a researcher's initials or a project's
+code (or an ID you type). Its pieces are renamed with it (`ASS-2026-005-A`
+becomes `UMIN-2026-001-A`), the folders in `uploads/` are renamed and the
+stored file names updated, and the owner gets an email listing the old and new
+IDs. The old ID is free again, so if it was the highest number of that year a
+new sample gets it. A piece's ID can't be changed on its own; change the
+sample it was cut from. Samples are not renumbered in the emails, links or
+notes people kept: the owner's email is how they find out.
 
 Collaboration samples use their project's code instead of initials, with
 the project's own counter, e.g. `UMIN1-2026-001`, whoever receives them.

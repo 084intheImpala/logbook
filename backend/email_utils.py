@@ -231,6 +231,36 @@ Hello,
     await send_email(to, f"CTN Logbook — {sample.title} recusada por / declined by {decliner}", _bilingual(pt, en))
 
 
+async def send_recoded_email(to: str, admin: str, sample, old_code: str, renamed: dict[str, str]) -> None:
+    """Sent to a sample's owner when an admin changes its ID (and its pieces', if any)."""
+    others = "\n".join(f"  {o} → {n}" for o, n in renamed.items() if o != old_code)
+    extra_pt = f"\nAs peças cortadas desta amostra também foram renomeadas:\n{others}\n" if others else ""
+    extra_en = f"\nThe pieces cut from this sample were renamed too:\n{others}\n" if others else ""
+    pt = f"""\
+Olá,
+
+{admin} alterou o ID de uma das suas amostras no CTN Thin Film Logbook:
+
+  {old_code} → {sample.title}
+{extra_pt}
+Os dados e ficheiros mantêm-se; só o ID mudou. Se tinha o ID antigo apontado noutro lado, atualize-o:
+
+{_sample_lines([sample])}
+"""
+    en = f"""\
+Hello,
+
+{admin} changed the ID of one of your samples in the CTN Thin Film Logbook:
+
+  {old_code} → {sample.title}
+{extra_en}
+The data and files are unchanged; only the ID is different. If you noted the old ID anywhere else, please update it:
+
+{_sample_lines([sample])}
+"""
+    await send_email(to, f"CTN Logbook — ID alterado / ID changed: {old_code} → {sample.title}", _bilingual(pt, en))
+
+
 async def send_performer_email(to: str, giver: str, samples: list, entry_name: str) -> None:
     """Sent when someone records the recipient as having performed a step or
     analysis, on one sample or (a run) several."""

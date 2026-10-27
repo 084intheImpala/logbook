@@ -7,7 +7,8 @@ instead of initials (UMIN-2026-001), with the project's own counter. Pieces cut 
 first level, -1, -2, … at the next, alternating, so ASS-2026-001-A-1 is a
 piece of piece A. A reference piece gets -REF (then -REF2, …).
 
-IDs never change once assigned, even if the sample changes owner.
+IDs don't change when the sample changes owner. Only an admin can change one,
+and only on a sample that isn't itself a piece (see recode.py).
 """
 import re
 import string
