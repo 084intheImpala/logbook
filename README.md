@@ -505,6 +505,55 @@ On Linux: `ip a` or `hostname -I`.
 
 ---
 
+## Schema changes (migrations)
+
+The database structure is versioned with [Alembic](https://alembic.sqlalchemy.org/).
+The app applies pending migrations by itself every time it starts
+(`backend/migrate.py`), so updating means: pull the code, rebuild, start.
+Migrations live in `backend/migrations/versions/`.
+
+### First update to a version with migrations (one time only)
+
+Your existing database was built before migrations existed. The app detects
+this (tables, but no `alembic_version` table) and marks it as the baseline
+revision `0001`, which is exactly the schema it already has. Nothing in your
+data is changed. On the machine that hosts the database:
+
+1. **Back up first** (see [Backing up](#backing-up)), and keep a copy of `uploads/`.
+2. Pull the new code and rebuild: `git pull`, then `docker compose build app`
+   (this installs the new `alembic` dependency).
+3. Start it: `docker compose up -d`.
+4. Check the log for errors: `docker compose logs app | tail -30`.
+5. Check the version was recorded; this should print `0001` (or the newest revision):
+
+   ```bash
+   docker compose exec -T db psql -U logbook logbook -c "select * from alembic_version;"
+   ```
+6. Open the logbook and look at a few samples.
+
+If something fails, `docker compose down`, restore the backup (see
+[Restoring](#restoring)) and go back to the previous commit.
+
+### Later updates
+
+Same steps 1–6. The app upgrades the database to the newest revision when it
+starts, and `alembic_version` shows the new number.
+
+### For developers: writing a migration
+
+Change `backend/models.py`, then generate and **read** the migration before
+committing it (autogenerate misses renames and data changes):
+
+```bash
+DATABASE_URL=sqlite+aiosqlite:///scratch.db alembic upgrade head   # empty scratch db at the current revision
+DATABASE_URL=sqlite+aiosqlite:///scratch.db alembic revision --autogenerate -m "what changed"
+```
+
+Migrations that fill existing rows (e.g. giving old samples a default
+visibility) need that written by hand in the same file.
+
+---
+
 ## Backups and moving to another machine
 
 Everything the logbook holds is in three places:
@@ -534,7 +583,8 @@ updating the code.
 ### Restoring
 
 The dump has to go into an empty database, before the app starts and creates
-its own empty tables:
+its own empty tables (the app would otherwise create them and the dump
+would clash):
 
 ```bash
 docker compose down -v                                        # wipes the current database
@@ -550,7 +600,8 @@ Put the matching `uploads/` folder back in place too.
 1. On the old machine, make a backup (above) and copy the `.sql` file,
    `uploads/` and `.env` to the new machine.
 2. On the new machine, get the code **at the same commit** as the old one:
-   there are no migrations, so a dump only fits the version that wrote it.
+   a dump fits the code that wrote it; a newer version brings migrations that
+   upgrade it on first start (see [Schema changes](#schema-changes-migrations)).
 3. Put `uploads/` and `.env` in the project folder. Keep the same
    `SECRET_KEY`; change `BASE_URL` to the new address so emailed links work.
 4. If the new machine isn't WSL2 with mirrored networking, apply the changes in

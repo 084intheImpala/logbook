@@ -5,7 +5,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.config import settings
-from backend.database import create_tables, AsyncSessionLocal
+from backend.database import AsyncSessionLocal
+from backend.migrate import migrate
 from backend.routers import samples, steps, analyses, files, admin, search, substrates, suggestions, projects
 from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException, RequiresProfileException
@@ -16,7 +17,7 @@ from backend.sample_backup import write_all, write_pending
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_tables()
+    await migrate()
     async with AsyncSessionLocal() as session:
         await seed_types(session)
     await write_all()
