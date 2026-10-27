@@ -168,6 +168,15 @@
     {{ _("Sharing") }} <span class="font-normal text-gray-400">· {{ _("{n} user", n=sample.shares|length) if sample.shares|length == 1 else _("{n} users", n=sample.shares|length) }}</span>
   </summary>
   <div class="px-4 pb-4 space-y-3">
+    <form method="post" action="/samples/{{ sample.id }}/visibility" class="flex items-center gap-2 text-sm">
+      <label class="text-gray-600">{{ _("Who can see the details") }}</label>
+      <select name="visibility" onchange="this.form.submit()" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+        {% for value, label in visibilities.items() %}
+        <option value="{{ value }}" {% if sample.visibility == value %}selected{% endif %}>{{ _(label) }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <p class="text-xs text-gray-400">{{ _("Personal: you and the people listed below. Team: also everyone in your team. Public: everyone logged in. Coordinators of your team and admins can always see it. Everyone sees the summary (ID, type, materials, tags).") }}</p>
     {% if sample.shares %}
     <ul class="divide-y divide-gray-100 text-sm">
       {% for sh in sample.shares %}
@@ -186,8 +195,6 @@
       </li>
       {% endfor %}
     </ul>
-    {% else %}
-    <p class="text-xs text-gray-400">{{ _("Only you and admins can see this sample's details.") }}</p>
     {% endif %}
     {% if share_candidates %}
     <form method="post" action="/samples/{{ sample.id }}/shares" class="flex items-center gap-2">

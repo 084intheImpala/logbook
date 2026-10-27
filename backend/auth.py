@@ -84,7 +84,10 @@ async def _suggestion_badge(db: AsyncSession, user: User) -> int:
 # ── Sample permissions ───────────────────────────────────────────────────────
 # Everyone logged in sees a sample's summary (name, materials, tags, which
 # techniques were used). Details — parameters, notes, dates, files — need
-# view access. Samples without an owner (created before logins) stay open.
+# view access: the owner, anyone it is shared with, the coordinators of the
+# owner's team, and whoever the sample's visibility lets in (team: the owner's
+# team, public: everyone). Samples without an owner (created before logins)
+# stay open.
 
 def _share_for(user: User, sample):
     return next((sh for sh in sample.shares if sh.user_id == user.id), None)
@@ -97,8 +100,31 @@ def is_owner(user: User | None, sample) -> bool:
     return user.is_admin or sample.owner_id is None or sample.owner_id == user.id
 
 
+def _teams(user: User | None) -> set[int]:
+    return {m.team_id for m in user.memberships} if user else set()
+
+
+def is_coordinator_of(user: User | None, sample) -> bool:
+    """A coordinator of a team the sample's owner is in."""
+    owner = sample.owner
+    if user is None or owner is None or owner.id == user.id:
+        return False
+    mine = {m.team_id for m in user.memberships if m.is_coordinator}
+    return bool(mine & _teams(owner))
+
+
+def in_owners_team(user: User | None, sample) -> bool:
+    return user is not None and sample.owner is not None and bool(_teams(user) & _teams(sample.owner))
+
+
 def can_view(user: User | None, sample) -> bool:
-    return is_owner(user, sample) or (user is not None and _share_for(user, sample) is not None)
+    if is_owner(user, sample) or (user is not None and _share_for(user, sample) is not None):
+        return True
+    if user is None:
+        return False
+    return (sample.visibility == "public"
+            or (sample.visibility == "team" and in_owners_team(user, sample))
+            or is_coordinator_of(user, sample))
 
 
 def can_edit(user: User | None, sample) -> bool:

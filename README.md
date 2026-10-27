@@ -323,11 +323,36 @@ inherited entries, and the CSV marks those rows in `inherited_from`.
 
 Every logged-in user sees every sample's summary: ID, label, type,
 materials, substrate, tags, which techniques were used, and the researcher. Details (description,
-parameters, notes, dates and files) are visible only to:
+parameters, notes, dates and files) are visible to:
 
 - the sample's owner (the researcher who created it),
 - admins,
-- users the owner has shared the sample with.
+- users the owner has shared the sample with,
+- the **coordinators** of the owner's team (see below),
+- anyone the sample's **visibility** lets in.
+
+**Visibility** is set per sample, when it is created and later under
+*Sharing* (owner or admin): **Personal** (the default: only the people above),
+**Team** (also everyone in the owner's team) or **Public** (everyone logged
+in). A piece cut from a sample starts with its parent's visibility. Visibility
+only decides who can *see* details; changing a sample still needs an explicit
+**Edit** share (or being the owner or an admin).
+
+### Teams
+
+A team is a group inside the lab (separate from [Projects](#projects), which
+are outside collaborators). Admins manage them under *Configurations → Teams*:
+create a team, add members, and mark one or more as **coordinators**. A
+coordinator can see (not edit) the details of every sample owned by a member
+of their team, whatever its visibility. People normally belong to one team;
+the data model allows several.
+
+### What a share gives
+
+Sharing a sample with **View** gives everything on it: parameters, notes,
+dates and files of all its steps and analyses, not only the list of steps.
+**Edit** adds the ability to add and change steps, analyses and files. Neither
+lets the person delete the sample or manage its sharing.
 
 Owners share from the **Sharing** panel on a sample's page, or select
 several samples on the **Search** page and share them at once. Each share

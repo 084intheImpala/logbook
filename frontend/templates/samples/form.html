@@ -166,6 +166,18 @@
     </div>
     {% endif %}
 
+    {% if not editing %}
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Who can see the details") }}</label>
+      <select name="visibility" class="{{ input_cls }} bg-white">
+        {% for value, label in visibilities.items() %}
+        <option value="{{ value }}">{{ _(label) }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-gray-500 mt-1">{{ _("Personal: you and the people you share it with. Team: also your team. Public: everyone logged in. Everyone always sees the summary. You can change this later under Sharing.") }}</p>
+    </div>
+    {% endif %}
+
     <div class="flex gap-3 pt-2">
       <button type="submit"
               class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">

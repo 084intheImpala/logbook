@@ -3,7 +3,6 @@
 Nothing here touches the Postgres database or the uploads/ folder: the
 settings are overridden before the app is imported. Run with `pytest`
 (install requirements-dev.txt first)."""
-import asyncio
 import itertools
 import os
 import tempfile
@@ -21,16 +20,12 @@ from backend.auth import hash_password
 from backend.database import AsyncSessionLocal
 from backend.main import app
 from backend.models import (Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample,
-                            SampleShare, User)
+                            SampleShare, Team, TeamMember, User)
 from sqlalchemy import select
+from tests.loop import run
 
 PASSWORD = "pw"
-_loop = asyncio.new_event_loop()
 _n = itertools.count(1)
-
-
-def run(coro):
-    return _loop.run_until_complete(coro)
 
 
 @pytest.fixture(scope="session")
@@ -101,6 +96,19 @@ class World:
                     attachment_id = att.id
                 await db.commit()
                 return entry.id, attachment_id
+        return run(make())
+
+    def team(self, name: str, members=(), coordinators=()) -> Team:
+        n = next(_n)
+
+        async def make():
+            async with AsyncSessionLocal() as db:
+                t = Team(name=f"{name}{n}")
+                t.members = ([TeamMember(user_id=u.id) for u in members]
+                             + [TeamMember(user_id=u.id, is_coordinator=True) for u in coordinators])
+                db.add(t)
+                await db.commit()
+                return t
         return run(make())
 
     def client(self, user: User | None) -> TestClient:

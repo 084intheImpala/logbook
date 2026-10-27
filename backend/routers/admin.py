@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from backend.database import get_db
-from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User
+from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User, Team
 from backend.params import validate_schema, with_equipment
 from backend.auth import require_login, hash_password
 from backend.email_utils import send_welcome_email, send_admin_message
@@ -55,6 +55,7 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
     step_types = (await db.execute(select(ProcessStepType).order_by(ProcessStepType.name))).scalars().all()
     analysis_types = (await db.execute(select(AnalysisType).order_by(AnalysisType.name))).scalars().all()
     users = (await db.execute(select(User).order_by(User.username))).scalars().all()
+    teams = (await db.execute(select(Team).order_by(Team.name))).scalars().all()
     step_usage = dict((await db.execute(
         select(ProcessStep.step_type_id, func.count()).group_by(ProcessStep.step_type_id))).all())
     analysis_usage = dict((await db.execute(
@@ -69,6 +70,7 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
         "step_types": step_types,
         "analysis_types": analysis_types,
         "users": users,
+        "teams": teams,
         "step_usage": step_usage,
         "analysis_usage": analysis_usage,
         "current_user": admin,

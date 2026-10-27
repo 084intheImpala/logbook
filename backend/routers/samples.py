@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
 from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
-                            Substrate, Project, User, SAMPLE_TYPES)
+                            Substrate, Project, User, SAMPLE_TYPES, VISIBILITY)
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
 from backend.utils import save_upload, chosen_files
@@ -108,6 +108,7 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "editing": editing,
         "error": error,
         "sample_types": SAMPLE_TYPES,
+        "visibilities": VISIBILITY,
         "substrates": (await db.execute(select(Substrate).order_by(Substrate.material, Substrate.name))).scalars().all(),
         "projects": (await db.execute(select(Project).order_by(Project.name))).scalars().all(),
         "spec_files": await _attachments_for(db, "sample", [sample.id]) if editing else {},
@@ -191,6 +192,7 @@ async def create_sample(
     description: str = Form(""),
     tags: str = Form(""),
     owner_id: str = Form(""),
+    visibility: str = Form("personal"),
     files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
@@ -214,6 +216,7 @@ async def create_sample(
         sample = Sample()
         _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                                          external_id, supplier, description, tags))
+        sample.visibility = visibility if visibility in VISIBILITY else "personal"
         if user_id:
             pending = _hand_over(sample, user_id, by_id, by_admin)
         return sample
@@ -354,6 +357,7 @@ async def sample_detail(
         "can_view": viewable,
         "can_edit": can_edit(current_user, sample),
         "is_owner": owner,
+        "visibilities": VISIBILITY,
         "share_candidates": await _share_candidates(db, sample) if owner else [],
         "owner_user": (await db.get(User, sample.owner_id)) if sample.owner_id else None,
         "flash": request.session.pop("flash", None),
@@ -632,6 +636,7 @@ async def cut_sample(
             owner_id=owner_id,
             cut_step_id=cut.id,
             is_reference=is_ref,
+            visibility=parent.visibility,
         )
         piece.shares = [SampleShare(user_id=sh.user_id, can_edit=sh.can_edit) for sh in parent.shares]
         target = users.get(int(piece_owner))
@@ -717,6 +722,21 @@ async def add_share(
     if not await db.get(User, user_id):
         raise HTTPException(status_code=404, detail="User not found")
     _set_share(sample, user_id, access == "edit")
+    await db.commit()
+    return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
+
+
+@router.post("/{sample_id}/visibility")
+async def set_visibility(
+    sample_id: int,
+    visibility: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    sample = await load_sample(db, sample_id, current_user, "owner")
+    if visibility not in VISIBILITY:
+        raise HTTPException(status_code=400, detail="Unknown visibility")
+    sample.visibility = visibility
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
 

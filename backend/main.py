@@ -7,7 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.migrate import migrate
-from backend.routers import samples, steps, analyses, files, admin, search, substrates, suggestions, projects
+from backend.routers import samples, steps, analyses, files, admin, search, substrates, suggestions, projects, teams
 from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException, RequiresProfileException
 from backend.seed import seed_types
@@ -53,6 +53,7 @@ app.include_router(samples.router, prefix="/samples", tags=["samples"])
 app.include_router(steps.router, prefix="/samples", tags=["steps"])
 app.include_router(analyses.router, prefix="/samples", tags=["analyses"])
 app.include_router(files.router)
+app.include_router(teams.router)   # before admin: admin's /{kind}/new would catch /admin/teams/new
 app.include_router(admin.router)
 
 

@@ -22,13 +22,47 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     samples: Mapped[list["Sample"]] = relationship("Sample", back_populates="owner", foreign_keys="Sample.owner_id")
+    # Always loaded: sample permissions depend on the teams of the viewer and of the owner.
+    memberships: Mapped[list["TeamMember"]] = relationship(
+        "TeamMember", back_populates="user", lazy="selectin", cascade="all, delete-orphan")
 
     @property
     def display_name(self) -> str:
         return self.name or self.username
 
 
+class Team(Base):
+    """A group inside the lab. Its coordinators can see all of its members' samples."""
+    __tablename__ = "teams"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    members: Mapped[list["TeamMember"]] = relationship(
+        "TeamMember", back_populates="team", lazy="selectin", cascade="all, delete-orphan")
+
+
+class TeamMember(Base):
+    """A user in a team. People normally belong to one team, but nothing here stops them being in several."""
+    __tablename__ = "team_members"
+    __table_args__ = (UniqueConstraint("team_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    is_coordinator: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+
+    team: Mapped["Team"] = relationship("Team", back_populates="members")
+    user: Mapped["User"] = relationship("User", back_populates="memberships", lazy="selectin")
+
+
 SAMPLE_TYPES = {"thin_film": "Thin film", "bulk": "Bulk", "commercial": "Commercial", "collaboration": "Collaboration"}
+# Who can see a sample's details (everyone logged in always sees its summary):
+# personal: its owner and the people it is shared with; team: also the owner's
+# team; public: everyone logged in. Coordinators of the owner's team see all of
+# their members' samples whatever the setting.
+VISIBILITY = {"personal": "Personal", "team": "Team", "public": "Public"}
 POLISHING = {"single": "Single side", "double": "Double side", "none": "Unpolished"}
 
 
@@ -103,6 +137,7 @@ class Sample(Base):
     cut_step_id: Mapped[int | None] = mapped_column(
         ForeignKey("process_steps.id", use_alter=True, name="fk_samples_cut_step_id"), index=True)
     is_reference: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    visibility: Mapped[str] = mapped_column(String(10), default="personal", server_default="personal", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     owner: Mapped["User | None"] = relationship(

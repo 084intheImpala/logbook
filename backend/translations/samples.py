@@ -1,4 +1,13 @@
 PT = {
+    # visibility and teams
+    "Personal": "Pessoal",
+    "Team": "Equipa",
+    "Public": "Público",
+    "Who can see the details": "Quem pode ver os detalhes",
+    "Personal: you and the people you share it with. Team: also your team. Public: everyone logged in. Everyone always sees the summary. You can change this later under Sharing.":
+        "Pessoal: você e as pessoas com quem partilhar. Equipa: também a sua equipa. Público: todos os utilizadores. Todos veem sempre o resumo. Pode alterar mais tarde em Partilha.",
+    "Personal: you and the people listed below. Team: also everyone in your team. Public: everyone logged in. Coordinators of your team and admins can always see it. Everyone sees the summary (ID, type, materials, tags).":
+        "Pessoal: você e as pessoas listadas abaixo. Equipa: também todos os da sua equipa. Público: todos os utilizadores. Os coordenadores da sua equipa e os administradores veem sempre. Todos veem o resumo (ID, tipo, materiais, etiquetas).",
     # sample ID change (admin)
     "Change the sample ID": "Alterar o ID da amostra",
     "admin only": "só administradores",
