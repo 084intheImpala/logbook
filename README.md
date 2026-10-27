@@ -280,10 +280,60 @@ Mandatory: the substrate for thin-film and bulk samples, the description and
 spec sheet for commercial ones, and the type of each step/analysis. `required` in
 a type's schema is a hint shown on the form, not enforced.
 
-The tables are created on first start from `backend/models.py`. There are no
-migrations: after changing a model, recreate the database
-(`docker compose down -v`, then `docker compose up -d`), which deletes all
-data. Add migrations (e.g. Alembic) before the logbook holds real data.
+The tables are created and kept up to date by migrations that run when the
+app starts; see [Schema changes (migrations)](#schema-changes-migrations).
+Never recreate the database to apply a model change.
+
+### The `sample.json` file
+
+`uploads/<sample ID>/sample.json` is plain JSON, written with UTF-8 and
+indented, so it can be read without the app. Top level:
+
+| Key | Meaning |
+|---|---|
+| `format` | Version of this layout (currently 2: adds `visibility`, `previous_codes` and per-entry `status`/`proposed_by`; older files lack them). |
+| `written_at` | When the file was last written. |
+| `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
+| `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk`, `commercial` or `collaboration`; `visibility` is `personal`, `team` or `public`. |
+| `owner`, `requested_by` | `{username, name, initials}` or `null`. |
+| `shared_with` | List of `{username, name, initials, can_edit}`. |
+| `substrate`, `project` | The library substrate / collaboration project it refers to, copied in full (`null` if none). |
+| `cut_from` | For a piece: `{sample, cut_step_id, cut_position}`: the parent's ID and where on its timeline the Cut step is. The piece inherits everything before that position; those entries are in the parent's file, not repeated here. |
+| `files` | Files attached to the sample itself (e.g. a spec sheet). |
+| `timeline` | The sample's own steps and analyses, in order. |
+
+Each `timeline` entry has `id`, `kind` (`step` or `analysis`), `type` (the
+technique, e.g. `Annealing`), `position`, `performed_at` (a date), `location`,
+`performed_by` (`{username, name, initials}` for a user, `{name}` for someone
+without an account, or `null`), `notes`, `run_id` (entries added to several
+samples at once share it), `status` (`approved`, or `pending` for an entry a
+teammate proposed that the owner hasn't approved), `proposed_by`, `created_at`,
+`files` (`file` is the path under `uploads/`, plus `original_name`, `size`,
+`mime_type`, `uploaded_by`, `uploaded_at`) and **`parameters`**.
+
+`parameters` is an object keyed by the field keys of the entry's type (see
+[Steps and analyses: parameters](#steps-and-analyses-parameters)): numbers as
+numbers, text as text, durations as `"min:ss"`. A *variant* (e.g. Annealing's
+Furnace/RTA) stores the chosen value under its key and the chosen option's
+fields next to it; a ticked *check* stores `true` and its fields next to it; a
+*modes* field (e.g. XRD) stores `{mode: {sub-key: value}}`. Keys the type no
+longer has stay as they were. Example, trimmed:
+
+```json
+{
+  "format": 2, "code": "ASS-2026-001", "visibility": "personal",
+  "owner": {"username": "ana", "name": "Ana Silva", "initials": "ASS"},
+  "substrate": {"name": "Si 100", "material": "Si", "orientation": "(100)", "thickness_um": 525.0, "batch_no": null},
+  "timeline": [
+    {"id": 1, "kind": "step", "type": "Annealing", "position": 0, "performed_at": "2026-10-22",
+     "location": "INESC MN", "performed_by": {"username": "ana", "name": "Ana Silva", "initials": "ASS"},
+     "parameters": {"method": "Furnace", "temperature": 800, "duration": 60}, "status": "approved", "files": []},
+    {"id": 1, "kind": "analysis", "type": "XRD / HRXRD", "position": 1, "performed_at": "2026-10-23",
+     "performed_by": {"name": "Rui (visitor)"}, "parameters": {"mode": "2θ/ω"}, "status": "approved",
+     "files": [{"file": "ASS-2026-001/2026-10-23_XRD-HRXRD/scan01.raw", "original_name": "scan01.raw", "size": 1000}]}
+  ]
+}
+```
 
 ## Cutting a sample into pieces
 

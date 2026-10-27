@@ -30,7 +30,7 @@ from backend.utils import _safe
 log = logging.getLogger("uvicorn.error")
 
 FILE_NAME = "sample.json"
-FORMAT = 1
+FORMAT = 2   # 2: adds visibility, previous_codes, and status / proposed_by on entries
 
 # What changed since the last write: ("sample" | "step" | "analysis", id), or
 # ("gone", folder) for a deleted sample. Filled as the database is changed.
@@ -77,6 +77,8 @@ def _entry(kind: str, entry, type_name: str, attachments: dict) -> dict:
         "performed_at": entry.performed_at, "location": entry.location,
         "performed_by": _person(entry.performer) or ({"name": entry.performed_by} if entry.performed_by else None),
         "parameters": entry.parameters, "notes": entry.notes, "run_id": entry.run_id,
+        # "pending" entries were proposed by a teammate and aren't approved yet
+        "status": entry.status, "proposed_by": _person(entry.proposer),
         "created_at": entry.created_at,
         "files": [_attachment(a) for a in attachments.get((kind, entry.id), [])],
     }
@@ -91,7 +93,7 @@ def _document(sample: Sample, parent: tuple | None, attachments: dict) -> dict:
         "format": FORMAT,
         "written_at": datetime.now().replace(microsecond=0),
         "id": sample.id, "code": sample.code, "previous_codes": sample.previous_codes, "label": sample.label, "sample_type": sample.sample_type,
-        "is_reference": sample.is_reference, "tags": sample.tags, "description": sample.description,
+        "is_reference": sample.is_reference, "visibility": sample.visibility, "tags": sample.tags, "description": sample.description,
         "film_material": sample.film_material, "substrate_dimensions": sample.substrate_dimensions,
         "external_id": sample.external_id, "supplier": sample.supplier, "created_at": sample.created_at,
         "owner": _person(sample.owner), "requested_by": _person(sample.requested_by),

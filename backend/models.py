@@ -233,6 +233,7 @@ class ProcessStep(Base):
     sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps", foreign_keys=[sample_id])
     step_type: Mapped["ProcessStepType"] = relationship("ProcessStepType", back_populates="steps")
     performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
+    proposer: Mapped["User | None"] = relationship("User", foreign_keys=[proposed_by_id], lazy="selectin")
 
     @property
     def performer_name(self) -> str | None:
@@ -278,6 +279,7 @@ class Analysis(Base):
     sample: Mapped["Sample"] = relationship("Sample", back_populates="analyses")
     analysis_type: Mapped["AnalysisType"] = relationship("AnalysisType", back_populates="analyses")
     performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
+    proposer: Mapped["User | None"] = relationship("User", foreign_keys=[proposed_by_id], lazy="selectin")
 
     @property
     def performer_name(self) -> str | None:

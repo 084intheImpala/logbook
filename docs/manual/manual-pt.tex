@@ -706,6 +706,32 @@ arranca (ou a pedido: \texttt{docker compose exec app python -m backend.sample\_
 os tipos de entrada, os valores das listas e as sugestões não estão lá: a
 cópia da base de dados continua a ser a cópia de segurança principal.
 
+\subsubsection*{Estrutura do \texttt{sample.json}}
+
+O ficheiro é JSON simples (UTF-8), legível sem a aplicação. No topo:
+\texttt{format} (versão do formato, atualmente 2), \texttt{written\_at},
+\texttt{code} (o ID) e \texttt{previous\_codes} (IDs anteriores), os dados da
+amostra (\texttt{label}, \texttt{sample\_type}, \texttt{visibility},
+\texttt{tags}, \texttt{description}, \texttt{film\_material}, \ldots),
+\texttt{owner} e \texttt{shared\_with} (com \texttt{can\_edit}),
+\texttt{substrate} e \texttt{project} (copiados por inteiro),
+\texttt{cut\_from} (nas peças: a amostra de origem e a posição do corte; o que
+vem antes do corte está no ficheiro dessa amostra), \texttt{files} (ficheiros
+da própria amostra) e \texttt{timeline}, a lista ordenada dos passos e
+análises da amostra.
+
+Cada entrada de \texttt{timeline} tem \texttt{kind} (\texttt{step} ou
+\texttt{analysis}), \texttt{type} (a técnica), \texttt{position},
+\texttt{performed\_at}, \texttt{location}, \texttt{performed\_by},
+\texttt{notes}, \texttt{status} (\texttt{approved}, ou \texttt{pending} se foi
+proposta por um colega e ainda não aprovada), \texttt{files} (o caminho em
+\texttt{uploads/}, o nome original, etc.) e \texttt{parameters}: um objeto com
+uma chave por campo do tipo de entrada, com números como números e texto como
+texto. Num campo de escolha entre variantes (por exemplo Forno/RTA em
+Recozimento) guarda-se o valor escolhido e, a seguir, os campos dessa
+variante; num campo com caixa de seleção guarda-se \texttt{true} e os seus
+campos; nos modos de XRD guarda-se \texttt{\{modo: \{campo: valor\}\}}.
+
 \subsection{Windows 10}
 
 O Windows 10 não tem rede espelhada (\emph{mirrored}), por isso os outros
