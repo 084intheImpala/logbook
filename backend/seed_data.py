@@ -254,6 +254,11 @@ ANALYSIS_TYPES = [
             text("wavelength_range", "Wavelength range", placeholder="e.g. 250–1700 nm"),
             text("angles", "Angles of incidence", placeholder="e.g. 65, 70, 75°"),
             num("thickness", "Thickness", "nm"),
+            longtext("detector_settings", "Detector settings", placeholder="Gain, integration time, slit width, …"),
+            check("reference", "Reference taken", [
+                longtext("reference_details", "Reference details",
+                         placeholder="What was used as reference (air, bare substrate, …) and when it was taken"),
+            ]),
             longtext("model", "Optical model", placeholder="Layers, dispersion models, fitted parameters, MSE, …"),
         ],
     },

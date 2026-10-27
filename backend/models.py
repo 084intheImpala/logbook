@@ -44,6 +44,7 @@ class Substrate(Base):
     polishing: Mapped[str | None] = mapped_column(String(20))   # key of POLISHING
     size: Mapped[str | None] = mapped_column(String(100))       # e.g. 2-inch wafer
     supplier: Mapped[str | None] = mapped_column(String(120))
+    batch_no: Mapped[str | None] = mapped_column(String(100))   # the supplier's batch / lot number
     notes: Mapped[str | None] = mapped_column(Text)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -50,6 +50,8 @@ PT = {
     "Polishing": "Polimento",
     "Size": "Dimensões",
     "Supplier": "Fornecedor",
+    "Batch no.": "N.º de lote",
+    "Batch or lot number from the supplier": "Número de lote do fornecedor",
     "Specs": "Fichas técnicas",
     "Samples": "Amostras",
     "No substrates yet. Add the ones your group uses so samples can refer to them.":

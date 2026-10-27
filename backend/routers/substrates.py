@@ -47,7 +47,7 @@ def _parse_float(text: str) -> float | None:
         return None
 
 
-def _apply_form(substrate: Substrate, name, material, orientation, thickness_um, polishing, size, supplier, notes):
+def _apply_form(substrate: Substrate, name, material, orientation, thickness_um, polishing, size, supplier, batch_no, notes):
     substrate.name = name.strip()
     substrate.material = material.strip()
     substrate.orientation = orientation.strip() or None
@@ -55,6 +55,7 @@ def _apply_form(substrate: Substrate, name, material, orientation, thickness_um,
     substrate.polishing = polishing if polishing in POLISHING else None
     substrate.size = size.strip() or None
     substrate.supplier = supplier.strip() or None
+    substrate.batch_no = batch_no.strip() or None
     substrate.notes = notes.strip() or None
 
 
@@ -96,13 +97,14 @@ async def create_substrate(
     polishing: str = Form(""),
     size: str = Form(""),
     supplier: str = Form(""),
+    batch_no: str = Form(""),
     notes: str = Form(""),
     files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_login),
 ):
     substrate = Substrate(created_by_id=current_user.id)
-    _apply_form(substrate, name, material, orientation, thickness_um, polishing, size, supplier, notes)
+    _apply_form(substrate, name, material, orientation, thickness_um, polishing, size, supplier, batch_no, notes)
     db.add(substrate)
     await db.flush()
     files = chosen_files(files)
@@ -137,6 +139,7 @@ async def update_substrate(
     polishing: str = Form(""),
     size: str = Form(""),
     supplier: str = Form(""),
+    batch_no: str = Form(""),
     notes: str = Form(""),
     files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
@@ -145,7 +148,7 @@ async def update_substrate(
     substrate = await _get(db, substrate_id)
     if not can_edit_substrate(current_user, substrate):
         raise HTTPException(status_code=403, detail="Only the person who added this substrate, or an admin, can edit it.")
-    _apply_form(substrate, name, material, orientation, thickness_um, polishing, size, supplier, notes)
+    _apply_form(substrate, name, material, orientation, thickness_um, polishing, size, supplier, batch_no, notes)
     files = chosen_files(files)
     for f in files:
         await save_upload(f, "substrate", substrate.id, db, uploaded_by=current_user.username)

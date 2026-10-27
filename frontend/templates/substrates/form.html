@@ -57,9 +57,16 @@
                  placeholder="{{ _("e.g. 2-inch wafer, 10×10 mm") }}" class="{{ input_cls }}">
         </div>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Supplier") }}</label>
-        <input name="supplier" value="{{ substrate.supplier or '' if substrate else '' }}" class="{{ input_cls }}">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Supplier") }}</label>
+          <input name="supplier" value="{{ substrate.supplier or '' if substrate else '' }}" class="{{ input_cls }}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Batch no.") }}</label>
+          <input name="batch_no" value="{{ substrate.batch_no or '' if substrate else '' }}"
+                 placeholder="{{ _("Batch or lot number from the supplier") }}" class="{{ input_cls }}">
+        </div>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Notes") }}</label>

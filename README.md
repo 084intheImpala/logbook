@@ -171,7 +171,7 @@ admin can change their initials (Configurations → Users).
 ### Substrate library
 
 The **Substrates** tab lists the substrates samples are made from, with
-thickness, orientation, polishing, size, supplier, notes and spec files
+thickness, orientation, polishing, size, supplier, batch number, notes and spec files
 (PDF or photos). Anyone can add one; whoever added it and admins can edit
 it. A substrate used by any sample can't be deleted.
 

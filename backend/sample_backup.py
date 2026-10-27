@@ -99,7 +99,7 @@ def _document(sample: Sample, parent: tuple | None, attachments: dict) -> dict:
         "substrate": None if sub is None else {
             "name": sub.name, "material": sub.material, "orientation": sub.orientation,
             "thickness_um": sub.thickness_um, "polishing": sub.polishing, "size": sub.size,
-            "supplier": sub.supplier, "notes": sub.notes},
+            "supplier": sub.supplier, "batch_no": sub.batch_no, "notes": sub.notes},
         "project": None if project is None else {
             "name": project.name, "code": project.code, "institution": project.institution,
             "country": project.country, "contact_name": project.contact_name,
