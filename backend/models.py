@@ -223,11 +223,16 @@ class ProcessStep(Base):
     # Entries added to several samples at once share a run id
     run_id: Mapped[str | None] = mapped_column(String(32), index=True)
     performed_at: Mapped[date | None] = mapped_column(Date)   # the day only; order within a day is `position`
+    # "pending": proposed by someone in the owner's team, not part of the timeline until
+    # the owner (or a coordinator, after a few days) approves it.
+    status: Mapped[str] = mapped_column(String(10), default="approved", server_default="approved", nullable=False)
+    proposed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    proposed_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps", foreign_keys=[sample_id])
     step_type: Mapped["ProcessStepType"] = relationship("ProcessStepType", back_populates="steps")
-    performer: Mapped["User | None"] = relationship("User", lazy="selectin")
+    performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
 
     @property
     def performer_name(self) -> str | None:
@@ -263,15 +268,41 @@ class Analysis(Base):
     # Entries added to several samples at once share a run id
     run_id: Mapped[str | None] = mapped_column(String(32), index=True)
     performed_at: Mapped[date | None] = mapped_column(Date)   # the day only; order within a day is `position`
+    # "pending": proposed by someone in the owner's team, not part of the timeline until
+    # the owner (or a coordinator, after a few days) approves it.
+    status: Mapped[str] = mapped_column(String(10), default="approved", server_default="approved", nullable=False)
+    proposed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    proposed_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="analyses")
     analysis_type: Mapped["AnalysisType"] = relationship("AnalysisType", back_populates="analyses")
-    performer: Mapped["User | None"] = relationship("User", lazy="selectin")
+    performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
 
     @property
     def performer_name(self) -> str | None:
         return self.performer.display_name if self.performer else self.performed_by
+
+
+class AccessRequest(Base):
+    """Someone asks a sample's owner for view or edit access. The owner decides;
+    a coordinator of the owner's team can too once the owner hasn't answered
+    for a few days (see auth.can_decide)."""
+    __tablename__ = "access_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sample_id: Mapped[int] = mapped_column(ForeignKey("samples.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    level: Mapped[str] = mapped_column(String(10), nullable=False)   # view | edit
+    message: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), default="pending", nullable=False)   # pending | approved | denied
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    decided_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    sample: Mapped["Sample"] = relationship("Sample", lazy="selectin")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], lazy="selectin")
+    decided_by: Mapped["User | None"] = relationship("User", foreign_keys=[decided_by_id], lazy="selectin")
 
 
 class Attachment(Base):

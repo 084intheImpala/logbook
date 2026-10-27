@@ -9,6 +9,7 @@ has its own file field, for its own data.
 """
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -16,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
 
+from backend import approvals
 from backend.auth import can_edit, can_edit_entry, can_view
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, remember
 from backend.config import settings
@@ -179,6 +181,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         newly = await apply_performer(db, target, performer, performed_by)
         if performed_at != target.performed_at or target.position is None:
             target.performed_at = performed_at
+            if target.status == "pending":   # not on the timeline until approved
+                return newly
             if performed_at or target.position is None:  # re-dated or new: slot it by date
                 await db.flush()
                 await place_new(db, target)
@@ -196,10 +200,15 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
                      if can_edit(user, s)] if others else []
 
     is_new = entry is None
+    proposing = is_new and not can_edit(user, sample)   # a teammate's entry waits for the owner
+    if proposing:
+        extra_samples = []
     # Samples getting a new copy now (they may have their own values)
     new_sample_ids = {s.id for s in extra_samples} | ({sample.id} if is_new else set())
     if is_new:
         entry = kind.model(sample_id=sample.id)
+        if proposing:
+            entry.status, entry.proposed_by_id, entry.proposed_at = "pending", user.id, datetime.utcnow()
         db.add(entry)
         tell(await apply(entry), sample)   # fills it in, then flushes and slots it into the timeline
         members = [(entry, sample)]
@@ -233,9 +242,13 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
 
     await remember(db, picked, user.id, location, located_lists(entry_type.parameter_schema))
     await db.commit()
-    for performer_user, samples in newly_told.values():
-        await tell_performer(request, performer_user, user, samples, entry_type.name)
-    return RedirectResponse(f"/samples/{sample.id}#{kind.name}-{entry.id}", status_code=303)
+    if proposing:
+        await approvals.tell_owner_of_proposal(request, sample, user, entry_type.name)
+    else:
+        for performer_user, samples in newly_told.values():
+            await tell_performer(request, performer_user, user, samples, entry_type.name)
+    anchor = "pending" if entry.status == "pending" else f"{kind.name}-{entry.id}"
+    return RedirectResponse(f"/samples/{sample.id}#{anchor}", status_code=303)
 
 
 # ── Warning before overwriting the other samples of a run ────────────────────

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.models import Sample, ProcessStep, Analysis
-from backend.auth import can_view, is_performer
+from backend.auth import can_view, is_performer, is_proposer
 
 # The step type that cutting records; only the cut form adds it.
 CUT_TYPE_NAME = "Cut"
@@ -34,8 +34,9 @@ def _pos(entry) -> int:
 
 def own_items(sample: Sample) -> list[Item]:
     """The sample's own steps and analyses (types must be loaded), in timeline order."""
-    items = [Item("process", s.step_type.name, s, sample) for s in sample.process_steps]
-    items += [Item("analysis", a.analysis_type.name, a, sample) for a in sample.analyses]
+    # Proposed entries waiting for approval aren't part of the timeline yet
+    items = [Item("process", s.step_type.name, s, sample) for s in sample.process_steps if s.status == "approved"]
+    items += [Item("analysis", a.analysis_type.name, a, sample) for a in sample.analyses if a.status == "approved"]
     return sorted(items, key=lambda i: (_pos(i.entry), i.entry.id))
 
 
@@ -138,6 +139,6 @@ async def can_view_entry(db: AsyncSession, user, sample: Sample, entry) -> bool:
     """Viewing a piece includes its inherited history, so an entry is visible to
     anyone who can view its own sample or a piece that inherits it, and to
     whoever performed it."""
-    if can_view(user, sample) or is_performer(user, entry):
+    if can_view(user, sample) or is_performer(user, entry) or is_proposer(user, entry):
         return True
     return any(can_view(user, p) for p in await pieces_of(db, sample.id, _pos(entry)))

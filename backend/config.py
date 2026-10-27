@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     PHOTO_MAX_MB: float = 2.0
     PHOTO_JPEG_QUALITY: int = 85
     THUMB_PX: int = 480
+    # A coordinator can approve a proposed entry or an access request once the
+    # owner hasn't answered for this many days
+    APPROVAL_ESCALATION_DAYS: int = 7
     APP_TITLE: str = "Thin Film Logbook"
     SECRET_KEY: str = "change-me-in-production-use-a-long-random-string"
     BASE_URL: str = "http://localhost:8000"  # override in production

@@ -344,7 +344,8 @@ A team is a group inside the lab (separate from [Projects](#projects), which
 are outside collaborators). Admins manage them under *Configurations → Teams*:
 create a team, add members, and mark one or more as **coordinators**. A
 coordinator can see (not edit) the details of every sample owned by a member
-of their team, whatever its visibility. People normally belong to one team;
+of their team, whatever its visibility. To change one they request edit access
+(below). People normally belong to one team;
 the data model allows several.
 
 ### What a share gives
@@ -360,6 +361,35 @@ is **View** (read details and download files) or **Edit** (also add and
 change steps, analyses and files). Only the owner or an admin can delete a
 sample or change who it's shared with. Samples without an owner are open to
 everyone; admins can assign an owner from the sample's Edit form.
+
+### Proposing entries on a teammate's sample
+
+Anyone in the owner's team can **propose** a process step or analysis on the
+owner's sample (the *Propose* buttons on its page), even without view or edit
+access. The proposal stays out of the timeline, exports, search and the
+inherited history of pieces until it is approved, and the owner is emailed.
+The author sees and can change or withdraw their own proposal meanwhile.
+
+- The **owner** (or an admin) approves or declines it from the
+  *Approvals* page, or on the sample. Declining deletes the proposal and its
+  files and tells the author.
+- If the owner hasn't answered after `APPROVAL_ESCALATION_DAYS` (7 by
+  default, set in `.env`), a **coordinator** of the owner's team can approve
+  or decline it too. This is how a sample whose owner is away isn't stuck;
+  there is no separate "inactive" flag.
+- Approving puts the entry on the timeline (by its date, or last) and emails
+  the author.
+
+### Requesting access
+
+On a sample you can't see or edit, **Request access** asks the owner for
+*See the details* or *Edit*, with an optional message. The owner is emailed
+and answers on the *Approvals* page; approving creates the share (View or
+Edit) and the requester is told. As with proposals, a coordinator of the
+owner's team can answer after the same waiting time, so a coordinator who
+asks to edit a member's sample can accept their own request if the owner
+doesn't respond. Requesters can withdraw a pending request. The sidebar shows
+how many things are waiting for you.
 
 ### Who performed a step or analysis
 

@@ -216,6 +216,62 @@
 <div class="mb-6 text-xs text-gray-500">{{ _("This sample has no owner, so everyone can see and edit it.") }}{% if current_user.is_admin %} {{ _("Assign an owner from") }} <a href="/samples/{{ sample.id }}/edit" class="text-blue-600 hover:underline">{{ _("Edit") }}</a>.{% endif %}</div>
 {% endif %}
 
+<!-- Teammates propose; others can ask for access -->
+{% if can_propose %}
+<div class="flex flex-wrap items-center gap-3 mb-6 text-sm">
+  <a href="/samples/{{ sample.id }}/steps/new" class="inline-flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm">+ {{ _("Propose a process step") }}</a>
+  <a href="/samples/{{ sample.id }}/analyses/new" class="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 shadow-sm">+ {{ _("Propose an analysis") }}</a>
+  <span class="text-xs text-gray-500">{{ _("Your entry is added once the owner approves it.") }}</span>
+</div>
+{% endif %}
+{% if sample.owner_id and not is_owner and (not can_view or not can_edit) %}
+<details class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+  <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">
+    {{ _("Request access") }}
+    {% if my_requests %}<span class="font-normal text-gray-400">· {{ _("pending") }}</span>{% endif %}
+  </summary>
+  <form method="post" action="/samples/{{ sample.id }}/request-access" class="px-4 pb-4 space-y-3 text-sm">
+    <div class="flex items-center gap-3">
+      <select name="level" class="border border-gray-300 rounded px-2 py-1 bg-white">
+        {% if not can_view %}<option value="view">{{ _("See the details") }}</option>{% endif %}
+        <option value="edit">{{ _("Edit") }}</option>
+      </select>
+      <input name="message" placeholder="{{ _("Why? (optional)") }}" class="flex-1 border border-gray-300 rounded px-2 py-1">
+      <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Send request") }}</button>
+    </div>
+    <p class="text-xs text-gray-400">{{ _("The owner is emailed. If they don't answer, a coordinator of their team can approve it after a few days.") }}</p>
+  </form>
+</details>
+{% endif %}
+
+<!-- Entries waiting for approval -->
+{% if pending %}
+<section id="pending" class="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-4">
+  <h2 class="text-sm font-semibold text-amber-800 mb-2">{{ _("Waiting for approval") }}</h2>
+  <ul class="space-y-2 text-sm">
+    {% for p in pending %}
+    <li class="bg-white rounded-lg border border-amber-100 px-3 py-2 flex items-start justify-between gap-3">
+      <div>
+        <span class="font-semibold">{{ p.type_name }}</span>
+        <span class="text-gray-500">· {{ _("proposed by") }} {{ p.proposer.display_name if p.proposer else "—" }}</span>
+        {% if p.entry.notes and (can_view or p.mine) %}<div class="text-xs text-gray-500 whitespace-pre-line mt-0.5">{{ p.entry.notes }}</div>{% endif %}
+      </div>
+      <div class="flex items-center gap-3 shrink-0 text-xs">
+        {% if p.mine or p.can_decide %}<a href="/samples/{{ sample.id }}/{{ p.path }}/{{ p.entry.id }}/edit" class="text-blue-600 hover:underline">{{ _("Edit") }}</a>{% endif %}
+        {% if p.can_decide %}
+        <form method="post" action="/approvals/entries/{{ p.kind }}/{{ p.entry.id }}/approve?back=/samples/{{ sample.id }}"><button class="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Approve") }}</button></form>
+        {% endif %}
+        {% if p.can_decide or p.mine %}
+        <form method="post" action="/approvals/entries/{{ p.kind }}/{{ p.entry.id }}/reject?back=/samples/{{ sample.id }}"
+              onsubmit='return confirm({{ _("Decline this proposal? It is deleted and the author is told.")|tojson }})'><button class="text-red-600 hover:underline">{{ _("Withdraw") if p.mine and not p.can_decide else _("Decline") }}</button></form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <!-- Add buttons -->
 {% if can_edit %}
 <div class="flex gap-3 mb-8">

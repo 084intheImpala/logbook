@@ -91,6 +91,11 @@
           {{ _("Samples") }}
           {% if current_user and current_user.pending_badge %}<span class="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-bold flex items-center justify-center" title="{{ _('Samples assigned to you, waiting for your confirmation') }}">{{ current_user.pending_badge }}</span>{% endif %}
         </a>
+        <a href="/approvals" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/approvals') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          {{ _("Approvals") }}
+          {% if current_user and current_user.approval_badge %}<span class="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-bold flex items-center justify-center" title="{{ _('Waiting for your decision') }}">{{ current_user.approval_badge }}</span>{% endif %}
+        </a>
         <a href="/search" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/search') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
           {{ _("Search") }}

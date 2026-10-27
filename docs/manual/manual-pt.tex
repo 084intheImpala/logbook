@@ -217,6 +217,23 @@ projetos, que são colaboradores externos). Os administradores criam-nas em
 \emph{coordenadores}. Um coordenador vê (mas não edita) os detalhes de todas as
 amostras dos membros da sua equipa, seja qual for a visibilidade.
 
+\paragraph{Propor entradas.} Qualquer pessoa da equipa do responsável pode
+\emph{propor} um passo ou uma análise numa amostra dele (botões \ui{Propor}
+na página da amostra), mesmo sem acesso de leitura ou edição. A proposta fica
+fora da cronologia, das exportações e da pesquisa até ser aprovada, e o
+responsável recebe um email; o autor vê, altera ou retira a sua proposta
+entretanto. O responsável (ou um administrador) aprova ou recusa em
+\menu{Aprovações}. Se não responder em 7 dias (\texttt{APPROVAL\_ESCALATION\_DAYS}),
+um coordenador da equipa pode decidir. Recusar apaga a proposta e avisa o autor.
+
+\paragraph{Pedir acesso.} Numa amostra que não pode ver ou editar,
+\ui{Pedir acesso} pede ao responsável para \ui{Ver os detalhes} ou
+\ui{Editar}, com uma mensagem opcional. O responsável responde em
+\menu{Aprovações}; se aprovar, cria-se a partilha. Passado o mesmo prazo um
+coordenador da equipa também pode responder; assim, um coordenador que peça
+para editar uma amostra de um membro pode aceitar o próprio pedido se o
+responsável não responder.
+
 As amostras sem responsável estão abertas a todos.
 
 %=====================================================================

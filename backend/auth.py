@@ -1,9 +1,11 @@
 """Auth helpers: password hashing, session deps, custom exception."""
+from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
+from backend.config import settings
 from backend.database import get_db
 from backend.models import User, Sample, Suggestion, SuggestionReply
 
@@ -59,6 +61,8 @@ async def require_login(
         raise RequiresLoginException()
     if not user.initials and not request.url.path.startswith(PROFILE_EXEMPT_PATHS):
         raise RequiresProfileException()
+    from backend.approvals import count_to_decide   # imported here: approvals imports this module
+    user.approval_badge = await count_to_decide(db, user)
     user.suggestion_badge = await _suggestion_badge(db, user)
     user.pending_badge = (await db.execute(
         select(func.count()).select_from(Sample)
@@ -135,6 +139,31 @@ def can_edit(user: User | None, sample) -> bool:
     return bool(share and share.can_edit)
 
 
+def can_propose(user: User | None, sample) -> bool:
+    """Someone in the owner's team, without edit access, may propose an entry for the owner to approve."""
+    return (user is not None and sample.owner_id is not None and not can_edit(user, sample)
+            and in_owners_team(user, sample))
+
+
+def is_proposer(user: User | None, entry) -> bool:
+    """The author of an entry still waiting for approval can see and change it."""
+    return user is not None and entry.status == "pending" and entry.proposed_by_id == user.id
+
+
+def waited_long_enough(since: datetime | None) -> bool:
+    return since is not None and datetime.utcnow() - since >= timedelta(days=settings.APPROVAL_ESCALATION_DAYS)
+
+
+def can_decide(user: User | None, sample, since: datetime | None) -> bool:
+    """Approve a proposed entry or access request made at `since`: the owner (or
+    an admin) at any time; a coordinator of the owner's team once the owner
+    hasn't answered for APPROVAL_ESCALATION_DAYS."""
+    if user is None or sample.owner_id is None:
+        return False
+    return (user.is_admin or sample.owner_id == user.id
+            or (is_coordinator_of(user, sample) and waited_long_enough(since)))
+
+
 def is_performer(user: User | None, entry) -> bool:
     """Whoever is recorded as having performed a step or analysis can see and
     edit that entry (and its files), even without access to the sample."""
@@ -142,10 +171,11 @@ def is_performer(user: User | None, entry) -> bool:
 
 
 def can_edit_entry(user: User | None, sample, entry) -> bool:
-    return can_edit(user, sample) or is_performer(user, entry)
+    return can_edit(user, sample) or is_performer(user, entry) or is_proposer(user, entry)
 
 
-_CHECKS = {"summary": lambda u, s: True, "view": can_view, "edit": can_edit, "owner": is_owner}
+_CHECKS = {"summary": lambda u, s: True, "view": can_view, "edit": can_edit, "owner": is_owner,
+           "propose": lambda u, s: can_edit(u, s) or can_propose(u, s)}
 
 
 async def load_sample(db: AsyncSession, sample_id: int, user: User | None, need: str = "view"):

@@ -12,8 +12,11 @@ from backend.models import ProcessStep, Analysis
 
 
 async def ordered_entries(db: AsyncSession, sample_id: int) -> list:
-    steps = (await db.execute(select(ProcessStep).where(ProcessStep.sample_id == sample_id))).scalars().all()
-    analyses = (await db.execute(select(Analysis).where(Analysis.sample_id == sample_id))).scalars().all()
+    # Entries waiting for approval have no place on the timeline yet
+    steps = (await db.execute(select(ProcessStep).where(
+        ProcessStep.sample_id == sample_id, ProcessStep.status == "approved"))).scalars().all()
+    analyses = (await db.execute(select(Analysis).where(
+        Analysis.sample_id == sample_id, Analysis.status == "approved"))).scalars().all()
     # A just-added entry has no position until place_new gives it one; it goes last.
     big = 1 << 30
     return sorted(

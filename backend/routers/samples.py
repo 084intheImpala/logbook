@@ -8,11 +8,12 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
 from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
-                            Substrate, Project, User, SAMPLE_TYPES, VISIBILITY)
+                            Substrate, Project, User, SAMPLE_TYPES, VISIBILITY, AccessRequest)
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
 from backend.utils import save_upload, chosen_files
-from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry, is_owner, is_performer
+from backend.auth import (require_login, load_sample, can_view, can_edit, can_edit_entry, can_propose, can_decide,
+                          is_owner, is_performer, is_proposer)
 from backend import timeline as tl
 from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_family, pieces_of
 from backend.params import parse_date, describe
@@ -342,6 +343,19 @@ async def sample_detail(
         own_index += not inherited
 
     owner = is_owner(current_user, sample)
+    pending = []
+    for kind, path, entries in (("step", "steps", sample.process_steps), ("analysis", "analyses", sample.analyses)):
+        for e in entries:
+            if e.status != "pending":
+                continue
+            decide = can_decide(current_user, sample, e.proposed_at or e.created_at)
+            if viewable or decide or is_proposer(current_user, e):
+                type_name = (e.step_type if kind == "step" else e.analysis_type).name
+                pending.append(dict(kind=kind, path=path, entry=e, type_name=type_name, mine=is_proposer(current_user, e),
+                                    can_decide=decide, proposer=await db.get(User, e.proposed_by_id or 0)))
+    my_requests = (await db.execute(select(AccessRequest).where(
+        AccessRequest.sample_id == sample_id, AccessRequest.user_id == current_user.id,
+        AccessRequest.status == "pending"))).scalars().all()
     spec_files = (await _attachments_for(db, "sample", [sample_id]))[sample_id] if viewable else []
     return templates.TemplateResponse("samples/detail.html", {
         "spec_files": spec_files,
@@ -357,6 +371,9 @@ async def sample_detail(
         "can_view": viewable,
         "can_edit": can_edit(current_user, sample),
         "is_owner": owner,
+        "can_propose": can_propose(current_user, sample),
+        "pending": pending,
+        "my_requests": my_requests,
         "visibilities": VISIBILITY,
         "share_candidates": await _share_candidates(db, sample) if owner else [],
         "owner_user": (await db.get(User, sample.owner_id)) if sample.owner_id else None,

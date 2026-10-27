@@ -59,7 +59,8 @@ def test_seeing_is_not_editing(world, lab, who, visibility):
     sample, _ = make(world, lab, visibility)
     c = lab["clients"][who]
     assert c.get(f"/samples/{sample.id}/edit").status_code == 403
-    assert c.get(f"/samples/{sample.id}/steps/new").status_code == 403
+    # teammates can propose an entry (see test_approvals.py); strangers can't
+    assert c.get(f"/samples/{sample.id}/steps/new").status_code == (403 if who == "outsider" else 200)
     assert c.post(f"/samples/{sample.id}/delete").status_code == 403
     assert c.post(f"/samples/{sample.id}/shares", data={"user_id": lab["users"]["mate"].id}).status_code == 403
 
