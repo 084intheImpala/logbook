@@ -517,6 +517,22 @@ On Linux: `ip a` or `hostname -I`.
 
 ---
 
+## Tests
+
+The tests run the real app on a throwaway SQLite database and a temporary
+uploads folder; they never touch Postgres or `uploads/`.
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+`tests/test_permissions.py` pins down who can see and do what with a sample
+(owner, admin, shared view/edit, performer, stranger). Run it before and after
+any change to sharing or access rules.
+
+---
+
 ## Schema changes (migrations)
 
 The database structure is versioned with [Alembic](https://alembic.sqlalchemy.org/).
