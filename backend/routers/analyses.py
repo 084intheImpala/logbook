@@ -16,14 +16,14 @@ router = APIRouter()
 @router.get("/{sample_id}/analyses/new", response_class=HTMLResponse)
 async def new_form(request: Request, sample_id: int, db: AsyncSession = Depends(get_db),
                    current_user=Depends(require_login)):
-    sample = await load_sample(db, sample_id, current_user, "edit")
+    sample = await load_sample(db, sample_id, current_user, "propose")
     return await form_page(request, db, ANALYSIS, sample, None, current_user)
 
 
 @router.post("/{sample_id}/analyses/new")
 async def create(request: Request, sample_id: int, db: AsyncSession = Depends(get_db),
                  current_user=Depends(require_login)):
-    sample = await load_sample(db, sample_id, current_user, "edit")
+    sample = await load_sample(db, sample_id, current_user, "propose")
     return await save(request, db, ANALYSIS, sample, None, current_user)
 
 

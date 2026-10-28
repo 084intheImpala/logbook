@@ -231,6 +231,110 @@ Hello,
     await send_email(to, f"CTN Logbook — {sample.title} recusada por / declined by {decliner}", _bilingual(pt, en))
 
 
+async def send_recoded_email(to: str, admin: str, sample, old_code: str, renamed: dict[str, str]) -> None:
+    """Sent to a sample's owner when an admin changes its ID (and its pieces', if any)."""
+    others = "\n".join(f"  {o} → {n}" for o, n in renamed.items() if o != old_code)
+    extra_pt = f"\nAs peças cortadas desta amostra também foram renomeadas:\n{others}\n" if others else ""
+    extra_en = f"\nThe pieces cut from this sample were renamed too:\n{others}\n" if others else ""
+    pt = f"""\
+Olá,
+
+{admin} alterou o ID de uma das suas amostras no CTN Thin Film Logbook:
+
+  {old_code} → {sample.title}
+{extra_pt}
+Os dados e ficheiros mantêm-se; só o ID mudou. Se tinha o ID antigo apontado noutro lado, atualize-o:
+
+{_sample_lines([sample])}
+"""
+    en = f"""\
+Hello,
+
+{admin} changed the ID of one of your samples in the CTN Thin Film Logbook:
+
+  {old_code} → {sample.title}
+{extra_en}
+The data and files are unchanged; only the ID is different. If you noted the old ID anywhere else, please update it:
+
+{_sample_lines([sample])}
+"""
+    await send_email(to, f"CTN Logbook — ID alterado / ID changed: {old_code} → {sample.title}", _bilingual(pt, en))
+
+
+async def send_proposal_email(to: str, proposer: str, sample, entry_name: str) -> None:
+    """Sent to a sample's owner when a teammate proposes a step or analysis on it."""
+    lines = _sample_lines([sample])
+    pt = f"""\
+Olá,
+
+{proposer} propôs acrescentar "{entry_name}" a uma das suas amostras no CTN Thin Film Logbook. Fica pendente até a aprovar ou rejeitar:
+
+{lines}
+
+Pedidos pendentes: {settings.BASE_URL}/approvals
+"""
+    en = f"""\
+Hello,
+
+{proposer} proposed adding "{entry_name}" to one of your samples in the CTN Thin Film Logbook. It stays pending until you approve or reject it:
+
+{lines}
+
+Pending requests: {settings.BASE_URL}/approvals
+"""
+    await send_email(to, f"CTN Logbook — {sample.title}: proposta de / proposed by {proposer}", _bilingual(pt, en))
+
+
+async def send_access_request_email(to: str, requester: str, sample, level: str, message: str | None) -> None:
+    """Sent to a sample's owner when someone asks for view or edit access."""
+    lines = _sample_lines([sample])
+    what_pt, what_en = ("editar", "edit") if level == "edit" else ("ver os detalhes de", "see the details of")
+    said_pt = f"\nMensagem: {message}\n" if message else ""
+    said_en = f"\nMessage: {message}\n" if message else ""
+    pt = f"""\
+Olá,
+
+{requester} pede para {what_pt} uma das suas amostras no CTN Thin Film Logbook:
+
+{lines}
+{said_pt}
+Aprovar ou recusar: {settings.BASE_URL}/approvals
+"""
+    en = f"""\
+Hello,
+
+{requester} is asking to {what_en} one of your samples in the CTN Thin Film Logbook:
+
+{lines}
+{said_en}
+Approve or decline: {settings.BASE_URL}/approvals
+"""
+    await send_email(to, f"CTN Logbook — {sample.title}: pedido de acesso de / access request from {requester}",
+                     _bilingual(pt, en))
+
+
+async def send_decision_email(to: str, decider: str, sample, what: str, approved: bool) -> None:
+    """Sent to whoever asked for access or proposed an entry, with the answer.
+    `what` is e.g. "edit access" or the entry's type name."""
+    lines = _sample_lines([sample])
+    pt = f"""\
+Olá,
+
+{decider} {'aprovou' if approved else 'recusou'} o seu pedido ("{what}") na amostra:
+
+{lines}
+"""
+    en = f"""\
+Hello,
+
+{decider} {'approved' if approved else 'declined'} your request ("{what}") on the sample:
+
+{lines}
+"""
+    await send_email(to, f"CTN Logbook — {sample.title}: {'aprovado / approved' if approved else 'recusado / declined'}",
+                     _bilingual(pt, en))
+
+
 async def send_performer_email(to: str, giver: str, samples: list, entry_name: str) -> None:
     """Sent when someone records the recipient as having performed a step or
     analysis, on one sample or (a run) several."""

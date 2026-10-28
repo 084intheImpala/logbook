@@ -34,6 +34,9 @@
       {% if sample.is_reference %}<span class="align-middle font-sans bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded">{{ _("Reference") }}</span>{% endif %}
     </h1>
     {% if sample.label %}<div class="text-lg text-gray-600">{{ sample.label }}</div>{% endif %}
+    {% if sample.previous_codes %}
+    <div class="mt-1 text-sm text-gray-500">{{ _("Previously") }}: <span class="font-mono">{{ sample.previous_codes|join(", ") }}</span></div>
+    {% endif %}
     {% if parent %}
     <div class="mt-1 text-sm text-gray-500">
       ✂ {{ _("Cut from") }} <a href="/samples/{{ parent.id }}" class="text-blue-600 hover:underline font-mono">{{ parent.title }}</a>
@@ -165,6 +168,15 @@
     {{ _("Sharing") }} <span class="font-normal text-gray-400">· {{ _("{n} user", n=sample.shares|length) if sample.shares|length == 1 else _("{n} users", n=sample.shares|length) }}</span>
   </summary>
   <div class="px-4 pb-4 space-y-3">
+    <form method="post" action="/samples/{{ sample.id }}/visibility" class="flex items-center gap-2 text-sm">
+      <label class="text-gray-600">{{ _("Who can see the details") }}</label>
+      <select name="visibility" onchange="this.form.submit()" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+        {% for value, label in visibilities.items() %}
+        <option value="{{ value }}" {% if sample.visibility == value %}selected{% endif %}>{{ _(label) }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <p class="text-xs text-gray-400">{{ _("Personal: you and the people listed below. Team: also everyone in your team. Public: everyone logged in. Coordinators of your team and admins can always see it. Everyone sees the summary (ID, type, materials, tags).") }}</p>
     {% if sample.shares %}
     <ul class="divide-y divide-gray-100 text-sm">
       {% for sh in sample.shares %}
@@ -183,8 +195,6 @@
       </li>
       {% endfor %}
     </ul>
-    {% else %}
-    <p class="text-xs text-gray-400">{{ _("Only you and admins can see this sample's details.") }}</p>
     {% endif %}
     {% if share_candidates %}
     <form method="post" action="/samples/{{ sample.id }}/shares" class="flex items-center gap-2">
@@ -204,6 +214,62 @@
 </details>
 {% elif is_owner and not sample.owner_id %}
 <div class="mb-6 text-xs text-gray-500">{{ _("This sample has no owner, so everyone can see and edit it.") }}{% if current_user.is_admin %} {{ _("Assign an owner from") }} <a href="/samples/{{ sample.id }}/edit" class="text-blue-600 hover:underline">{{ _("Edit") }}</a>.{% endif %}</div>
+{% endif %}
+
+<!-- Teammates propose; others can ask for access -->
+{% if can_propose %}
+<div class="flex flex-wrap items-center gap-3 mb-6 text-sm">
+  <a href="/samples/{{ sample.id }}/steps/new" class="inline-flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm">+ {{ _("Propose a process step") }}</a>
+  <a href="/samples/{{ sample.id }}/analyses/new" class="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 shadow-sm">+ {{ _("Propose an analysis") }}</a>
+  <span class="text-xs text-gray-500">{{ _("Your entry is added once the owner approves it.") }}</span>
+</div>
+{% endif %}
+{% if sample.owner_id and not is_owner and (not can_view or not can_edit) %}
+<details class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+  <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">
+    {{ _("Request access") }}
+    {% if my_requests %}<span class="font-normal text-gray-400">· {{ _("pending") }}</span>{% endif %}
+  </summary>
+  <form method="post" action="/samples/{{ sample.id }}/request-access" class="px-4 pb-4 space-y-3 text-sm">
+    <div class="flex items-center gap-3">
+      <select name="level" class="border border-gray-300 rounded px-2 py-1 bg-white">
+        {% if not can_view %}<option value="view">{{ _("See the details") }}</option>{% endif %}
+        <option value="edit">{{ _("Edit") }}</option>
+      </select>
+      <input name="message" placeholder="{{ _("Why? (optional)") }}" class="flex-1 border border-gray-300 rounded px-2 py-1">
+      <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Send request") }}</button>
+    </div>
+    <p class="text-xs text-gray-400">{{ _("The owner is emailed. If they don't answer, a coordinator of their team can approve it after a few days.") }}</p>
+  </form>
+</details>
+{% endif %}
+
+<!-- Entries waiting for approval -->
+{% if pending %}
+<section id="pending" class="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-4">
+  <h2 class="text-sm font-semibold text-amber-800 mb-2">{{ _("Waiting for approval") }}</h2>
+  <ul class="space-y-2 text-sm">
+    {% for p in pending %}
+    <li class="bg-white rounded-lg border border-amber-100 px-3 py-2 flex items-start justify-between gap-3">
+      <div>
+        <span class="font-semibold">{{ p.type_name }}</span>
+        <span class="text-gray-500">· {{ _("proposed by") }} {{ p.proposer.display_name if p.proposer else "—" }}</span>
+        {% if p.entry.notes and (can_view or p.mine) %}<div class="text-xs text-gray-500 whitespace-pre-line mt-0.5">{{ p.entry.notes }}</div>{% endif %}
+      </div>
+      <div class="flex items-center gap-3 shrink-0 text-xs">
+        {% if p.mine or p.can_decide %}<a href="/samples/{{ sample.id }}/{{ p.path }}/{{ p.entry.id }}/edit" class="text-blue-600 hover:underline">{{ _("Edit") }}</a>{% endif %}
+        {% if p.can_decide %}
+        <form method="post" action="/approvals/entries/{{ p.kind }}/{{ p.entry.id }}/approve?back=/samples/{{ sample.id }}"><button class="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Approve") }}</button></form>
+        {% endif %}
+        {% if p.can_decide or p.mine %}
+        <form method="post" action="/approvals/entries/{{ p.kind }}/{{ p.entry.id }}/reject?back=/samples/{{ sample.id }}"
+              onsubmit='return confirm({{ _("Decline this proposal? It is deleted and the author is told.")|tojson }})'><button class="text-red-600 hover:underline">{{ _("Withdraw") if p.mine and not p.can_decide else _("Decline") }}</button></form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
 {% endif %}
 
 <!-- Add buttons -->
@@ -233,6 +299,37 @@
     <button class="text-sm border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50">{{ _("Sort by date") }}</button>
   </form>
   {% endif %}
+</div>
+{% endif %}
+
+<!-- Devices: made when the process is declared done; later steps apply to all of them -->
+{% if sample.devices or can_edit %}
+<div id="devices" class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 text-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="font-medium text-gray-700">{{ _("Devices") }}</span>
+    {% for d in sample.devices %}
+    <span class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-2 py-0.5 rounded-full">
+      {{ d.label }}
+      {% if can_edit %}
+      <form method="post" action="/samples/{{ sample.id }}/devices/{{ d.id }}/delete" class="inline"
+            onsubmit='return confirm({{ _("Remove this device? Its analyses stay on the sample.")|tojson }})'>
+        <button class="text-emerald-400 hover:text-red-600" title="{{ _("Remove") }}">×</button>
+      </form>
+      {% endif %}
+    </span>
+    {% endfor %}
+    {% if can_edit %}
+    <form method="post" action="/samples/{{ sample.id }}/devices" class="inline-flex flex-wrap items-center gap-2 ml-auto">
+      <input name="labels" placeholder="{{ _("D1, D2, … or leave empty for the next") }}"
+             class="border border-gray-300 rounded px-2 py-1 text-xs w-56">
+      <input type="number" name="count" min="1" max="100" placeholder="{{ _("or how many") }}"
+             class="border border-gray-300 rounded px-2 py-1 text-xs w-24">
+      <input type="date" name="performed_at" class="border border-gray-300 rounded px-2 py-1 text-xs">
+      <button class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded hover:bg-emerald-700">{{ _("Process done: make devices") }}</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="text-xs text-gray-400 mt-2">{{ _("Make devices when the process that produces them is done: a 'Devices made' step goes on the timeline. Steps after it, such as annealing, still apply to all the devices. Pick a device when adding an analysis to say which one it was measured on.") }}</p>
 </div>
 {% endif %}
 
@@ -285,6 +382,8 @@
             <a href="/samples/{{ entry.source.id }}" class="ml-2 text-xs font-normal text-gray-500 hover:underline"
                title="{{ _("Inherited — edit it on {title}", title=entry.source.title) }}">{{ _("from") }} <span class="font-mono">{{ entry.source.title }}</span></a>
             {% endif %}
+            {% for label in entry.made_devices %}<span class="ml-1 text-xs font-normal bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">{{ label }}</span>{% endfor %}
+            {% if entry.device %}<span class="ml-2 text-xs font-normal bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded" title="{{ _("Measured on this device") }}">{{ entry.device }}</span>{% endif %}
           </span>
           <div class="flex items-center gap-3 text-xs text-gray-400 shrink-0">
             {% if entry.visible and entry.performed_at %}

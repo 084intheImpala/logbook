@@ -1,19 +1,19 @@
 """Admin routes for managing users and configurations (step/analysis types)."""
 import json
 import re
-import secrets
-import string
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from backend.database import get_db
-from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User
+from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User, Team
 from backend.params import validate_schema, with_equipment
-from backend.auth import require_login, hash_password
-from backend.email_utils import send_welcome_email, send_admin_message
+from backend import accounts
+from backend.activity import log as log_activity
+from backend.auth import require_login
+from backend.email_utils import send_admin_message
 from backend.config import settings
 from backend.i18n import t
 from backend.export import samples_csv
@@ -26,19 +26,6 @@ from backend.templating import templates
 # One field per line, unicode units (°C, µm) kept readable
 templates.env.filters["schema_json"] = lambda schema: "[\n" + ",\n".join(
     "  " + json.dumps(f, ensure_ascii=False) for f in schema or []) + "\n]"
-
-
-def _generate_password(length: int = 12) -> str:
-    alphabet = string.ascii_letters + string.digits + "!@#$%"
-    return "".join(secrets.choice(alphabet) for _ in range(length))
-
-
-def _generate_login_token(user, expires_hours: int = 72) -> str:
-    """Generate a one-time login token, set on the user object."""
-    token = secrets.token_urlsafe(32)
-    user.login_token = token
-    user.login_token_expires = datetime.utcnow() + timedelta(hours=expires_hours)
-    return token
 
 
 async def require_admin(user: User = Depends(require_login)) -> User:
@@ -55,6 +42,7 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
     step_types = (await db.execute(select(ProcessStepType).order_by(ProcessStepType.name))).scalars().all()
     analysis_types = (await db.execute(select(AnalysisType).order_by(AnalysisType.name))).scalars().all()
     users = (await db.execute(select(User).order_by(User.username))).scalars().all()
+    teams = (await db.execute(select(Team).order_by(Team.name))).scalars().all()
     step_usage = dict((await db.execute(
         select(ProcessStep.step_type_id, func.count()).group_by(ProcessStep.step_type_id))).all())
     analysis_usage = dict((await db.execute(
@@ -69,6 +57,7 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
         "step_types": step_types,
         "analysis_types": analysis_types,
         "users": users,
+        "teams": teams,
         "step_usage": step_usage,
         "analysis_usage": analysis_usage,
         "current_user": admin,
@@ -96,55 +85,7 @@ async def create_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    username = username.strip()
-    email = email.strip().lower()
-
-    # Validate email format
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-        request.session["flash_error"] = t(request, "Invalid email address: {email}", email=email)
-        return RedirectResponse("/admin/", status_code=303)
-
-    # Check username uniqueness
-    existing = await db.execute(select(User).where(User.username == username))
-    if existing.scalar_one_or_none():
-        request.session["flash_error"] = t(request, "Username '{username}' already exists.", username=username)
-        return RedirectResponse("/admin/", status_code=303)
-
-    # Check email uniqueness
-    existing_email = await db.execute(select(User).where(User.email == email))
-    if existing_email.scalar_one_or_none():
-        request.session["flash_error"] = t(request, "Email '{email}' is already registered to another user.", email=email)
-        return RedirectResponse("/admin/", status_code=303)
-
-    temp_password = _generate_password()
-    new_user = User(
-        username=username,
-        name=name.strip() or None,
-        email=email,
-        hashed_password=hash_password(temp_password),
-        is_admin=(is_admin == "on"),
-        must_change_password=True,
-    )
-    db.add(new_user)
-    await db.flush()  # get new_user.id
-    magic_token = _generate_login_token(new_user)
-    await db.commit()
-
-    # Send welcome email
-    email_sent = False
-    if settings.SMTP_PASSWORD:
-        magic_link = f"{settings.BASE_URL}/magic?token={magic_token}"
-        try:
-            await send_welcome_email(email, username, temp_password, magic_link)
-            email_sent = True
-        except Exception as exc:
-            request.session["flash_error"] = t(request, "User created but email failed: {error}", error=exc)
-
-    if email_sent:
-        request.session["flash"] = t(request, "User '{username}' created — credentials sent to {email}.", username=username, email=email)
-    else:
-        request.session["flash"] = t(request, "User '{username}' created. Temporary password: {password}", username=username, password=temp_password)
-
+    await accounts.create_account(request, db, username, name, email, is_admin=(is_admin == "on"), actor=admin)
     return RedirectResponse("/admin/", status_code=303)
 
 
@@ -234,6 +175,7 @@ async def toggle_admin(
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
     target.is_admin = not target.is_admin
+    log_activity(db, admin, "admin_set", target.username, target, "granted" if target.is_admin else "removed")
     await db.commit()
     return RedirectResponse("/admin/", status_code=303)
 
@@ -245,31 +187,10 @@ async def reset_user_password(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    result = await db.execute(select(User).where(User.id == user_id))
-    target = result.scalar_one_or_none()
+    target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
-
-    temp_password = _generate_password()
-    target.hashed_password = hash_password(temp_password)
-    target.must_change_password = True
-    magic_token = _generate_login_token(target)
-    await db.commit()
-
-    email_sent = False
-    if settings.SMTP_PASSWORD and target.email:
-        magic_link = f"{settings.BASE_URL}/magic?token={magic_token}"
-        try:
-            await send_welcome_email(target.email, target.username, temp_password, magic_link)
-            email_sent = True
-        except Exception as exc:
-            request.session["flash_error"] = t(request, "Password reset but email failed: {error}", error=exc)
-
-    if email_sent:
-        request.session["flash"] = t(request, "Password for '{username}' reset — new credentials sent to {email}.", username=target.username, email=target.email)
-    else:
-        request.session["flash"] = t(request, "Password for '{username}' reset. New temporary password: {password}", username=target.username, password=temp_password)
-
+    await accounts.reset_password(request, db, target, actor=admin)
     return RedirectResponse("/admin/", status_code=303)
 
 
@@ -285,6 +206,7 @@ async def delete_user(
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
+    log_activity(db, admin, "user_deleted", target.username)
     await db.delete(target)
     await db.commit()
     return RedirectResponse("/admin/", status_code=303)

@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -7,20 +8,24 @@ from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
 from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
-                            Substrate, Project, User, SAMPLE_TYPES)
+                            Substrate, Project, User, SAMPLE_TYPES, VISIBILITY, AccessRequest)
 from backend.sample_ids import next_code, piece_codes
+from backend import recode
+from backend.activity import log as log_activity
 from backend.utils import save_upload, chosen_files
-from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry, is_owner, is_performer
+from backend.auth import (require_login, load_sample, can_view, can_edit, can_edit_entry, can_propose, can_decide,
+                          coordinates_user, is_coordinator_of, is_owner, is_performer, is_proposer)
 from backend import timeline as tl
 from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_family, pieces_of
 from backend.params import parse_date, describe
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, remember
 from backend.seed import PROCESS_STEP_TYPES
 from backend.config import settings
-from backend.email_utils import send_confirm_samples_email, send_declined_email
+from backend.email_utils import send_confirm_samples_email, send_declined_email, send_recoded_email
 from backend.i18n import t
 
 router = APIRouter()
+log = logging.getLogger("uvicorn.error")
 from backend.templating import templates
 
 
@@ -105,6 +110,7 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "editing": editing,
         "error": error,
         "sample_types": SAMPLE_TYPES,
+        "visibilities": VISIBILITY,
         "substrates": (await db.execute(select(Substrate).order_by(Substrate.material, Substrate.name))).scalars().all(),
         "projects": (await db.execute(select(Project).order_by(Project.name))).scalars().all(),
         "spec_files": await _attachments_for(db, "sample", [sample.id]) if editing else {},
@@ -114,7 +120,11 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         # Who a new sample can be created for (it gets their initials), or who
         # the owner can give it to. Admins reassign with the "users" list instead.
         "researchers": await _researchers(db)
-                       if not editing or (sample.owner_id == current_user.id and not current_user.is_admin) else [],
+                       if not editing or (sample.owner_id == current_user.id and not current_user.is_admin)
+                       else [u for u in await _researchers(db) if coordinates_user(current_user, u)]
+                       if editing and not current_user.is_admin and is_coordinator_of(current_user, sample) else [],
+        # Admins and the coordinator of the owner's team hand a sample over without the new owner confirming
+        "direct_handover": current_user.is_admin or (editing and is_coordinator_of(current_user, sample)),
         "now_year": date.today().year,
         "current_user": current_user,
     }
@@ -188,6 +198,7 @@ async def create_sample(
     description: str = Form(""),
     tags: str = Form(""),
     owner_id: str = Form(""),
+    visibility: str = Form("personal"),
     files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
@@ -211,6 +222,7 @@ async def create_sample(
         sample = Sample()
         _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                                          external_id, supplier, description, tags))
+        sample.visibility = visibility if visibility in VISIBILITY else "personal"
         if user_id:
             pending = _hand_over(sample, user_id, by_id, by_admin)
         return sample
@@ -319,6 +331,8 @@ async def sample_detail(
             "location": e.location,
             "run": runs.get(e.run_id, []) if e.run_id else [],
             "notes": e.notes,
+            "device": e.device.label if item.kind == "analysis" and e.device else None,
+            "made_devices": [d.label for d in item.source.devices if d.made_step_id == e.id] if item.kind == "process" else [],
             "performed_by": e.performer_name,
             "editable": not inherited and can_edit_entry(current_user, sample, e),
             "performed_at": e.performed_at,
@@ -336,6 +350,19 @@ async def sample_detail(
         own_index += not inherited
 
     owner = is_owner(current_user, sample)
+    pending = []
+    for kind, path, entries in (("step", "steps", sample.process_steps), ("analysis", "analyses", sample.analyses)):
+        for e in entries:
+            if e.status != "pending":
+                continue
+            decide = can_decide(current_user, sample)
+            if viewable or decide or is_proposer(current_user, e):
+                type_name = (e.step_type if kind == "step" else e.analysis_type).name
+                pending.append(dict(kind=kind, path=path, entry=e, type_name=type_name, mine=is_proposer(current_user, e),
+                                    can_decide=decide, proposer=await db.get(User, e.proposed_by_id or 0)))
+    my_requests = (await db.execute(select(AccessRequest).where(
+        AccessRequest.sample_id == sample_id, AccessRequest.user_id == current_user.id,
+        AccessRequest.status == "pending"))).scalars().all()
     spec_files = (await _attachments_for(db, "sample", [sample_id]))[sample_id] if viewable else []
     return templates.TemplateResponse("samples/detail.html", {
         "spec_files": spec_files,
@@ -351,6 +378,10 @@ async def sample_detail(
         "can_view": viewable,
         "can_edit": can_edit(current_user, sample),
         "is_owner": owner,
+        "can_propose": can_propose(current_user, sample),
+        "pending": pending,
+        "my_requests": my_requests,
+        "visibilities": VISIBILITY,
         "share_candidates": await _share_candidates(db, sample) if owner else [],
         "owner_user": (await db.get(User, sample.owner_id)) if sample.owner_id else None,
         "flash": request.session.pop("flash", None),
@@ -425,11 +456,21 @@ async def update_sample(
     # Admins reassign ownership directly; owners can give the sample to
     # someone else, who has to confirm. The sample ID keeps the original initials.
     new_owner = None
-    if owner_id and owner_id.isdigit() and int(owner_id) != sample.owner_id and (current_user.is_admin or was_owner):
-        new_owner = await db.get(User, int(owner_id))
+    team_admin = not current_user.is_admin and is_coordinator_of(current_user, sample)
+    if owner_id and owner_id.isdigit() and int(owner_id) != sample.owner_id and (
+            current_user.is_admin or was_owner or team_admin):
+        candidate = await db.get(User, int(owner_id))
+        # A coordinator can only hand samples to people in their own team
+        if candidate and (not team_admin or was_owner or coordinates_user(current_user, candidate)):
+            new_owner = candidate
     elif owner_id == "" and current_user.is_admin:
         sample.owner_id = sample.requested_by_id = None
-    pending = new_owner is not None and _hand_over(sample, new_owner.id, current_user.id, current_user.is_admin)
+    previous_owner = sample.owner.display_name if sample.owner else "—"
+    pending = new_owner is not None and _hand_over(
+        sample, new_owner.id, current_user.id, current_user.is_admin or (team_admin and not was_owner))
+    if new_owner is not None and (current_user.is_admin or team_admin):
+        log_activity(db, current_user, "sample_owner", sample.title, new_owner,
+                     f"{previous_owner} → {new_owner.display_name}")
     for f in files:
         await save_upload(f, "sample", sample.id, db, uploaded_by=current_user.username)
     await db.commit()
@@ -438,6 +479,64 @@ async def update_sample(
             request, "Given to {name}. They'll be asked to confirm it; you keep edit access.",
             name=new_owner.display_name)
         await _ask_to_confirm(request, current_user.display_name, new_owner.display_name, new_owner.email, [sample])
+    return RedirectResponse(f"/samples/{sample_id}", status_code=303)
+
+
+@router.post("/{sample_id}/recode")
+async def recode_sample(
+    request: Request,
+    sample_id: int,
+    prefix: str = Form(""),
+    code: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    """Admins: give the sample a new ID, either the next free number under a
+    researcher's initials / a project's code, or one typed in. Its pieces and
+    uploads folders follow. The old ID becomes free."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can change a sample's ID.")
+    sample = await load_sample(db, sample_id, current_user, "owner")
+    back = RedirectResponse(f"/samples/{sample_id}/edit", status_code=303)
+    old = sample.code
+    new_code = code.strip().upper()
+    if not new_code:
+        kind, _, ident = prefix.partition(":")
+        source = (await db.get(User if kind == "user" else Project, int(ident))
+                  if ident.isdigit() and kind in ("user", "project") else None)
+        initials = (source.initials if kind == "user" else source.code) if source else None
+        year = int(old.split("-")[1]) if old and old.count("-") >= 2 and old.split("-")[1].isdigit() else None
+        if not initials:
+            request.session["flash_error"] = t(request, "Choose whose initials or which project's code to use, or type an ID.")
+            return back
+        new_code = await next_code(db, initials, year)
+    try:
+        change = await recode.plan(db, sample, new_code)
+        await recode.apply(db, change)
+        try:
+            await db.commit()
+        except Exception:
+            recode.undo_move(change.folders)
+            raise
+    except recode.RecodeError as e:
+        await db.rollback()
+        request.session["flash_error"] = t(request, str(e))
+        return back
+    log_activity(db, current_user, "sample_id", new_code, sample.owner_id, f"{old} → {new_code}")
+    await db.commit()
+    log.info("%s changed sample ID %s to %s (%d samples renamed)", current_user.username, old, new_code, len(change.codes))
+    request.session["flash"] = t(request, "ID changed from {old} to {new}.", old=old, new=new_code)
+    owner = sample.owner
+    if owner and owner.id != current_user.id and settings.SMTP_PASSWORD:
+        if not owner.email:
+            request.session["flash_error"] = t(request, "{name} has no email address, so tell them about the new ID.",
+                                               name=owner.display_name)
+        else:
+            try:
+                await send_recoded_email(owner.email, current_user.display_name, sample, old, change.codes)
+            except Exception as exc:
+                request.session["flash_error"] = t(request, "Couldn't email {name} ({error}); tell them about the new ID.",
+                                                   name=owner.display_name, error=exc)
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
 
@@ -457,6 +556,7 @@ async def delete_sample(
             t(request, "Can't delete: {n} pieces were cut from this sample and inherit its history. "
                        "Delete the pieces first.", n=len(pieces)))
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
+    log_activity(db, current_user, "sample_deleted", sample.title, sample.owner_id)
     await db.delete(sample)
     await db.commit()
     return RedirectResponse("/samples/", status_code=303)
@@ -573,6 +673,7 @@ async def cut_sample(
             owner_id=owner_id,
             cut_step_id=cut.id,
             is_reference=is_ref,
+            visibility=parent.visibility,
         )
         piece.shares = [SampleShare(user_id=sh.user_id, can_edit=sh.can_edit) for sh in parent.shares]
         target = users.get(int(piece_owner))
@@ -657,7 +758,28 @@ async def add_share(
     sample = await load_sample(db, sample_id, current_user, "owner")
     if not await db.get(User, user_id):
         raise HTTPException(status_code=404, detail="User not found")
+    target = await db.get(User, user_id)
     _set_share(sample, user_id, access == "edit")
+    log_activity(db, current_user, "share_set", sample.title, sample.owner_id,
+                 f"{target.display_name}: {'edit' if access == 'edit' else 'view'}")
+    await db.commit()
+    return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
+
+
+@router.post("/{sample_id}/visibility")
+async def set_visibility(
+    sample_id: int,
+    visibility: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    sample = await load_sample(db, sample_id, current_user, "owner")
+    if visibility not in VISIBILITY:
+        raise HTTPException(status_code=400, detail="Unknown visibility")
+    if sample.visibility != visibility:
+        log_activity(db, current_user, "sample_visibility", sample.title, sample.owner_id,
+                     f"{sample.visibility} → {visibility}")
+    sample.visibility = visibility
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
 
@@ -672,6 +794,7 @@ async def remove_share(
     sample = await load_sample(db, sample_id, current_user, "owner")
     share = next((sh for sh in sample.shares if sh.id == share_id), None)
     if share:
+        log_activity(db, current_user, "share_removed", sample.title, sample.owner_id, share.user.display_name)
         sample.shares.remove(share)
         await db.commit()
     return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
@@ -696,6 +819,8 @@ async def share_many(
     shared = [s for s in samples if is_owner(current_user, s)]
     for s in shared:
         _set_share(s, user_id, access == "edit")
+        log_activity(db, current_user, "share_set", s.title, s.owner_id,
+                     f"{target.display_name}: {'edit' if access == 'edit' else 'view'}")
     await db.commit()
     skipped = len(samples) - len(shared)
     if access == "edit":

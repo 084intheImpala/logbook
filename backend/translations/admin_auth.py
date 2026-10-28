@@ -1,4 +1,21 @@
 PT = {
+    # teams
+    "Teams": "Equipas",
+    "A team is a group inside the lab. Its coordinators can see all of its members' samples; samples set to \"Team\" are visible to everyone in the owner's team.":
+        "Uma equipa é um grupo dentro do laboratório. Os seus coordenadores veem todas as amostras dos membros; as amostras com visibilidade \"Equipa\" são vistas por todos na equipa do dono.",
+    "Rename": "Mudar o nome",
+    "Delete team {name}? Its members stay as users.": "Apagar a equipa {name}? Os membros continuam a ser utilizadores.",
+    "Coordinator": "Coordenador",
+    "Make member": "Passar a membro",
+    "Make coordinator": "Passar a coordenador",
+    "Remove": "Remover",
+    "No members yet.": "Ainda sem membros.",
+    "Add a member…": "Adicionar um membro…",
+    "Add": "Adicionar",
+    "New team name": "Nome da nova equipa",
+    "Create team": "Criar equipa",
+    "A team needs a name.": "Uma equipa precisa de um nome.",
+    "There is already a team called {name}.": "Já existe uma equipa chamada {name}.",
     # ── Admin panel ──────────────────────────────────────────────────────────
     "Admin": "Administração",
     "Admin Panel": "Painel de administração",

@@ -7,7 +7,9 @@ instead of initials (UMIN-2026-001), with the project's own counter. Pieces cut 
 first level, -1, -2, … at the next, alternating, so ASS-2026-001-A-1 is a
 piece of piece A. A reference piece gets -REF (then -REF2, …).
 
-IDs never change once assigned, even if the sample changes owner.
+IDs don't change when the sample changes owner. Only an admin can change one,
+and only on a sample that isn't itself a piece (see recode.py); the old ID is
+kept on the sample (previous_codes) and is never given to another sample.
 """
 import re
 import string
@@ -25,10 +27,17 @@ def normalize_initials(text: str) -> str:
     return text.strip().upper()
 
 
+async def retired_codes(db: AsyncSession) -> set[str]:
+    """IDs samples used to have before an admin changed them. Never handed out again."""
+    rows = (await db.execute(select(Sample.previous_codes))).scalars()
+    return {c for codes in rows if codes for c in codes}
+
+
 async def next_code(db: AsyncSession, initials: str, year: int | None = None) -> str:
     year = year or date.today().year
     prefix = f"{initials}-{year}-"
-    codes = (await db.execute(select(Sample.code).where(Sample.code.like(f"{prefix}%")))).scalars()
+    codes = list((await db.execute(select(Sample.code).where(Sample.code.like(f"{prefix}%")))).scalars())
+    codes += [c for c in await retired_codes(db) if c.startswith(prefix)]
     numbers = [int(m.group(1)) for c in codes if (m := re.fullmatch(re.escape(prefix) + r"(\d+)", c or ""))]
     return f"{prefix}{max(numbers, default=0) + 1:03d}"
 

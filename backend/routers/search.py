@@ -73,7 +73,7 @@ def _matches(family: Family, sample, user, q: str, investigator: str, sample_typ
         # Don't reveal hidden details through matches. Viewing a piece includes
         # what it inherits, so its inherited entries count as viewable too.
         viewable = can_view(user, sample)
-        haystack = [sample.code, sample.label, sample.external_id, sample.supplier, sample.film_material,
+        haystack = [sample.code, *(sample.previous_codes or []), sample.label, sample.external_id, sample.supplier, sample.film_material,
                     sample.substrate_material, sample.substrate.name if sample.substrate else None,
                     sample.researcher, sample.type_label, *(sample.tags or []),
                     *((sample.project.name, sample.project.code, sample.project.institution) if sample.project else ())]

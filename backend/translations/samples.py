@@ -1,4 +1,38 @@
 PT = {
+    # visibility and teams
+    "Personal": "Pessoal",
+    "Team": "Equipa",
+    "Public": "Público",
+    "Who can see the details": "Quem pode ver os detalhes",
+    "Personal: you and the people you share it with. Team: also your team. Public: everyone logged in. Everyone always sees the summary. You can change this later under Sharing.":
+        "Pessoal: você e as pessoas com quem partilhar. Equipa: também a sua equipa. Público: todos os utilizadores. Todos veem sempre o resumo. Pode alterar mais tarde em Partilha.",
+    "Personal: you and the people listed below. Team: also everyone in your team. Public: everyone logged in. Coordinators of your team and admins can always see it. Everyone sees the summary (ID, type, materials, tags).":
+        "Pessoal: você e as pessoas listadas abaixo. Equipa: também todos os da sua equipa. Público: todos os utilizadores. Os coordenadores da sua equipa e os administradores veem sempre. Todos veem o resumo (ID, tipo, materiais, etiquetas).",
+    # sample ID change (admin)
+    "Change the sample ID": "Alterar o ID da amostra",
+    "admin only": "só administradores",
+    "Change this sample's ID? Its pieces and its files folder are renamed too, and the owner is emailed.":
+        "Alterar o ID desta amostra? As peças e a pasta de ficheiros também são renomeadas, e o dono recebe um email.",
+    "For a sample created under the wrong owner or type. It gets the next free number under the initials or project code you choose. The old ID is kept on the sample and never reused.":
+        "Para uma amostra criada com o dono ou o tipo errados. Recebe o próximo número livre sob as iniciais ou o código de projeto escolhidos. O ID antigo fica registado na amostra e nunca é reutilizado.",
+    "Number it under": "Numerar sob",
+    "Researchers": "Investigadores",
+    "or type the ID": "ou escreva o ID",
+    "Change ID": "Alterar ID",
+    "Previously": "Anteriormente",
+    "ID changed from {old} to {new}.": "ID alterado de {old} para {new}.",
+    "Choose whose initials or which project's code to use, or type an ID.":
+        "Escolha as iniciais ou o código de projeto a usar, ou escreva um ID.",
+    "{name} has no email address, so tell them about the new ID.":
+        "{name} não tem endereço de email; avise-o do novo ID.",
+    "Couldn't email {name} ({error}); tell them about the new ID.":
+        "Não foi possível enviar email a {name} ({error}); avise-o do novo ID.",
+    "This sample has no ID to change.": "Esta amostra não tem ID para alterar.",
+    "This sample is a piece; change the ID of the sample it was cut from instead.":
+        "Esta amostra é uma peça; altere antes o ID da amostra de que foi cortada.",
+    "An ID looks like ABC-2026-001: 2–6 capital letters or digits, the year and a number.":
+        "Um ID tem a forma ABC-2026-001: 2–6 letras maiúsculas ou algarismos, o ano e um número.",
+    "That is already this sample's ID.": "Esse já é o ID desta amostra.",
     # samples/form.html
     "Edit {sample}": "Editar {sample}",
     "Edit": "Editar",
@@ -107,4 +141,15 @@ PT = {
     "Shared {n} samples with {name} (view).": "{n} amostras partilhadas com {name} (visualização).",
     "Skipped 1 you don't own.": "Foi ignorada 1 que não lhe pertence.",
     "Skipped {n} you don't own.": "Foram ignoradas {n} que não lhe pertencem.",
+    # devices
+    "Devices": "Dispositivos",
+    "Device": "Dispositivo",
+    "The whole sample": "A amostra inteira",
+    "Measured on this device": "Medido neste dispositivo",
+    "Remove this device? Its analyses stay on the sample.": "Remover este dispositivo? As suas análises ficam na amostra.",
+    "D1, D2, … or leave empty for the next": "D1, D2, … ou deixe vazio para o seguinte",
+    "or how many": "ou quantos",
+    "Process done: make devices": "Processo concluído: criar dispositivos",
+    "Make devices when the process that produces them is done: a 'Devices made' step goes on the timeline. Steps after it, such as annealing, still apply to all the devices. Pick a device when adding an analysis to say which one it was measured on.":
+        "Crie os dispositivos quando o processo que os produz estiver concluído: um passo 'Devices made' fica na cronologia. Os passos seguintes, como o recozimento, continuam a aplicar-se a todos os dispositivos. Ao adicionar uma análise, escolha o dispositivo em que foi medida.",
 }

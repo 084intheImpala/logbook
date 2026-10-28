@@ -22,13 +22,52 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     samples: Mapped[list["Sample"]] = relationship("Sample", back_populates="owner", foreign_keys="Sample.owner_id")
+    # Always loaded: sample permissions depend on the teams of the viewer and of the owner.
+    memberships: Mapped[list["TeamMember"]] = relationship(
+        "TeamMember", back_populates="user", lazy="selectin", cascade="all, delete-orphan")
 
     @property
     def display_name(self) -> str:
         return self.name or self.username
 
+    @property
+    def is_coordinator(self) -> bool:
+        """Coordinator of at least one team."""
+        return any(m.is_coordinator for m in self.memberships)
+
+
+class Team(Base):
+    """A group inside the lab. Its coordinators can see all of its members' samples."""
+    __tablename__ = "teams"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    members: Mapped[list["TeamMember"]] = relationship(
+        "TeamMember", back_populates="team", lazy="selectin", cascade="all, delete-orphan")
+
+
+class TeamMember(Base):
+    """A user in a team. People normally belong to one team, but nothing here stops them being in several."""
+    __tablename__ = "team_members"
+    __table_args__ = (UniqueConstraint("team_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    is_coordinator: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+
+    team: Mapped["Team"] = relationship("Team", back_populates="members")
+    user: Mapped["User"] = relationship("User", back_populates="memberships", lazy="selectin")
+
 
 SAMPLE_TYPES = {"thin_film": "Thin film", "bulk": "Bulk", "commercial": "Commercial", "collaboration": "Collaboration"}
+# Who can see a sample's details (everyone logged in always sees its summary):
+# personal: its owner and the people it is shared with; team: also the owner's
+# team; public: everyone logged in. Coordinators of the owner's team see all of
+# their members' samples whatever the setting.
+VISIBILITY = {"personal": "Personal", "team": "Team", "public": "Public"}
 POLISHING = {"single": "Single side", "double": "Double side", "none": "Unpolished"}
 
 
@@ -44,6 +83,7 @@ class Substrate(Base):
     polishing: Mapped[str | None] = mapped_column(String(20))   # key of POLISHING
     size: Mapped[str | None] = mapped_column(String(100))       # e.g. 2-inch wafer
     supplier: Mapped[str | None] = mapped_column(String(120))
+    batch_no: Mapped[str | None] = mapped_column(String(100))   # the supplier's batch / lot number
     notes: Mapped[str | None] = mapped_column(Text)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -76,9 +116,12 @@ class Sample(Base):
     __tablename__ = "samples"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Generated, never changes: <researcher initials>-<year>-<number>, and
+    # Generated, kept when the owner changes (admins can recode it, see recode.py): <researcher initials>-<year>-<number>, and
     # pieces append -A, -B, -REF (pieces of pieces -1, -2, …). See sample_ids.py.
     code: Mapped[str | None] = mapped_column(String(60), unique=True)
+    # IDs it had before an admin changed it, oldest first. They stay reserved:
+    # no sample is ever given one of them again (see recode.py).
+    previous_codes: Mapped[list[str] | None] = mapped_column(JSON)
     # Optional personal description
     label: Mapped[str | None] = mapped_column(String(100), index=True)
     sample_type: Mapped[str] = mapped_column(String(20), default="thin_film", server_default="thin_film", nullable=False)
@@ -99,6 +142,7 @@ class Sample(Base):
     cut_step_id: Mapped[int | None] = mapped_column(
         ForeignKey("process_steps.id", use_alter=True, name="fk_samples_cut_step_id"), index=True)
     is_reference: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    visibility: Mapped[str] = mapped_column(String(10), default="personal", server_default="personal", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     owner: Mapped["User | None"] = relationship(
@@ -114,6 +158,10 @@ class Sample(Base):
     analyses: Mapped[list["Analysis"]] = relationship(
         "Analysis", back_populates="sample",
         order_by="Analysis.position",
+        cascade="all, delete-orphan",
+    )
+    devices: Mapped[list["Device"]] = relationship(
+        "Device", back_populates="sample", lazy="selectin", order_by="Device.id",
         cascade="all, delete-orphan",
     )
     # Always loaded: permission checks need them wherever a sample is used.
@@ -138,6 +186,27 @@ class Sample(Base):
     def title(self) -> str:
         """How the sample is referred to in links and headings."""
         return self.code or f"#{self.id}"
+
+
+class Device(Base):
+    """One of several devices made on a sample (D1, D2, …). They result from
+    the sample's process steps so far, declared done by a "Devices made" step;
+    later steps still apply to all of them, so steps stay on the sample. An
+    analysis can say which device it was measured on (Analysis.device_id)."""
+    __tablename__ = "devices"
+    __table_args__ = (UniqueConstraint("sample_id", "label"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sample_id: Mapped[int] = mapped_column(ForeignKey("samples.id", ondelete="CASCADE"), index=True)
+    label: Mapped[str] = mapped_column(String(50), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    # The "Devices made" step that declared the devices done: the sample's history
+    # up to there is shared by all of them (see lineage.DEVICES_TYPE_NAME)
+    made_step_id: Mapped[int | None] = mapped_column(
+        ForeignKey("process_steps.id", ondelete="SET NULL", use_alter=True, name="fk_devices_made_step_id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    sample: Mapped["Sample"] = relationship("Sample", back_populates="devices")
 
 
 class SampleShare(Base):
@@ -184,11 +253,17 @@ class ProcessStep(Base):
     # Entries added to several samples at once share a run id
     run_id: Mapped[str | None] = mapped_column(String(32), index=True)
     performed_at: Mapped[date | None] = mapped_column(Date)   # the day only; order within a day is `position`
+    # "pending": proposed by someone in the owner's team, not part of the timeline until
+    # the owner (or a coordinator, after a few days) approves it.
+    status: Mapped[str] = mapped_column(String(10), default="approved", server_default="approved", nullable=False)
+    proposed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    proposed_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps", foreign_keys=[sample_id])
     step_type: Mapped["ProcessStepType"] = relationship("ProcessStepType", back_populates="steps")
-    performer: Mapped["User | None"] = relationship("User", lazy="selectin")
+    performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
+    proposer: Mapped["User | None"] = relationship("User", foreign_keys=[proposed_by_id], lazy="selectin")
 
     @property
     def performer_name(self) -> str | None:
@@ -212,6 +287,8 @@ class Analysis(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sample_id: Mapped[int] = mapped_column(ForeignKey("samples.id", ondelete="CASCADE"))
     analysis_type_id: Mapped[int] = mapped_column(ForeignKey("analysis_types.id"))
+    # The device on the sample this was measured on; empty for the sample as a whole
+    device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
     # Position in the sample's timeline, shared with ProcessStep.position.
     position: Mapped[int | None] = mapped_column(Integer)
     parameters: Mapped[dict[str, Any] | None] = mapped_column(JSON)
@@ -224,15 +301,58 @@ class Analysis(Base):
     # Entries added to several samples at once share a run id
     run_id: Mapped[str | None] = mapped_column(String(32), index=True)
     performed_at: Mapped[date | None] = mapped_column(Date)   # the day only; order within a day is `position`
+    # "pending": proposed by someone in the owner's team, not part of the timeline until
+    # the owner (or a coordinator, after a few days) approves it.
+    status: Mapped[str] = mapped_column(String(10), default="approved", server_default="approved", nullable=False)
+    proposed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    proposed_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="analyses")
     analysis_type: Mapped["AnalysisType"] = relationship("AnalysisType", back_populates="analyses")
-    performer: Mapped["User | None"] = relationship("User", lazy="selectin")
+    device: Mapped["Device | None"] = relationship("Device", lazy="selectin")
+    performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
+    proposer: Mapped["User | None"] = relationship("User", foreign_keys=[proposed_by_id], lazy="selectin")
 
     @property
     def performer_name(self) -> str | None:
         return self.performer.display_name if self.performer else self.performed_by
+
+
+class AccessRequest(Base):
+    """Someone asks a sample's owner for view or edit access. The owner decides,
+    and so can a coordinator of the owner's team (see auth.can_decide)."""
+    __tablename__ = "access_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sample_id: Mapped[int] = mapped_column(ForeignKey("samples.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    level: Mapped[str] = mapped_column(String(10), nullable=False)   # view | edit
+    message: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), default="pending", nullable=False)   # pending | approved | denied
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    decided_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    sample: Mapped["Sample"] = relationship("Sample", lazy="selectin")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], lazy="selectin")
+    decided_by: Mapped["User | None"] = relationship("User", foreign_keys=[decided_by_id], lazy="selectin")
+
+
+class ActivityLog(Base):
+    """Management actions (see backend/activity.py). Names are copied in, so
+    entries stay readable after a sample or account is deleted."""
+    __tablename__ = "activity_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    actor_name: Mapped[str | None] = mapped_column(String(120))
+    action: Mapped[str] = mapped_column(String(30), nullable=False)
+    target: Mapped[str] = mapped_column(String(200), nullable=False)
+    # The user whose sample or account it concerns: their team's coordinators can see it
+    subject_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    detail: Mapped[str | None] = mapped_column(Text)
 
 
 class Attachment(Base):

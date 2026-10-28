@@ -139,6 +139,11 @@ PROCESS_STEP_TYPES = [
         ],
     },
     {
+        "name": "Devices made",
+        "description": "The process is done and the devices on the sample are ready (each device is listed on the sample)",
+        "parameter_schema": [],
+    },
+    {
         "name": "Other Process",
         "description": "Any other process step",
         "parameter_schema": [
@@ -254,6 +259,11 @@ ANALYSIS_TYPES = [
             text("wavelength_range", "Wavelength range", placeholder="e.g. 250–1700 nm"),
             text("angles", "Angles of incidence", placeholder="e.g. 65, 70, 75°"),
             num("thickness", "Thickness", "nm"),
+            longtext("detector_settings", "Detector settings", placeholder="Gain, integration time, slit width, …"),
+            check("reference", "Reference taken", [
+                longtext("reference_details", "Reference details",
+                         placeholder="What was used as reference (air, bare substrate, …) and when it was taken"),
+            ]),
             longtext("model", "Optical model", placeholder="Layers, dispersion models, fitted parameters, MSE, …"),
         ],
     },
@@ -282,7 +292,7 @@ ANALYSIS_TYPES = [
 # Every technique gets an Equipment dropdown tied to the place (Where), unless
 # it has one already (Deposition's Machine, SEM). Cut has its own form.
 for _type in PROCESS_STEP_TYPES + ANALYSIS_TYPES:
-    if _type["name"] != "Cut":
+    if _type["name"] not in ("Cut", "Devices made"):
         _type["parameter_schema"] = with_equipment(_type["parameter_schema"], _type["name"])
 
 # Starting values of the shared dropdowns; people add more as they go.

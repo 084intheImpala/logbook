@@ -88,7 +88,7 @@ administrador entrega-lhos).
 
 \begin{careful}
 Escolha as iniciais com cuidado. Depois de ter amostras, só um
-administrador as pode alterar, e os IDs das amostras já criadas nunca mudam.
+administrador as pode alterar, e os IDs das amostras já criadas não mudam com isso.
 \end{careful}
 
 Se se esquecer da palavra-passe, use \ui{Esqueceu-se da palavra-passe?} na
@@ -151,7 +151,7 @@ valores das listas) ficam em inglês nos dois idiomas.
     feitos à amostra, cada um com os seus parâmetros, notas, data,
     fotografias e ficheiros.
   \item[Substrato] Uma entrada na biblioteca partilhada (material,
-    orientação, espessura, polimento, fornecedor, ficha técnica). As
+    orientação, espessura, polimento, fornecedor, n.º de lote, ficha técnica). As
     amostras de filme fino e bulk são feitas a partir de um substrato.
   \item[Projeto] Uma colaboração com outra universidade ou centro que nos
     envia amostras. O seu código curto substitui as iniciais nos IDs dessas
@@ -174,8 +174,10 @@ valores das listas) ficam em inglês nos dois idiomas.
 \end{tabular}
 \end{center}
 
-Os IDs são atribuídos quando a amostra é guardada e nunca mudam, mesmo que
-a amostra passe para outra pessoa. Use o \ui{Rótulo} (opcional) para a sua
+Os IDs são atribuídos quando a amostra é guardada e não mudam, mesmo que
+a amostra passe para outra pessoa. Só um administrador pode alterar um ID,
+por exemplo quando a amostra foi criada com o dono ou o tipo errados; as
+peças e os ficheiros acompanham a alteração, o dono recebe um email e o ID antigo fica registado na amostra (``Anteriormente'') e nunca é reutilizado. Use o \ui{Rótulo} (opcional) para a sua
 própria descrição (``teste de guia de onda, lote 2''); não precisa de ser
 único.
 
@@ -189,9 +191,64 @@ notas, datas, ficheiros) só são visíveis para:
   \item o responsável pela amostra;
   \item os administradores;
   \item as pessoas com quem o responsável a partilhou (\ui{Ver} ou \ui{Editar});
+  \item os coordenadores da equipa do responsável;
+  \item quem a \ui{visibilidade} da amostra deixar entrar;
   \item num passo ou análise em particular, as pessoas indicadas em
         \ui{Realizado por}.
 \end{itemize}
+
+A \emph{visibilidade} define-se ao criar a amostra e depois em
+\ui{Partilha} (responsável ou administrador): \ui{Pessoal} (por omissão: só
+as pessoas acima), \ui{Equipa} (também todos os da equipa do responsável) ou
+\ui{Público} (todos os utilizadores). Uma peça cortada começa com a
+visibilidade da amostra de origem. A visibilidade só decide quem pode
+\emph{ver}; para alterar a amostra é preciso uma partilha \ui{Editar} (ou ser
+o responsável ou administrador).
+
+Partilhar com \ui{Ver} dá acesso a tudo o que está na amostra (parâmetros,
+notas, datas e ficheiros de todos os passos e análises), não só à lista de
+passos. \ui{Editar} acrescenta a possibilidade de adicionar e alterar passos,
+análises e ficheiros; nenhuma das duas permite apagar a amostra nem gerir a
+partilha; isso cabe ao responsável, a um coordenador da sua equipa ou a um administrador.
+
+\paragraph{Equipas.} Uma equipa é um grupo dentro do laboratório (distinto dos
+projetos, que são colaboradores externos). Foram pensadas para funcionar quase
+sem intervenção dos administradores, em três níveis:
+\begin{itemize}
+  \item \textbf{Administrador:} tudo. Só os administradores criam, renomeiam e
+        apagam equipas (em \menu{Configurações}, \ui{Equipas}), nomeiam e
+        retiram coordenadores, mudam pessoas de equipa, alteram IDs de amostras
+        e editam tipos de entrada e listas.
+  \item \textbf{Coordenador} (de uma equipa): tem os \emph{direitos do
+        responsável em todas as amostras dos membros da sua equipa} (ver, editar,
+        partilhar, mudar a visibilidade, apagar, passar a outro membro da equipa
+        sem confirmação) e responde às propostas e pedidos de acesso. Em
+        \menu{A minha equipa} junta pessoas sem equipa, retira membros (não
+        coordenadores), cria contas para novos membros (que ficam na equipa e
+        recebem o email de boas-vindas) e repõe as palavras-passe dos membros.
+  \item \textbf{Membro:} as suas amostras, o que lhe foi partilhado, o que a
+        visibilidade lhe mostra, e \emph{propor} entradas nas amostras dos
+        colegas.
+\end{itemize}
+As ações de gestão (apagar ou passar amostras, partilha, aprovações, contas,
+alterações às equipas) ficam no \menu{Registo de atividade}: os administradores
+veem tudo e os coordenadores veem o que diz respeito à sua equipa. A edição
+normal não é registada.
+
+\paragraph{Propor entradas.} Qualquer pessoa da equipa do responsável pode
+\emph{propor} um passo ou uma análise numa amostra dele (botões \ui{Propor}
+na página da amostra), mesmo sem acesso de leitura ou edição. A proposta fica
+fora da cronologia, das exportações e da pesquisa até ser aprovada, e o
+responsável recebe um email; o autor vê, altera ou retira a sua proposta
+entretanto. O responsável, um coordenador da sua equipa ou um administrador
+aprova ou recusa em \menu{Aprovações}, a qualquer momento. Recusar apaga a
+proposta e avisa o autor.
+
+\paragraph{Pedir acesso.} Numa amostra que não pode ver ou editar,
+\ui{Pedir acesso} pede ao responsável para \ui{Ver os detalhes} ou
+\ui{Editar}, com uma mensagem opcional. O responsável responde em
+\menu{Aprovações}; se aprovar, cria-se a partilha. Um coordenador da equipa do
+responsável (ou um administrador) também pode responder.
 
 As amostras sem responsável estão abertas a todos.
 
@@ -248,6 +305,7 @@ pode:
         administradores; não enquanto tiver pedaços);
   \item \ui{Adicionar passo de processo} e \ui{Adicionar análise};
   \item \ui{Dividir em pedaços} (Secção~\ref{sec:cut});
+  \item criar \ui{Dispositivos} (Secção~\ref{sec:devices});
   \item reordenar a cronologia (Secção~\ref{sec:timeline}).
 \end{itemize}
 
@@ -311,9 +369,10 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \end{tabularx}
 \end{center}
 
-O Cut não está na lista: um corte regista-se com \ui{Dividir em pedaços}
-(Secção~\ref{sec:cut}), e um passo existente não pode passar a Cut nem
-deixar de o ser.
+O Cut e o Devices made não estão na lista: um corte regista-se com
+\ui{Dividir em pedaços} (Secção~\ref{sec:cut}) e os dispositivos criam-se no
+painel \ui{Dispositivos} (Secção~\ref{sec:devices}); um passo existente não
+pode passar a um destes tipos nem deixar de o ser.
 
 Os administradores podem acrescentar tipos ou alterar os seus campos
 (Secção~\ref{sec:admin}).
@@ -386,6 +445,35 @@ data vai para o fim.
         cronológica, mantendo a sua ordem dentro de cada dia. As entradas
         sem data ficam onde estão.
 \end{itemize}
+
+%=====================================================================
+\section{Vários dispositivos numa amostra}
+\label{sec:devices}
+%=====================================================================
+
+Quando de uma amostra saem vários dispositivos (D1, D2, \ldots), termine o
+processo que os produz e use \ui{Processo concluído: criar dispositivos}, no
+painel \ui{Dispositivos} da página da amostra.
+
+\begin{enumerate}
+  \item Escreva os nomes separados por vírgulas, ou só \ui{quantos}: sem
+        nomes, os dispositivos são numerados a partir do maior D já existente
+        (D1, D2, \ldots; depois de D4 vem D5), como nas amostras.
+  \item Indique a data (opcional) e confirme.
+\end{enumerate}
+
+Isto põe na cronologia um passo \emph{Devices made} com a lista dos
+dispositivos; o que vem antes é a história comum a todos. Não está ligado a
+nenhum processo em particular, e pode criar mais dispositivos mais tarde com
+outro passo \emph{Devices made}.
+
+Os passos seguintes, como um recozimento, continuam a registar-se na amostra
+e aplicam-se a \emph{todos} os dispositivos. Numa análise, o campo
+\ui{Dispositivo} indica em qual foi medida; vazio, diz respeito à amostra
+inteira. O \ui{×} ao lado de um dispositivo remove-o, e eliminar o passo
+\emph{Devices made} remove os seus dispositivos; as análises ficam na
+amostra, sem dispositivo. Os pedaços cortados depois herdam as análises com o
+nome do dispositivo. O CSV tem a coluna \texttt{device}.
 
 %=====================================================================
 \section{Dividir uma amostra em pedaços}
@@ -502,7 +590,7 @@ mantém acesso de edição.
 \subsection{Biblioteca de substratos}
 
 O separador \menu{Substratos} lista os substratos com material, espessura,
-orientação, polimento, tamanho, fornecedor, notas e fichas técnicas.
+orientação, polimento, tamanho, fornecedor, n.º de lote, notas e fichas técnicas.
 Qualquer pessoa pode acrescentar um; quem o acrescentou e os
 administradores podem editá-lo. Um substrato usado por alguma amostra não
 pode ser eliminado.
@@ -664,6 +752,34 @@ arranca (ou a pedido: \texttt{docker compose exec app python -m backend.sample\_
 \texttt{uploads/} continue a dizer o que é cada ficheiro. Os utilizadores,
 os tipos de entrada, os valores das listas e as sugestões não estão lá: a
 cópia da base de dados continua a ser a cópia de segurança principal.
+
+\subsubsection*{Estrutura do \texttt{sample.json}}
+
+O ficheiro é JSON simples (UTF-8), legível sem a aplicação. No topo:
+\texttt{format} (versão do formato, atualmente 3), \texttt{written\_at},
+\texttt{code} (o ID) e \texttt{previous\_codes} (IDs anteriores), os dados da
+amostra (\texttt{label}, \texttt{sample\_type}, \texttt{visibility},
+\texttt{tags}, \texttt{description}, \texttt{film\_material}, \ldots),
+\texttt{owner} e \texttt{shared\_with} (com \texttt{can\_edit}),
+\texttt{substrate} e \texttt{project} (copiados por inteiro),
+\texttt{devices} (os dispositivos: \texttt{label} e \texttt{notes}),
+\texttt{cut\_from} (nas peças: a amostra de origem e a posição do corte; o que
+vem antes do corte está no ficheiro dessa amostra), \texttt{files} (ficheiros
+da própria amostra) e \texttt{timeline}, a lista ordenada dos passos e
+análises da amostra.
+
+Cada entrada de \texttt{timeline} tem \texttt{kind} (\texttt{step} ou
+\texttt{analysis}), \texttt{type} (a técnica), \texttt{position},
+\texttt{performed\_at}, \texttt{location}, \texttt{performed\_by},
+\texttt{notes}, nas análises \texttt{device} (o nome do dispositivo, ou
+\texttt{null}), \texttt{status} (\texttt{approved}, ou \texttt{pending} se foi
+proposta por um colega e ainda não aprovada), \texttt{files} (o caminho em
+\texttt{uploads/}, o nome original, etc.) e \texttt{parameters}: um objeto com
+uma chave por campo do tipo de entrada, com números como números e texto como
+texto. Num campo de escolha entre variantes (por exemplo Forno/RTA em
+Recozimento) guarda-se o valor escolhido e, a seguir, os campos dessa
+variante; num campo com caixa de seleção guarda-se \texttt{true} e os seus
+campos; nos modos de XRD guarda-se \texttt{\{modo: \{campo: valor\}\}}.
 
 \subsection{Windows 10}
 

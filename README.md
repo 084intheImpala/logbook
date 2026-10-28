@@ -135,7 +135,8 @@ Project           (collaboration: name, partner institution, code used in its sa
 Sample            (generated ID, type, optional label and tags)
  ├── ProcessStep  (can repeat types, e.g. two annealings)
  │    └── Attachment (uploaded files)
- └── Analysis     (XRD, RBS, SEM, …)
+ ├── Device       (D1, D2, …; made by a "Devices made" step)
+ └── Analysis     (XRD, RBS, SEM, …; optionally on one Device)
       └── Attachment (data files, images)
 ```
 
@@ -144,9 +145,21 @@ Sample            (generated ID, type, optional label and tags)
 Every sample gets an ID when it's created: the researcher's initials, the
 year, and that researcher's counter for the year, e.g. `ASS-2026-001`. Pieces
 cut from it add `-A`, `-B`, … (pieces of pieces `-1`, `-2`, …), and a
-reference piece adds `-REF`. IDs never change, even if the sample changes
-owner or the researcher's initials change later. The optional **Label** is
-for your own description and doesn't need to be unique.
+reference piece adds `-REF`. IDs don't change when the sample changes
+owner or the researcher's initials change later. Only an admin can change one,
+for a sample created under the wrong owner or type (see below). The optional
+**Label** is for your own description and doesn't need to be unique.
+
+**Changing an ID (admins).** On the sample's *Edit* page, *Change the sample
+ID* gives it the next free number under a researcher's initials or a project's
+code (or an ID you type). Its pieces are renamed with it (`ASS-2026-005-A`
+becomes `UMIN-2026-001-A`), the folders in `uploads/` are renamed and the
+stored file names updated, and the owner gets an email listing the old and new
+IDs. The old ID is kept on the sample (shown as *Previously*, searchable, and
+in the exports) and is never given to another sample, so an old ID can't end up
+meaning two things. A piece's ID can't be changed on its own; change the
+sample it was cut from. Samples are not renumbered in the emails, links or
+notes people kept: the owner's email is how they find out.
 
 Collaboration samples use their project's code instead of initials, with
 the project's own counter, e.g. `UMIN1-2026-001`, whoever receives them.
@@ -171,7 +184,7 @@ admin can change their initials (Configurations → Users).
 ### Substrate library
 
 The **Substrates** tab lists the substrates samples are made from, with
-thickness, orientation, polishing, size, supplier, notes and spec files
+thickness, orientation, polishing, size, supplier, batch number, notes and spec files
 (PDF or photos). Anyone can add one; whoever added it and admins can edit
 it. A substrate used by any sample can't be deleted.
 
@@ -268,10 +281,80 @@ Mandatory: the substrate for thin-film and bulk samples, the description and
 spec sheet for commercial ones, and the type of each step/analysis. `required` in
 a type's schema is a hint shown on the form, not enforced.
 
-The tables are created on first start from `backend/models.py`. There are no
-migrations: after changing a model, recreate the database
-(`docker compose down -v`, then `docker compose up -d`), which deletes all
-data. Add migrations (e.g. Alembic) before the logbook holds real data.
+The tables are created and kept up to date by migrations that run when the
+app starts; see [Schema changes (migrations)](#schema-changes-migrations).
+Never recreate the database to apply a model change.
+
+### The `sample.json` file
+
+`uploads/<sample ID>/sample.json` is plain JSON, written with UTF-8 and
+indented, so it can be read without the app. Top level:
+
+| Key | Meaning |
+|---|---|
+| `format` | Version of this layout (currently 3: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them). |
+| `written_at` | When the file was last written. |
+| `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
+| `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk`, `commercial` or `collaboration`; `visibility` is `personal`, `team` or `public`. |
+| `owner`, `requested_by` | `{username, name, initials}` or `null`. |
+| `shared_with` | List of `{username, name, initials, can_edit}`. |
+| `substrate`, `project` | The library substrate / collaboration project it refers to, copied in full (`null` if none). |
+| `cut_from` | For a piece: `{sample, cut_step_id, cut_position}`: the parent's ID and where on its timeline the Cut step is. The piece inherits everything before that position; those entries are in the parent's file, not repeated here. |
+| `files` | Files attached to the sample itself (e.g. a spec sheet). |
+| `devices` | The devices made on the sample: list of `{label, notes}`. |
+| `timeline` | The sample's own steps and analyses, in order. |
+
+Each `timeline` entry has `id`, `kind` (`step` or `analysis`), `type` (the
+technique, e.g. `Annealing`), `position`, `performed_at` (a date), `location`,
+`performed_by` (`{username, name, initials}` for a user, `{name}` for someone
+without an account, or `null`), `notes`, `run_id` (entries added to several
+samples at once share it), `status` (`approved`, or `pending` for an entry a
+teammate proposed that the owner hasn't approved), `proposed_by`, `created_at`,
+`files` (`file` is the path under `uploads/`, plus `original_name`, `size`,
+`mime_type`, `uploaded_by`, `uploaded_at`) and **`parameters`**. An analysis
+also has `device`: the label of the device it was measured on, or `null`.
+
+`parameters` is an object keyed by the field keys of the entry's type (see
+[Steps and analyses: parameters](#steps-and-analyses-parameters)): numbers as
+numbers, text as text, durations as `"min:ss"`. A *variant* (e.g. Annealing's
+Furnace/RTA) stores the chosen value under its key and the chosen option's
+fields next to it; a ticked *check* stores `true` and its fields next to it; a
+*modes* field (e.g. XRD) stores `{mode: {sub-key: value}}`. Keys the type no
+longer has stay as they were. Example, trimmed:
+
+```json
+{
+  "format": 2, "code": "ASS-2026-001", "visibility": "personal",
+  "owner": {"username": "ana", "name": "Ana Silva", "initials": "ASS"},
+  "substrate": {"name": "Si 100", "material": "Si", "orientation": "(100)", "thickness_um": 525.0, "batch_no": null},
+  "timeline": [
+    {"id": 1, "kind": "step", "type": "Annealing", "position": 0, "performed_at": "2026-10-22",
+     "location": "INESC MN", "performed_by": {"username": "ana", "name": "Ana Silva", "initials": "ASS"},
+     "parameters": {"method": "Furnace", "temperature": 800, "duration": 60}, "status": "approved", "files": []},
+    {"id": 1, "kind": "analysis", "type": "XRD / HRXRD", "position": 1, "performed_at": "2026-10-23",
+     "performed_by": {"name": "Rui (visitor)"}, "parameters": {"mode": "2θ/ω"}, "status": "approved",
+     "files": [{"file": "ASS-2026-001/2026-10-23_XRD-HRXRD/scan01.raw", "original_name": "scan01.raw", "size": 1000}]}
+  ]
+}
+```
+
+## Devices on a sample
+
+When several devices come out of one sample, finish the process that makes
+them, then use **Process done: make devices** under *Devices* on the sample's
+page: give the labels (D1, D2, …, or just how many) and the date. This puts
+a **Devices made** step on the timeline, listing the devices; everything
+before it is their shared history. Steps added afterwards, such as annealing,
+still go on the sample and so apply to all its devices. It isn't tied to any
+particular process, and more devices can be made later with another
+**Devices made** step.
+
+An analysis has an optional **Device** field to say which one it was
+measured on; left empty, it concerns the whole sample. Removing a device
+keeps its analyses, now on the sample as a whole; deleting a *Devices made*
+step removes its devices the same way. Pieces cut from the sample inherit
+the analyses with their device label. The CSV has a `device` column, and
+`sample.json` a `devices` list.
 
 ## Cutting a sample into pieces
 
@@ -311,18 +394,77 @@ inherited entries, and the CSV marks those rows in `inherited_from`.
 
 Every logged-in user sees every sample's summary: ID, label, type,
 materials, substrate, tags, which techniques were used, and the researcher. Details (description,
-parameters, notes, dates and files) are visible only to:
+parameters, notes, dates and files) are visible to:
 
 - the sample's owner (the researcher who created it),
 - admins,
-- users the owner has shared the sample with.
+- users the owner has shared the sample with,
+- the **coordinators** of the owner's team, who have the owner's rights (see [Teams](#teams)),
+- anyone the sample's **visibility** lets in.
+
+**Visibility** is set per sample, when it is created and later under
+*Sharing* (owner or admin): **Personal** (the default: only the people above),
+**Team** (also everyone in the owner's team) or **Public** (everyone logged
+in). A piece cut from a sample starts with its parent's visibility. Visibility
+only decides who can *see* details; changing a sample still needs an explicit
+**Edit** share (or being the owner or an admin).
+
+### Teams
+
+A team is a group inside the lab (separate from [Projects](#projects), which
+are outside collaborators). Teams are meant to run themselves with little
+admin input, in three tiers:
+
+| | Can do |
+|---|---|
+| **Admin** | Everything. Only admins create, rename and delete teams, appoint and remove **coordinators**, move people between teams, change sample IDs, edit entry types and dropdown lists, and make other admins. |
+| **Coordinator** (of one team) | Has the **owner's rights on every sample owned by a member of their team**: view, edit, share, change visibility, delete, and hand to another member of the team (straight away, no confirmation). Answers proposals and access requests (below). On the **My team** page: adds people who have no team, removes members (not coordinators), creates accounts for new members (they join the team and get the usual welcome email) and resets members' passwords. |
+| **Member** | Their own samples, anything shared with them, what a sample's visibility shows them, and *proposing* entries on teammates' samples. |
+
+Admins manage teams under *Configurations → Teams*. People normally belong to
+one team; the data model allows several, and a coordinator's rights apply to
+each team they coordinate. Management actions (deleting or handing over
+samples, sharing, approvals, accounts, team changes) are recorded in the
+**Activity log**, which admins see in full and a team's coordinators see for
+their own members. Ordinary editing isn't logged.
+
+### What a share gives
+
+Sharing a sample with **View** gives everything on it: parameters, notes,
+dates and files of all its steps and analyses, not only the list of steps.
+**Edit** adds the ability to add and change steps, analyses and files. Neither
+lets the person delete the sample or manage its sharing.
 
 Owners share from the **Sharing** panel on a sample's page, or select
 several samples on the **Search** page and share them at once. Each share
 is **View** (read details and download files) or **Edit** (also add and
-change steps, analyses and files). Only the owner or an admin can delete a
-sample or change who it's shared with. Samples without an owner are open to
+change steps, analyses and files). Only the owner, an admin or a coordinator
+of the owner's team can delete a sample or change who it's shared with. Samples without an owner are open to
 everyone; admins can assign an owner from the sample's Edit form.
+
+### Proposing entries on a teammate's sample
+
+Anyone in the owner's team can **propose** a process step or analysis on the
+owner's sample (the *Propose* buttons on its page), even without view or edit
+access. The proposal stays out of the timeline, exports, search and the
+inherited history of pieces until it is approved, and the owner is emailed.
+The author sees and can change or withdraw their own proposal meanwhile.
+
+- The **owner** approves or declines it from the *Approvals* page, or on the
+  sample; so can a **coordinator** of the owner's team (and admins), at any
+  time, so a sample whose owner is away isn't stuck. Declining deletes the
+  proposal and its files and tells the author.
+- Approving puts the entry on the timeline (by its date, or last) and emails
+  the author.
+
+### Requesting access
+
+On a sample you can't see or edit, **Request access** asks the owner for
+*See the details* or *Edit*, with an optional message. The owner is emailed
+and answers on the *Approvals* page; approving creates the share (View or
+Edit) and the requester is told. A coordinator of the owner's team (or an
+admin) can answer too. Requesters can withdraw a pending request. The sidebar shows
+how many things are waiting for you.
 
 ### Who performed a step or analysis
 
@@ -505,6 +647,71 @@ On Linux: `ip a` or `hostname -I`.
 
 ---
 
+## Tests
+
+The tests run the real app on a throwaway SQLite database and a temporary
+uploads folder; they never touch Postgres or `uploads/`.
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+`tests/test_permissions.py` pins down who can see and do what with a sample
+(owner, admin, shared view/edit, performer, stranger). Run it before and after
+any change to sharing or access rules.
+
+---
+
+## Schema changes (migrations)
+
+The database structure is versioned with [Alembic](https://alembic.sqlalchemy.org/).
+The app applies pending migrations by itself every time it starts
+(`backend/migrate.py`), so updating means: pull the code, rebuild, start.
+Migrations live in `backend/migrations/versions/`.
+
+### First update to a version with migrations (one time only)
+
+Your existing database was built before migrations existed. The app detects
+this (tables, but no `alembic_version` table) and marks it as the baseline
+revision `0001`, which is exactly the schema it already has. Nothing in your
+data is changed. On the machine that hosts the database:
+
+1. **Back up first** (see [Backing up](#backing-up)), and keep a copy of `uploads/`.
+2. Pull the new code and rebuild: `git pull`, then `docker compose build app`
+   (this installs the new `alembic` dependency).
+3. Start it: `docker compose up -d`.
+4. Check the log for errors: `docker compose logs app | tail -30`.
+5. Check the version was recorded; this should print `0001` (or the newest revision):
+
+   ```bash
+   docker compose exec -T db psql -U logbook logbook -c "select * from alembic_version;"
+   ```
+6. Open the logbook and look at a few samples.
+
+If something fails, `docker compose down`, restore the backup (see
+[Restoring](#restoring)) and go back to the previous commit.
+
+### Later updates
+
+Same steps 1–6. The app upgrades the database to the newest revision when it
+starts, and `alembic_version` shows the new number.
+
+### For developers: writing a migration
+
+Change `backend/models.py`, then generate and **read** the migration before
+committing it (autogenerate misses renames and data changes):
+
+```bash
+DATABASE_URL=sqlite+aiosqlite:///scratch.db alembic upgrade head   # empty scratch db at the current revision
+DATABASE_URL=sqlite+aiosqlite:///scratch.db alembic revision --autogenerate -m "what changed"
+```
+
+Migrations that fill existing rows (e.g. giving old samples a default
+visibility) need that written by hand in the same file.
+
+---
+
 ## Backups and moving to another machine
 
 Everything the logbook holds is in three places:
@@ -534,7 +741,8 @@ updating the code.
 ### Restoring
 
 The dump has to go into an empty database, before the app starts and creates
-its own empty tables:
+its own empty tables (the app would otherwise create them and the dump
+would clash):
 
 ```bash
 docker compose down -v                                        # wipes the current database
@@ -550,7 +758,8 @@ Put the matching `uploads/` folder back in place too.
 1. On the old machine, make a backup (above) and copy the `.sql` file,
    `uploads/` and `.env` to the new machine.
 2. On the new machine, get the code **at the same commit** as the old one:
-   there are no migrations, so a dump only fits the version that wrote it.
+   a dump fits the code that wrote it; a newer version brings migrations that
+   upgrade it on first start (see [Schema changes](#schema-changes-migrations)).
 3. Put `uploads/` and `.env` in the project folder. Keep the same
    `SECRET_KEY`; change `BASE_URL` to the new address so emailed links work.
 4. If the new machine isn't WSL2 with mirrored networking, apply the changes in

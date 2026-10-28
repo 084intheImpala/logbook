@@ -63,7 +63,7 @@ PT = {
     "Other parameters": "Outros parâmetros",
     "Anything the fields above don't cover, one per line:": "O que os campos acima não cobrem, um por linha:",
     "Choose a type.": "Escolha um tipo.",
-    "A Cut can't be changed to another type, or another step to a Cut.":
+    "A Cut or a Devices made step can't be changed to another type, or another step to one of them.":
         "Um Cut não pode passar a outro tipo, nem outro passo a Cut.",
     "Also add to other samples": "Adicionar também a outras amostras",
     "What differs between samples?": "O que difere entre amostras?",

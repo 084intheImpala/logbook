@@ -44,6 +44,19 @@
       </select>
     </div>
 
+    {% if devices %}
+    <!-- Device -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Device") }}</label>
+      <select name="device_id" class="{{ input_cls }} bg-white">
+        <option value="">{{ _("The whole sample") }}</option>
+        {% for d in devices %}
+        <option value="{{ d.id }}" {% if entry and entry.device_id == d.id %}selected{% endif %}>{{ d.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
     <!-- Who / when / where -->
     <div class="grid grid-cols-2 gap-4 items-start">
       {{ performer_field(entry, users, ring) }}

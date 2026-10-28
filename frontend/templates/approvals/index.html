@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Approvals") }} — Logbook{% endblock %}
+{% block content %}
+<div class="max-w-3xl">
+  <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ _("Approvals") }}</h1>
+  <p class="text-sm text-gray-500 mb-6">{{ _("Entries teammates proposed on your samples and requests for access. The owner decides; a coordinator of the owner's team can decide too once the owner hasn't answered for a few days.") }}</p>
+
+  {% if flash %}<div class="mb-4 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ flash }}</div>{% endif %}
+  {% if flash_error %}<div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ flash_error }}</div>{% endif %}
+
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("Waiting for your decision") }}</h2>
+  {% if entries or requests %}
+  <div class="space-y-3 mb-8">
+    {% for r in entries %}
+    <div class="bg-white rounded-xl border border-gray-200 p-4 text-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div><span class="font-semibold">{{ r.type_name }}</span> {{ _("proposed on") }}
+            <a href="/samples/{{ r.sample.id }}#pending" class="font-mono text-blue-600 hover:underline">{{ r.sample.title }}</a>
+            {{ _("by") }} {{ r.proposer.display_name if r.proposer else "—" }}</div>
+          {% if r.entry.notes %}<div class="text-gray-500 text-xs mt-1 whitespace-pre-line">{{ r.entry.notes }}</div>{% endif %}
+          {% if r.entry.proposed_at %}<div class="text-gray-400 text-xs mt-1">{{ r.entry.proposed_at.strftime('%Y-%m-%d') }}</div>{% endif %}
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <form method="post" action="/approvals/entries/{{ r.kind }}/{{ r.entry.id }}/approve"><button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Approve") }}</button></form>
+          <form method="post" action="/approvals/entries/{{ r.kind }}/{{ r.entry.id }}/reject"
+                onsubmit='return confirm({{ _("Decline this proposal? It is deleted and the author is told.")|tojson }})'><button class="text-xs text-red-600 px-2 py-1.5 hover:underline">{{ _("Decline") }}</button></form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% for req in requests %}
+    <div class="bg-white rounded-xl border border-gray-200 p-4 text-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div><span class="font-semibold">{{ req.user.display_name }}</span>
+            {{ _("asks to edit") if req.level == "edit" else _("asks to see the details of") }}
+            <a href="/samples/{{ req.sample.id }}" class="font-mono text-blue-600 hover:underline">{{ req.sample.title }}</a></div>
+          {% if req.message %}<div class="text-gray-500 text-xs mt-1 whitespace-pre-line">{{ req.message }}</div>{% endif %}
+          <div class="text-gray-400 text-xs mt-1">{{ req.created_at.strftime('%Y-%m-%d') }}</div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <form method="post" action="/approvals/requests/{{ req.id }}/approve"><button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Approve") }}</button></form>
+          <form method="post" action="/approvals/requests/{{ req.id }}/deny"><button class="text-xs text-red-600 px-2 py-1.5 hover:underline">{{ _("Decline") }}</button></form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-10 mb-8 bg-white rounded-xl border border-dashed border-gray-300 text-gray-500 text-sm">{{ _("Nothing is waiting for you.") }}</div>
+  {% endif %}
+
+  {% if mine or my_requests %}
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("Waiting for someone else") }}</h2>
+  <div class="space-y-2">
+    {% for r in mine %}
+    <div class="bg-white rounded-xl border border-gray-200 p-3 text-sm flex items-center justify-between">
+      <span><span class="font-semibold">{{ r.type_name }}</span> {{ _("on") }}
+        <a href="/samples/{{ r.sample.id }}#pending" class="font-mono text-blue-600 hover:underline">{{ r.sample.title }}</a>
+        <span class="text-gray-400">· {{ _("pending approval") }}</span></span>
+      <form method="post" action="/approvals/entries/{{ r.kind }}/{{ r.entry.id }}/reject"
+            onsubmit='return confirm({{ _("Withdraw this proposal? It is deleted.")|tojson }})'><button class="text-xs text-gray-500 hover:underline">{{ _("Withdraw") }}</button></form>
+    </div>
+    {% endfor %}
+    {% for req in my_requests %}
+    <div class="bg-white rounded-xl border border-gray-200 p-3 text-sm flex items-center justify-between">
+      <span>{{ _("Edit access") if req.level == "edit" else _("View access") }} {{ _("to") }}
+        <a href="/samples/{{ req.sample.id }}" class="font-mono text-blue-600 hover:underline">{{ req.sample.title }}</a>
+        <span class="text-gray-400">· {{ _("pending") }}</span></span>
+      <form method="post" action="/approvals/requests/{{ req.id }}/deny"><button class="text-xs text-gray-500 hover:underline">{{ _("Withdraw") }}</button></form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
