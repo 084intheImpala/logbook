@@ -4,6 +4,8 @@ They are made by declaring the sample's process done: a "Devices made" step
 goes on the timeline and the devices are listed under it. Later steps still
 apply to all of them.
 """
+import re
+
 from fastapi import APIRouter, Depends, Form, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, update
@@ -21,18 +23,14 @@ router = APIRouter()
 
 
 def _labels(sample, labels: str, count: str) -> list[str]:
-    """The new devices' names: those typed (comma separated), or `count` numbered on from the last."""
+    """The new devices' names: those typed (comma separated), or `count` numbered on from the highest D-number."""
     typed = [x.strip()[:50] for x in labels.replace("\n", ",").split(",") if x.strip()]
     taken = {d.label.lower() for d in sample.devices}
     out = []
     if not typed and count.isdigit():
-        n = 1
-        while len(out) < min(int(count), 100):
-            if f"D{n}".lower() not in taken:
-                out.append(f"D{n}")
-                taken.add(f"d{n}")
-            n += 1
-        return out
+        used = [int(d.label[1:]) for d in sample.devices if re.fullmatch(r"[Dd]\d+", d.label)]
+        first = max(used, default=0) + 1
+        return [f"D{n}" for n in range(first, first + min(int(count), 100))]
     for label in typed:
         if label.lower() not in taken:
             taken.add(label.lower())

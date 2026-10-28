@@ -81,3 +81,12 @@ def test_deleting_the_devices_made_step_removes_its_devices(world):
     assert c.post(f"/samples/{sample.id}/steps/{step.id}/delete").status_code == 303
     assert devices_of(sample) == []
     assert marker_steps(sample) == []
+
+
+def test_numbering_continues_after_the_highest(world):
+    owner = world.user("dev-num-owner")
+    sample = world.sample(owner)
+    c = world.client(owner)
+    c.post(f"/samples/{sample.id}/devices", data={"labels": "D3, D4, other"})
+    c.post(f"/samples/{sample.id}/devices", data={"count": "2"})
+    assert [d.label for d in devices_of(sample)] == ["D3", "D4", "other", "D5", "D6"]
