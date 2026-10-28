@@ -1,9 +1,8 @@
 """Things waiting for someone's yes or no: entries a teammate proposed on a
 sample, and requests for view or edit access.
 
-The owner decides at any time; a coordinator of the owner's team can too once
-the owner hasn't answered for APPROVAL_ESCALATION_DAYS (auth.can_decide), so a
-sample whose owner is away isn't stuck. Everyone concerned is told by email.
+The owner decides, and so can a coordinator of the owner's team (auth.can_decide),
+so a sample whose owner is away isn't stuck. Everyone concerned is told by email.
 """
 from fastapi import Request
 from sqlalchemy import select
@@ -33,8 +32,8 @@ async def pending_requests(db: AsyncSession) -> list[AccessRequest]:
 
 async def to_decide(db: AsyncSession, user: User) -> tuple[list, list]:
     """What `user` can approve or decline right now: (entries, requests)."""
-    entries = [r for r in await pending_entries(db) if can_decide(user, r[2], r[1].proposed_at or r[1].created_at)]
-    requests = [r for r in await pending_requests(db) if can_decide(user, r.sample, r.created_at)]
+    entries = [r for r in await pending_entries(db) if can_decide(user, r[2])]
+    requests = [r for r in await pending_requests(db) if can_decide(user, r.sample)]
     return entries, requests
 
 

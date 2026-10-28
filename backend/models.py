@@ -30,6 +30,11 @@ class User(Base):
     def display_name(self) -> str:
         return self.name or self.username
 
+    @property
+    def is_coordinator(self) -> bool:
+        """Coordinator of at least one team."""
+        return any(m.is_coordinator for m in self.memberships)
+
 
 class Team(Base):
     """A group inside the lab. Its coordinators can see all of its members' samples."""
@@ -287,9 +292,8 @@ class Analysis(Base):
 
 
 class AccessRequest(Base):
-    """Someone asks a sample's owner for view or edit access. The owner decides;
-    a coordinator of the owner's team can too once the owner hasn't answered
-    for a few days (see auth.can_decide)."""
+    """Someone asks a sample's owner for view or edit access. The owner decides,
+    and so can a coordinator of the owner's team (see auth.can_decide)."""
     __tablename__ = "access_requests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

@@ -53,7 +53,7 @@ def test_search_follows_visibility(world, lab):
     assert sample.code not in lab["clients"]["outsider"].get(q).text
 
 
-@pytest.mark.parametrize("who", ["mate", "coord", "outsider"])
+@pytest.mark.parametrize("who", ["mate", "outsider"])
 @pytest.mark.parametrize("visibility", ["personal", "team", "public"])
 def test_seeing_is_not_editing(world, lab, who, visibility):
     sample, _ = make(world, lab, visibility)
@@ -71,6 +71,53 @@ def test_a_coordinator_only_sees_their_own_teams_members(world, lab):
     assert not sees(lab, "coord", stray)
 
 
+# ── Coordinators run their team ──────────────────────────────────────────────
+
+def test_coordinator_has_owner_rights_on_team_samples(world, lab):
+    sample, _ = make(world, lab, "personal")
+    coord, sid = lab["clients"]["coord"], sample.id
+    assert coord.get(f"/samples/{sid}/edit").status_code == 200
+    assert coord.get(f"/samples/{sid}/steps/new").status_code == 200
+    assert coord.post(f"/samples/{sid}/visibility", data={"visibility": "team"}).status_code == 303
+    assert coord.post(f"/samples/{sid}/shares", data={"user_id": lab["users"]["outsider"].id, "access": "view"}).status_code == 303
+    assert sees(lab, "outsider", sample)
+    assert coord.post(f"/samples/{sid}/delete").status_code == 303
+    assert lab["clients"]["owner"].get(f"/samples/{sid}").status_code == 404
+
+
+def test_coordinator_has_no_rights_outside_their_team(world, lab):
+    stray = world.sample(lab["users"]["outsider"])
+    coord = lab["clients"]["coord"]
+    assert coord.get(f"/samples/{stray.id}/edit").status_code == 403
+    assert coord.post(f"/samples/{stray.id}/delete").status_code == 403
+    assert lab["clients"]["other_coord"].get(f"/samples/{lab_sample_edit(world, lab)}/edit").status_code == 403
+
+
+def lab_sample_edit(world, lab):
+    return make(world, lab, "personal")[0].id
+
+
+def test_coordinator_cannot_change_ids(world, lab):
+    sample, _ = make(world, lab, "personal")
+    assert lab["clients"]["coord"].post(f"/samples/{sample.id}/recode", data={"code": "ZZ-2026-001"}).status_code == 403
+
+
+def test_coordinator_reassigns_only_within_the_team(world, lab):
+    sample, _ = make(world, lab, "personal")
+    coord, sid = lab["clients"]["coord"], sample.id
+    data = {"sample_type": "commercial", "description": "bought"}
+
+    async def owner_of():
+        async with AsyncSessionLocal() as db:
+            return (await db.get(Sample, sid)).owner_id
+    coord.post(f"/samples/{sid}/edit", data=data | {"owner_id": str(lab["users"]["outsider"].id)},
+               files={"files": ("spec.txt", b"spec", "text/plain")})
+    assert run(owner_of()) == lab["users"]["owner"].id        # outsider isn't in the team: ignored
+    coord.post(f"/samples/{sid}/edit", data=data | {"owner_id": str(lab["users"]["mate"].id)},
+               files={"files": ("spec.txt", b"spec", "text/plain")})
+    assert run(owner_of()) == lab["users"]["mate"].id         # in the team: goes straight, no confirmation
+
+
 def test_owner_changes_visibility(world, lab):
     sample, _ = make(world, lab, "personal")
     assert not sees(lab, "mate", sample)
@@ -79,8 +126,8 @@ def test_owner_changes_visibility(world, lab):
     assert lab["clients"]["owner"].post(f"/samples/{sample.id}/visibility", data={"visibility": "nonsense"}).status_code == 400
 
 
-@pytest.mark.parametrize("who", ["mate", "coord", "outsider"])
-def test_only_owner_or_admin_change_visibility(world, lab, who):
+@pytest.mark.parametrize("who", ["mate", "outsider", "other_coord"])
+def test_only_owner_admin_or_team_coordinator_change_visibility(world, lab, who):
     sample, _ = make(world, lab, "personal")
     assert lab["clients"][who].post(f"/samples/{sample.id}/visibility", data={"visibility": "public"}).status_code == 403
 

@@ -42,4 +42,15 @@ PT = {
     "Request withdrawn.": "Pedido retirado.",
     "Request declined.": "Pedido recusado.",
     "{name} has no email address, so tell them yourself.": "{name} não tem endereço de email; avise-o você.",
+    # my team (coordinators)
+    "My team": "A minha equipa",
+    "As a coordinator you manage your team's members and have the owner's rights on their samples. Admins appoint coordinators and create teams.":
+        "Como coordenador gere os membros da sua equipa e tem os direitos do responsável nas amostras deles. Os administradores nomeiam coordenadores e criam equipas.",
+    "Remove {username} from the team? Their samples stay theirs.": "Remover {username} da equipa? As amostras continuam a ser dele.",
+    "Add someone who has no team": "Adicionar alguém sem equipa",
+    "Create an account for a new member": "Criar uma conta para um novo membro",
+    "Email (credentials are sent here)": "Email (as credenciais são enviadas para aqui)",
+    "Create user": "Criar utilizador",
+    "{name} is already in a team; ask an admin to move them.": "{name} já está numa equipa; peça a um administrador para o mudar.",
+    "Only an admin can remove a coordinator.": "Só um administrador pode remover um coordenador.",
 }

@@ -1,11 +1,9 @@
 """Auth helpers: password hashing, session deps, custom exception."""
-from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from backend.config import settings
 from backend.database import get_db
 from backend.models import User, Sample, Suggestion, SuggestionReply
 
@@ -98,10 +96,12 @@ def _share_for(user: User, sample):
 
 
 def is_owner(user: User | None, sample) -> bool:
-    """Owner or admin: may delete the sample and manage its sharing."""
+    """Owner, admin, or coordinator of the owner's team: may change the sample,
+    delete it and manage its sharing."""
     if user is None:
         return False
-    return user.is_admin or sample.owner_id is None or sample.owner_id == user.id
+    return (user.is_admin or sample.owner_id is None or sample.owner_id == user.id
+            or is_coordinator_of(user, sample))
 
 
 def _teams(user: User | None) -> set[int]:
@@ -117,6 +117,13 @@ def is_coordinator_of(user: User | None, sample) -> bool:
     return bool(mine & _teams(owner))
 
 
+def coordinates_user(user: User | None, target: User | None) -> bool:
+    """`user` is a coordinator of a team `target` is in."""
+    if user is None or target is None:
+        return False
+    return bool({m.team_id for m in user.memberships if m.is_coordinator} & _teams(target))
+
+
 def in_owners_team(user: User | None, sample) -> bool:
     return user is not None and sample.owner is not None and bool(_teams(user) & _teams(sample.owner))
 
@@ -127,8 +134,7 @@ def can_view(user: User | None, sample) -> bool:
     if user is None:
         return False
     return (sample.visibility == "public"
-            or (sample.visibility == "team" and in_owners_team(user, sample))
-            or is_coordinator_of(user, sample))
+            or (sample.visibility == "team" and in_owners_team(user, sample)))
 
 
 def can_edit(user: User | None, sample) -> bool:
@@ -150,18 +156,10 @@ def is_proposer(user: User | None, entry) -> bool:
     return user is not None and entry.status == "pending" and entry.proposed_by_id == user.id
 
 
-def waited_long_enough(since: datetime | None) -> bool:
-    return since is not None and datetime.utcnow() - since >= timedelta(days=settings.APPROVAL_ESCALATION_DAYS)
-
-
-def can_decide(user: User | None, sample, since: datetime | None) -> bool:
-    """Approve a proposed entry or access request made at `since`: the owner (or
-    an admin) at any time; a coordinator of the owner's team once the owner
-    hasn't answered for APPROVAL_ESCALATION_DAYS."""
-    if user is None or sample.owner_id is None:
-        return False
-    return (user.is_admin or sample.owner_id == user.id
-            or (is_coordinator_of(user, sample) and waited_long_enough(since)))
+def can_decide(user: User | None, sample) -> bool:
+    """Approve or decline a proposed entry or access request on this sample:
+    its owner, a coordinator of the owner's team, or an admin."""
+    return user is not None and sample.owner_id is not None and is_owner(user, sample)
 
 
 def is_performer(user: User | None, entry) -> bool:

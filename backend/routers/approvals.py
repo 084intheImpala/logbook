@@ -67,8 +67,8 @@ def _back(request: Request, default: str) -> RedirectResponse:
 async def approve_entry(request: Request, kind: str, entry_id: int, db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_login)):
     entry, sample = await _pending_entry(db, kind, entry_id)
-    if not can_decide(current_user, sample, entry.proposed_at or entry.created_at):
-        raise HTTPException(status_code=403, detail="You can't decide this yet.")
+    if not can_decide(current_user, sample):
+        raise HTTPException(status_code=403, detail="You can't decide this.")
     entry.status = "approved"
     await db.flush()
     await place_new(db, entry)
@@ -86,8 +86,8 @@ async def reject_entry(request: Request, kind: str, entry_id: int, db: AsyncSess
     entry, sample = await _pending_entry(db, kind, entry_id)
     proposer_id = entry.proposed_by_id
     is_author = proposer_id == current_user.id
-    if not is_author and not can_decide(current_user, sample, entry.proposed_at or entry.created_at):
-        raise HTTPException(status_code=403, detail="You can't decide this yet.")
+    if not is_author and not can_decide(current_user, sample):
+        raise HTTPException(status_code=403, detail="You can't decide this.")
     name, proposer = await _type_name(db, kind, entry), await db.get(User, proposer_id or 0)
     for att in (await db.execute(select(Attachment).where(
             Attachment.entity_type == kind, Attachment.entity_id == entry_id))).scalars():
@@ -151,7 +151,7 @@ async def approve_request(request: Request, request_id: int, db: AsyncSession = 
 async def deny_request(request: Request, request_id: int, db: AsyncSession = Depends(get_db),
                        current_user: User = Depends(require_login)):
     req = await _pending_request(db, request_id, current_user, allow_requester=True)
-    withdrawn = req.user_id == current_user.id and not can_decide(current_user, req.sample, req.created_at)
+    withdrawn = req.user_id == current_user.id and not can_decide(current_user, req.sample)
     req.status, req.decided_by_id, req.decided_at = "denied", current_user.id, datetime.utcnow()
     await db.commit()
     request.session["flash"] = t(request, "Request withdrawn.") if withdrawn else t(request, "Request declined.")
@@ -165,6 +165,6 @@ async def _pending_request(db: AsyncSession, request_id: int, user: User, allow_
     req = await db.get(AccessRequest, request_id)
     if req is None or req.status != "pending":
         raise HTTPException(status_code=404, detail="Nothing pending here")
-    if not (can_decide(user, req.sample, req.created_at) or (allow_requester and req.user_id == user.id)):
-        raise HTTPException(status_code=403, detail="You can't decide this yet.")
+    if not (can_decide(user, req.sample) or (allow_requester and req.user_id == user.id)):
+        raise HTTPException(status_code=403, detail="You can't decide this.")
     return req

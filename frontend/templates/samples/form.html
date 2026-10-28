@@ -145,7 +145,7 @@
         {% endfor %}
       </select>
       <p id="owner-hint" class="hidden text-xs text-gray-500 mt-1">
-        {% if current_user.is_admin %}{{ _("The sample goes straight to them.") }}
+        {% if direct_handover %}{{ _("The sample goes straight to them.") }}
         {% elif editing %}{{ _("They'll get an email asking them to confirm it. You keep edit access, and if they decline it comes back to you.") }}
         {% else %}{{ _("They'll get an email asking them to confirm it. You get edit access, and if they decline it becomes yours.") }}{% endif %}
         {% if editing %}{{ _("The ID stays the same.") }}{% endif %}

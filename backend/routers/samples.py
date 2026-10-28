@@ -13,7 +13,7 @@ from backend.sample_ids import next_code, piece_codes
 from backend import recode
 from backend.utils import save_upload, chosen_files
 from backend.auth import (require_login, load_sample, can_view, can_edit, can_edit_entry, can_propose, can_decide,
-                          is_owner, is_performer, is_proposer)
+                          coordinates_user, is_coordinator_of, is_owner, is_performer, is_proposer)
 from backend import timeline as tl
 from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_family, pieces_of
 from backend.params import parse_date, describe
@@ -119,7 +119,11 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         # Who a new sample can be created for (it gets their initials), or who
         # the owner can give it to. Admins reassign with the "users" list instead.
         "researchers": await _researchers(db)
-                       if not editing or (sample.owner_id == current_user.id and not current_user.is_admin) else [],
+                       if not editing or (sample.owner_id == current_user.id and not current_user.is_admin)
+                       else [u for u in await _researchers(db) if coordinates_user(current_user, u)]
+                       if editing and not current_user.is_admin and is_coordinator_of(current_user, sample) else [],
+        # Admins and the coordinator of the owner's team hand a sample over without the new owner confirming
+        "direct_handover": current_user.is_admin or (editing and is_coordinator_of(current_user, sample)),
         "now_year": date.today().year,
         "current_user": current_user,
     }
@@ -348,7 +352,7 @@ async def sample_detail(
         for e in entries:
             if e.status != "pending":
                 continue
-            decide = can_decide(current_user, sample, e.proposed_at or e.created_at)
+            decide = can_decide(current_user, sample)
             if viewable or decide or is_proposer(current_user, e):
                 type_name = (e.step_type if kind == "step" else e.analysis_type).name
                 pending.append(dict(kind=kind, path=path, entry=e, type_name=type_name, mine=is_proposer(current_user, e),
@@ -449,11 +453,17 @@ async def update_sample(
     # Admins reassign ownership directly; owners can give the sample to
     # someone else, who has to confirm. The sample ID keeps the original initials.
     new_owner = None
-    if owner_id and owner_id.isdigit() and int(owner_id) != sample.owner_id and (current_user.is_admin or was_owner):
-        new_owner = await db.get(User, int(owner_id))
+    team_admin = not current_user.is_admin and is_coordinator_of(current_user, sample)
+    if owner_id and owner_id.isdigit() and int(owner_id) != sample.owner_id and (
+            current_user.is_admin or was_owner or team_admin):
+        candidate = await db.get(User, int(owner_id))
+        # A coordinator can only hand samples to people in their own team
+        if candidate and (not team_admin or was_owner or coordinates_user(current_user, candidate)):
+            new_owner = candidate
     elif owner_id == "" and current_user.is_admin:
         sample.owner_id = sample.requested_by_id = None
-    pending = new_owner is not None and _hand_over(sample, new_owner.id, current_user.id, current_user.is_admin)
+    pending = new_owner is not None and _hand_over(
+        sample, new_owner.id, current_user.id, current_user.is_admin or (team_admin and not was_owner))
     for f in files:
         await save_upload(f, "sample", sample.id, db, uploaded_by=current_user.username)
     await db.commit()

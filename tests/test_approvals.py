@@ -1,10 +1,7 @@
 """Entries teammates propose, and requests for access: who can decide, and when."""
-from datetime import datetime, timedelta
-
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import select
 
-from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.models import AccessRequest, Analysis, ProcessStep, ProcessStepType, Sample
 from tests.loop import run
@@ -38,15 +35,6 @@ def entries(sample, model=ProcessStep):
         async with AsyncSessionLocal() as db:
             return (await db.execute(select(model).where(model.sample_id == sample.id))).scalars().all()
     return run(q())
-
-
-def age(entry_model, entry_id, days):
-    async def q():
-        async with AsyncSessionLocal() as db:
-            await db.execute(update(entry_model).where(entry_model.id == entry_id)
-                             .values(proposed_at=datetime.utcnow() - timedelta(days=days)))
-            await db.commit()
-    run(q())
 
 
 def timeline_has(lab, who, sample, text):
@@ -129,15 +117,20 @@ def test_others_cannot_approve(world, lab, who):
     assert entries(sample)[0].status == "pending"
 
 
-def test_coordinator_waits_before_approving(world, lab):
+def test_coordinator_approves_straight_away(world, lab):
     sample = world.sample(lab["users"]["owner"])
     propose(lab, "mate", sample)
     (entry,) = entries(sample)
-    coord = lab["clients"]["coord"]
-    assert coord.post(f"/approvals/entries/step/{entry.id}/approve").status_code == 403
-    age(ProcessStep, entry.id, settings.APPROVAL_ESCALATION_DAYS + 1)
-    assert coord.post(f"/approvals/entries/step/{entry.id}/approve").status_code == 303
+    assert lab["clients"]["coord"].post(f"/approvals/entries/step/{entry.id}/approve").status_code == 303
     assert entries(sample)[0].status == "approved"
+
+
+def test_coordinator_of_another_team_cannot_approve(world, lab):
+    sample = world.sample(lab["users"]["owner"])
+    propose(lab, "mate", sample)
+    (entry,) = entries(sample)
+    other = world.client(world.user("elsewhere"))
+    assert other.post(f"/approvals/entries/step/{entry.id}/approve").status_code == 403
 
 
 def test_admin_can_always_approve(world, lab):
@@ -198,22 +191,13 @@ def test_owner_declines(world, lab):
     assert lab["clients"]["outsider"].get(f"/samples/{sample.id}/edit").status_code == 403
 
 
-def test_coordinator_requests_edit_then_accepts_it_themselves_after_the_wait(world, lab):
+def test_coordinator_decides_a_members_access_request(world, lab):
     sample = world.sample(lab["users"]["owner"])
-    assert lab["clients"]["coord"].get(f"/samples/{sample.id}/edit").status_code == 403     # view only
-    ask(lab, "coord", sample, "edit", "need to fix a value")
+    ask(lab, "outsider", sample, "edit", "need to fix a value")
     (req,) = requests_for(sample)
-    coord = lab["clients"]["coord"]
-    assert coord.post(f"/approvals/requests/{req.id}/approve").status_code == 403          # too early
-
-    async def backdate():
-        async with AsyncSessionLocal() as db:
-            await db.execute(update(AccessRequest).where(AccessRequest.id == req.id).values(
-                created_at=datetime.utcnow() - timedelta(days=settings.APPROVAL_ESCALATION_DAYS + 1)))
-            await db.commit()
-    run(backdate())
-    assert coord.post(f"/approvals/requests/{req.id}/approve").status_code == 303
-    assert coord.get(f"/samples/{sample.id}/edit").status_code == 200
+    assert lab["clients"]["outsider"].post(f"/approvals/requests/{req.id}/approve").status_code == 403
+    assert lab["clients"]["coord"].post(f"/approvals/requests/{req.id}/approve").status_code == 303
+    assert lab["clients"]["outsider"].get(f"/samples/{sample.id}/edit").status_code == 200
 
 
 def test_requester_can_withdraw_but_not_approve(world, lab):
