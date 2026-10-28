@@ -22,7 +22,7 @@ from backend.auth import can_edit, can_edit_entry, can_view
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, remember
 from backend.config import settings
 from backend.i18n import t
-from backend.lineage import CUT_TYPE_NAME
+from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
 from backend.params import (describe, extra_params, located_lists, params_to_text, parse_date, parse_form,
                             parse_params, scalar_fields, schema_keys, varied_params)
@@ -90,8 +90,9 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
     if kind is STEP:
         # Cuts are made with "Cut into pieces", which also creates the pieces. A
         # Cut stays a Cut when edited, and nothing else becomes one.
-        is_cut = current_type is not None and current_type.name == CUT_TYPE_NAME
-        types = [ty for ty in types if (ty.name == CUT_TYPE_NAME) == is_cut]
+        # The same goes for Devices made.
+        special = current_type.name if current_type is not None and current_type.name in SPECIAL_STEP_TYPES else None
+        types = [ty for ty in types if (ty.name == special if special else ty.name not in SPECIAL_STEP_TYPES)]
     options = await option_lists(db)
     run = await run_entries(db, kind, entry) if entry else []
     attachments = []
@@ -120,6 +121,7 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
         "users": await users_for_form(db),
         "attachments": attachments,
         "run": run,
+        "devices": sample.devices if kind is ANALYSIS else [],
         # Single-value fields that can differ from sample to sample, per type
         "vary_fields": {ty.id: [{"key": f["key"], "label": t(request, f.get("label") or f["key"]),
                                  "unit": f.get("unit", ""), "options": options.get(f.get("list") or f["key"], [])
@@ -147,9 +149,13 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         old_type = await db.get(ProcessStepType, entry.step_type_id) if entry else None
         if entry is None and entry_type.name == CUT_TYPE_NAME:
             return RedirectResponse(f"/samples/{sample.id}/cut", status_code=303)
-        if old_type and (old_type.name == CUT_TYPE_NAME) != (entry_type.name == CUT_TYPE_NAME):
+        if entry is None and entry_type.name in SPECIAL_STEP_TYPES:
             return await form_page(request, db, kind, sample, entry, user,
-                                   t(request, "A Cut can't be changed to another type, or another step to a Cut."),
+                                   t(request, "Choose a type."), status_code=400)
+        if old_type and (old_type.name in SPECIAL_STEP_TYPES or entry_type.name in SPECIAL_STEP_TYPES) \
+                and old_type.name != entry_type.name:
+            return await form_page(request, db, kind, sample, entry, user,
+                                   t(request, "A Cut or a Devices made step can't be changed to another type, or another step to one of them."),
                                    status_code=400)
 
     params, picked = parse_form(form, entry_type.parameter_schema)
@@ -166,6 +172,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         "notes": form.get("notes", "").strip() or None,
         "location": location,
     }
+    device_id = form.get("device_id", "")
+    device = next((d for d in sample.devices if str(d.id) == device_id), None) if kind is ANALYSIS else None
     performed_at = parse_date(form.get("performed_at", ""))
     performer, performed_by = form.get("performer", ""), form.get("performed_by", "")
 
@@ -178,6 +186,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
             if own:
                 target.parameters = (params | own)
                 picked.extend(own_picked)
+        if kind is ANALYSIS and target.sample_id == sample.id:   # copies on other samples have their own devices
+            target.device_id = device.id if device else None
         newly = await apply_performer(db, target, performer, performed_by)
         if performed_at != target.performed_at or target.position is None:
             target.performed_at = performed_at

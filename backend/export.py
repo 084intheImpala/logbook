@@ -17,7 +17,7 @@ SAMPLE_COLUMNS = [
     "description",
 ]
 ENTRY_COLUMNS = [
-    "entry_order", "entry_kind", "technique", "inherited_from", "performed_at", "performed_by", "location", "notes",
+    "entry_order", "entry_kind", "technique", "device", "inherited_from", "performed_at", "performed_by", "location", "notes",
     "attachments",
 ]
 
@@ -63,6 +63,7 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
         for i, item in enumerate(items, 1):
             kind, e = item.kind, item.entry
             row = {**base, "entry_order": i, "entry_kind": kind, "technique": item.technique,
+                   "device": e.device.label if kind == "analysis" and e.device else None,
                    "inherited_from": item.source.title if item.source is not s else None}
             if not details:
                 rows.append(row)

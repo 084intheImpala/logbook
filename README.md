@@ -291,7 +291,7 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 2: adds `visibility`, `previous_codes` and per-entry `status`/`proposed_by`; older files lack them). |
+| `format` | Version of this layout (currently 3: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
 | `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk`, `commercial` or `collaboration`; `visibility` is `personal`, `team` or `public`. |
@@ -300,6 +300,7 @@ indented, so it can be read without the app. Top level:
 | `substrate`, `project` | The library substrate / collaboration project it refers to, copied in full (`null` if none). |
 | `cut_from` | For a piece: `{sample, cut_step_id, cut_position}`: the parent's ID and where on its timeline the Cut step is. The piece inherits everything before that position; those entries are in the parent's file, not repeated here. |
 | `files` | Files attached to the sample itself (e.g. a spec sheet). |
+| `devices` | The devices made on the sample: list of `{label, notes}`. |
 | `timeline` | The sample's own steps and analyses, in order. |
 
 Each `timeline` entry has `id`, `kind` (`step` or `analysis`), `type` (the
@@ -309,7 +310,8 @@ without an account, or `null`), `notes`, `run_id` (entries added to several
 samples at once share it), `status` (`approved`, or `pending` for an entry a
 teammate proposed that the owner hasn't approved), `proposed_by`, `created_at`,
 `files` (`file` is the path under `uploads/`, plus `original_name`, `size`,
-`mime_type`, `uploaded_by`, `uploaded_at`) and **`parameters`**.
+`mime_type`, `uploaded_by`, `uploaded_at`) and **`parameters`**. An analysis
+also has `device`: the label of the device it was measured on, or `null`.
 
 `parameters` is an object keyed by the field keys of the entry's type (see
 [Steps and analyses: parameters](#steps-and-analyses-parameters)): numbers as
@@ -334,6 +336,24 @@ longer has stay as they were. Example, trimmed:
   ]
 }
 ```
+
+## Devices on a sample
+
+When several devices come out of one sample, finish the process that makes
+them, then use **Process done: make devices** under *Devices* on the sample's
+page: give the labels (D1, D2, …, or just how many) and the date. This puts
+a **Devices made** step on the timeline, listing the devices; everything
+before it is their shared history. Steps added afterwards, such as annealing,
+still go on the sample and so apply to all its devices. It isn't tied to any
+particular process, and more devices can be made later with another
+**Devices made** step.
+
+An analysis has an optional **Device** field to say which one it was
+measured on; left empty, it concerns the whole sample. Removing a device
+keeps its analyses, now on the sample as a whole; deleting a *Devices made*
+step removes its devices the same way. Pieces cut from the sample inherit
+the analyses with their device label. The CSV has a `device` column, and
+`sample.json` a `devices` list.
 
 ## Cutting a sample into pieces
 

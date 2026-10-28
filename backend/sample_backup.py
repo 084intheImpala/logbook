@@ -24,13 +24,13 @@ from sqlalchemy.orm import Session
 from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.lineage import _full_options
-from backend.models import Analysis, Attachment, ProcessStep, Sample, SampleShare
+from backend.models import Analysis, Attachment, Device, ProcessStep, Sample, SampleShare
 from backend.utils import _safe
 
 log = logging.getLogger("uvicorn.error")
 
 FILE_NAME = "sample.json"
-FORMAT = 2   # 2: adds visibility, previous_codes, and status / proposed_by on entries
+FORMAT = 3   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices
 
 # What changed since the last write: ("sample" | "step" | "analysis", id), or
 # ("gone", folder) for a deleted sample. Filled as the database is changed.
@@ -47,14 +47,14 @@ def _note_changes(session, _context):
     for obj in (*session.new, *session.dirty):
         if isinstance(obj, Sample):
             _pending.add(("sample", obj.id))
-        elif isinstance(obj, (ProcessStep, Analysis, SampleShare)):
+        elif isinstance(obj, (ProcessStep, Analysis, SampleShare, Device)):
             _pending.add(("sample", obj.sample_id))
         elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis"):
             _pending.add((obj.entity_type, obj.entity_id))
     for obj in session.deleted:
         if isinstance(obj, Sample):
             _pending.add(("gone", folder_for(obj.code, obj.id)))
-        elif isinstance(obj, (ProcessStep, Analysis, SampleShare)):
+        elif isinstance(obj, (ProcessStep, Analysis, SampleShare, Device)):
             _pending.add(("sample", obj.sample_id))
         elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis"):
             _pending.add((obj.entity_type, obj.entity_id))
@@ -73,6 +73,7 @@ def _attachment(att: Attachment) -> dict:
 
 def _entry(kind: str, entry, type_name: str, attachments: dict) -> dict:
     return {
+        **({"device": entry.device.label if entry.device else None} if kind == "analysis" else {}),
         "id": entry.id, "kind": kind, "type": type_name, "position": entry.position,
         "performed_at": entry.performed_at, "location": entry.location,
         "performed_by": _person(entry.performer) or ({"name": entry.performed_by} if entry.performed_by else None),
@@ -110,6 +111,7 @@ def _document(sample: Sample, parent: tuple | None, attachments: dict) -> dict:
         "cut_from": None if parent is None else {
             "sample": parent[0], "cut_step_id": sample.cut_step_id, "cut_position": parent[1]},
         "files": [_attachment(a) for a in attachments.get(("sample", sample.id), [])],
+        "devices": [{"label": d.label, "notes": d.notes} for d in sample.devices],
         "timeline": entries,
     }
 

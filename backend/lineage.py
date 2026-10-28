@@ -16,6 +16,10 @@ from backend.auth import can_view, is_performer, is_proposer
 
 # The step type that cutting records; only the cut form adds it.
 CUT_TYPE_NAME = "Cut"
+# Declares the devices on a sample done; only the Devices panel adds it.
+DEVICES_TYPE_NAME = "Devices made"
+# Steps with their own form: never offered in, or changed to or from, in Add Process Step
+SPECIAL_STEP_TYPES = {CUT_TYPE_NAME, DEVICES_TYPE_NAME}
 
 _LAST = 1 << 30
 
@@ -69,6 +73,7 @@ def _full_options():
     return (
         selectinload(Sample.process_steps).selectinload(ProcessStep.step_type),
         selectinload(Sample.analyses).selectinload(Analysis.analysis_type),
+        selectinload(Sample.devices),
     )
 
 

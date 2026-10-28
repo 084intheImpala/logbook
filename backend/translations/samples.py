@@ -141,4 +141,15 @@ PT = {
     "Shared {n} samples with {name} (view).": "{n} amostras partilhadas com {name} (visualização).",
     "Skipped 1 you don't own.": "Foi ignorada 1 que não lhe pertence.",
     "Skipped {n} you don't own.": "Foram ignoradas {n} que não lhe pertencem.",
+    # devices
+    "Devices": "Dispositivos",
+    "Device": "Dispositivo",
+    "The whole sample": "A amostra inteira",
+    "Measured on this device": "Medido neste dispositivo",
+    "Remove this device? Its analyses stay on the sample.": "Remover este dispositivo? As suas análises ficam na amostra.",
+    "D1, D2, … or leave empty for the next": "D1, D2, … ou deixe vazio para o seguinte",
+    "or how many": "ou quantos",
+    "Process done: make devices": "Processo concluído: criar dispositivos",
+    "Make devices when the process that produces them is done: a 'Devices made' step goes on the timeline. Steps after it, such as annealing, still apply to all the devices. Pick a device when adding an analysis to say which one it was measured on.":
+        "Crie os dispositivos quando o processo que os produz estiver concluído: um passo 'Devices made' fica na cronologia. Os passos seguintes, como o recozimento, continuam a aplicar-se a todos os dispositivos. Ao adicionar uma análise, escolha o dispositivo em que foi medida.",
 }

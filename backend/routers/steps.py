@@ -10,6 +10,8 @@ from backend.timeline import renumber
 from backend.auth import require_login, load_sample, can_edit_entry
 from backend.entry_forms import STEP, form_page, save, get_entry, overwrite_check
 from backend.i18n import t
+from backend.models import Device
+from backend.routers.devices import remove_devices
 
 router = APIRouter()
 
@@ -85,6 +87,7 @@ async def delete_step(
             n=len(pieces))
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
+    await remove_devices(db, Device.made_step_id == step_id)   # deleting "Devices made" takes its devices
     await db.delete(step)
     await db.flush()
     await renumber(db, sample_id)

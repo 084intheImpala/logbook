@@ -331,6 +331,8 @@ async def sample_detail(
             "location": e.location,
             "run": runs.get(e.run_id, []) if e.run_id else [],
             "notes": e.notes,
+            "device": e.device.label if item.kind == "analysis" and e.device else None,
+            "made_devices": [d.label for d in item.source.devices if d.made_step_id == e.id] if item.kind == "process" else [],
             "performed_by": e.performer_name,
             "editable": not inherited and can_edit_entry(current_user, sample, e),
             "performed_at": e.performed_at,

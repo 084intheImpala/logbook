@@ -139,6 +139,11 @@ PROCESS_STEP_TYPES = [
         ],
     },
     {
+        "name": "Devices made",
+        "description": "The process is done and the devices on the sample are ready (each device is listed on the sample)",
+        "parameter_schema": [],
+    },
+    {
         "name": "Other Process",
         "description": "Any other process step",
         "parameter_schema": [
@@ -287,7 +292,7 @@ ANALYSIS_TYPES = [
 # Every technique gets an Equipment dropdown tied to the place (Where), unless
 # it has one already (Deposition's Machine, SEM). Cut has its own form.
 for _type in PROCESS_STEP_TYPES + ANALYSIS_TYPES:
-    if _type["name"] != "Cut":
+    if _type["name"] not in ("Cut", "Devices made"):
         _type["parameter_schema"] = with_equipment(_type["parameter_schema"], _type["name"])
 
 # Starting values of the shared dropdowns; people add more as they go.

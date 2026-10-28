@@ -160,6 +160,10 @@ class Sample(Base):
         order_by="Analysis.position",
         cascade="all, delete-orphan",
     )
+    devices: Mapped[list["Device"]] = relationship(
+        "Device", back_populates="sample", lazy="selectin", order_by="Device.id",
+        cascade="all, delete-orphan",
+    )
     # Always loaded: permission checks need them wherever a sample is used.
     shares: Mapped[list["SampleShare"]] = relationship(
         "SampleShare", back_populates="sample", lazy="selectin",
@@ -182,6 +186,27 @@ class Sample(Base):
     def title(self) -> str:
         """How the sample is referred to in links and headings."""
         return self.code or f"#{self.id}"
+
+
+class Device(Base):
+    """One of several devices made on a sample (D1, D2, …). They result from
+    the sample's process steps so far, declared done by a "Devices made" step;
+    later steps still apply to all of them, so steps stay on the sample. An
+    analysis can say which device it was measured on (Analysis.device_id)."""
+    __tablename__ = "devices"
+    __table_args__ = (UniqueConstraint("sample_id", "label"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sample_id: Mapped[int] = mapped_column(ForeignKey("samples.id", ondelete="CASCADE"), index=True)
+    label: Mapped[str] = mapped_column(String(50), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    # The "Devices made" step that declared the devices done: the sample's history
+    # up to there is shared by all of them (see lineage.DEVICES_TYPE_NAME)
+    made_step_id: Mapped[int | None] = mapped_column(
+        ForeignKey("process_steps.id", ondelete="SET NULL", use_alter=True, name="fk_devices_made_step_id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    sample: Mapped["Sample"] = relationship("Sample", back_populates="devices")
 
 
 class SampleShare(Base):
@@ -262,6 +287,8 @@ class Analysis(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sample_id: Mapped[int] = mapped_column(ForeignKey("samples.id", ondelete="CASCADE"))
     analysis_type_id: Mapped[int] = mapped_column(ForeignKey("analysis_types.id"))
+    # The device on the sample this was measured on; empty for the sample as a whole
+    device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
     # Position in the sample's timeline, shared with ProcessStep.position.
     position: Mapped[int | None] = mapped_column(Integer)
     parameters: Mapped[dict[str, Any] | None] = mapped_column(JSON)
@@ -283,6 +310,7 @@ class Analysis(Base):
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="analyses")
     analysis_type: Mapped["AnalysisType"] = relationship("AnalysisType", back_populates="analyses")
+    device: Mapped["Device | None"] = relationship("Device", lazy="selectin")
     performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
     proposer: Mapped["User | None"] = relationship("User", foreign_keys=[proposed_by_id], lazy="selectin")
 
