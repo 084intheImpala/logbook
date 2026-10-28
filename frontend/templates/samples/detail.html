@@ -77,7 +77,7 @@
         <span class="text-gray-500">· {{ sample.project.institution }}</span>{% endif %}</dd>
       {% endif %}
       {% if sample.external_id %}
-      <dt class="text-gray-400">{% if sample.sample_type == "commercial" %}{{ _("Product / batch no.") }}{% elif sample.sample_type == "collaboration" %}{{ _("Their sample ID") }}{% else %}{{ _("External ID") }}{% endif %}</dt>
+      <dt class="text-gray-400">{% if sample.sample_type == "project" %}{{ _("Their sample ID, or product / batch no.") }}{% else %}{{ _("External ID") }}{% endif %}</dt>
       <dd class="text-gray-700 font-mono">{{ sample.external_id }}</dd>
       {% endif %}
       {% if sample.supplier %}
@@ -129,6 +129,38 @@
 {% endif %}
 {% if flash_error %}
 <div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ flash_error }}</div>
+{% endif %}
+
+{% if code_prompt %}
+<!-- Asked after a type change moved the ID's prefix -->
+<dialog id="code-prompt" class="rounded-xl shadow-xl p-0 max-w-md w-full backdrop:bg-black/40">
+  <div class="p-6 space-y-3">
+    <h2 class="text-lg font-semibold text-gray-900">{{ _("Update the sample ID?") }}</h2>
+    <p class="text-sm text-gray-600">
+      {{ _("This sample is now a {type} sample, so its ID would normally start with {prefix}, but it is {code}.",
+           type=_(sample.type_label), prefix=code_prompt.prefix, code=sample.title) }}
+    </p>
+    {% if current_user.is_admin %}
+    <p class="text-sm text-gray-600">{{ _("Update it to {new}? Its pieces and files folder are renamed too, the old ID is kept on the sample and never reused, and the owner is emailed.", new=code_prompt.new_code) }}</p>
+    <div class="flex flex-wrap gap-2 pt-2">
+      <form method="post" action="/samples/{{ sample.id }}/recode">
+        <input type="hidden" name="prefix" value="{{ code_prompt.source }}">
+        <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Update to {new}", new=code_prompt.new_code) }}</button>
+      </form>
+      <button type="button" onclick="this.closest('dialog').close()" class="text-sm text-gray-600 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">{{ _("Keep {code}", code=sample.title) }}</button>
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-600">{{ _("Only an admin can change an ID. You can keep it as it is, or ask an admin to fix it.") }}</p>
+    <div class="flex flex-wrap gap-2 pt-2">
+      <button type="button" onclick="this.closest('dialog').close()" class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Keep {code}", code=sample.title) }}</button>
+      <form method="post" action="/samples/{{ sample.id }}/ask-recode">
+        <button class="text-sm text-gray-700 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">{{ _("Ask an admin to fix it") }}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</dialog>
+<script>document.getElementById('code-prompt').showModal();</script>
 {% endif %}
 
 {% if sample.requested_by_id %}
@@ -274,7 +306,7 @@
 
 <!-- Add buttons -->
 {% if can_edit %}
-<div class="flex gap-3 mb-8">
+<div class="flex flex-wrap gap-3 mb-8">
   <a href="/samples/{{ sample.id }}/steps/new"
      class="inline-flex items-center gap-1.5 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -293,6 +325,11 @@
      class="inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 shadow-sm">
     ✂ {{ _("Cut into pieces") }}
   </a>
+  <button type="button" onclick="document.getElementById('devices-dialog').showModal()"
+          title="{{ _("Process done: make devices") }}"
+          class="inline-flex items-center gap-1.5 text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 shadow-sm">
+    {{ _("Make devices") }}
+  </button>
   {% if can_edit and timeline|length > 1 %}
   <form method="post" action="/samples/{{ sample.id }}/timeline/sort-by-date" class="ml-auto"
         onsubmit='return confirm({{ _("Reorder dated entries chronologically? Entries without a date keep their place.")|tojson }})'>
@@ -303,34 +340,49 @@
 {% endif %}
 
 <!-- Devices: made when the process is declared done; later steps apply to all of them -->
-{% if sample.devices or can_edit %}
-<div id="devices" class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 text-sm">
-  <div class="flex flex-wrap items-center gap-2">
-    <span class="font-medium text-gray-700">{{ _("Devices") }}</span>
-    {% for d in sample.devices %}
-    <span class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-2 py-0.5 rounded-full">
-      {{ d.label }}
-      {% if can_edit %}
-      <form method="post" action="/samples/{{ sample.id }}/devices/{{ d.id }}/delete" class="inline"
-            onsubmit='return confirm({{ _("Remove this device? Its analyses stay on the sample.")|tojson }})'>
-        <button class="text-emerald-400 hover:text-red-600" title="{{ _("Remove") }}">×</button>
-      </form>
-      {% endif %}
-    </span>
-    {% endfor %}
-    {% if can_edit %}
-    <form method="post" action="/samples/{{ sample.id }}/devices" class="inline-flex flex-wrap items-center gap-2 ml-auto">
-      <input name="labels" placeholder="{{ _("D1, D2, … or leave empty for the next") }}"
-             class="border border-gray-300 rounded px-2 py-1 text-xs w-56">
-      <input type="number" name="count" min="1" max="100" placeholder="{{ _("or how many") }}"
-             class="border border-gray-300 rounded px-2 py-1 text-xs w-24">
-      <input type="date" name="performed_at" class="border border-gray-300 rounded px-2 py-1 text-xs">
-      <button class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded hover:bg-emerald-700">{{ _("Process done: make devices") }}</button>
-    </form>
-    {% endif %}
-  </div>
-  <p class="text-xs text-gray-400 mt-2">{{ _("Make devices when the process that produces them is done: a 'Devices made' step goes on the timeline. Steps after it, such as annealing, still apply to all the devices. Pick a device when adding an analysis to say which one it was measured on.") }}</p>
+{% if sample.devices %}
+<div id="devices" class="mb-6 flex flex-wrap items-center gap-2 text-sm">
+  <span class="text-gray-500">{{ _("Devices") }}</span>
+  {% for d in sample.devices %}
+  <span class="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-2 py-0.5 rounded-full">{{ d.label }}</span>
+  {% endfor %}
+  {% if can_edit %}<button type="button" onclick="document.getElementById('devices-dialog').showModal()"
+                           class="text-xs text-gray-400 hover:text-gray-600 underline">{{ _("manage") }}</button>{% endif %}
 </div>
+{% endif %}
+{% if can_edit %}
+<dialog id="devices-dialog" class="rounded-xl shadow-xl p-0 max-w-lg w-full backdrop:bg-black/40">
+  <div class="p-6 space-y-4 text-sm">
+    <h2 class="text-lg font-semibold text-gray-900">{{ _("Process done: make devices") }}</h2>
+    <p class="text-xs text-gray-500">{{ _("Make devices when the process that produces them is done: a 'Devices made' step goes on the timeline. Steps after it, such as annealing, still apply to all the devices. Pick a device when adding an analysis to say which one it was measured on.") }}</p>
+    {% if sample.devices %}
+    <div class="flex flex-wrap gap-2">
+      {% for d in sample.devices %}
+      <span class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-2 py-0.5 rounded-full">
+        {{ d.label }}
+        <form method="post" action="/samples/{{ sample.id }}/devices/{{ d.id }}/delete" class="inline"
+              onsubmit='return confirm({{ _("Remove this device? Its analyses stay on the sample.")|tojson }})'>
+          <button class="text-emerald-400 hover:text-red-600" title="{{ _("Remove") }}">×</button>
+        </form>
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <form method="post" action="/samples/{{ sample.id }}/devices" class="space-y-3">
+      <input name="labels" placeholder="{{ _("D1, D2, … or leave empty for the next") }}"
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <div class="flex gap-3">
+        <input type="number" name="count" min="1" max="100" placeholder="{{ _("or how many") }}"
+               class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32">
+        <input type="date" name="performed_at" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button class="bg-teal-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-teal-700">{{ _("Process done: make devices") }}</button>
+        <button type="button" onclick="this.closest('dialog').close()" class="text-sm text-gray-600 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">{{ _("Cancel") }}</button>
+      </div>
+    </form>
+  </div>
+</dialog>
 {% endif %}
 
 <!-- ═══ UNIFIED TIMELINE ══════════════════════════════════════════════════ -->
@@ -554,6 +606,8 @@
        class="text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700">
       ✂ {{ _("Cut into pieces") }}
     </a>
+    <button type="button" onclick="document.getElementById('devices-dialog').showModal()"
+            class="text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700">{{ _("Make devices") }}</button>
   </div>
   {% endif %}
 </div>

@@ -62,7 +62,13 @@ class TeamMember(Base):
     user: Mapped["User"] = relationship("User", back_populates="memberships", lazy="selectin")
 
 
-SAMPLE_TYPES = {"thin_film": "Thin film", "bulk": "Bulk", "commercial": "Commercial", "collaboration": "Collaboration"}
+SAMPLE_TYPES = {"thin_film": "Thin film", "bulk": "Bulk", "project": "Project"}
+# Shown beside each type on the sample form (English msgids, translated with _())
+SAMPLE_TYPE_HELP = {
+    "thin_film": "A sample we deposited ourselves.",
+    "bulk": "A bulk crystal or membrane.",
+    "project": "A commercial sample, or one sent for a project or collaboration.",
+}
 # Who can see a sample's details (everyone logged in always sees its summary):
 # personal: its owner and the people it is shared with; team: also the owner's
 # team; public: everyone logged in. Coordinators of the owner's team see all of
@@ -93,8 +99,9 @@ class Substrate(Base):
 
 class Project(Base):
     """A collaboration project with a university or research centre that sends
-    us samples (one institution can have several). Its code numbers its
-    samples the way a researcher's initials do (e.g. UMIN-2026-001)."""
+    us samples (one institution can have several), or a commercial supplier we
+    buy samples from. Its code numbers its samples the way a researcher's
+    initials do (e.g. UMIN-2026-001)."""
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -127,8 +134,8 @@ class Sample(Base):
     sample_type: Mapped[str] = mapped_column(String(20), default="thin_film", server_default="thin_film", nullable=False)
     substrate_id: Mapped[int | None] = mapped_column(ForeignKey("substrates.id"), index=True)
     external_id: Mapped[str | None] = mapped_column(String(100))   # e.g. ID given by whoever cut a bulk piece
-    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"), index=True)  # collaboration samples: their project
-    supplier: Mapped[str | None] = mapped_column(String(120))      # commercial samples
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"), index=True)  # project samples: their project
+    supplier: Mapped[str | None] = mapped_column(String(120))      # only on samples that were commercial before 0010; shown, no longer edited
     tags: Mapped[list[str] | None] = mapped_column(JSON)
     substrate_dimensions: Mapped[str | None] = mapped_column(String(100))
     film_material: Mapped[str | None] = mapped_column(String(100))
@@ -385,6 +392,9 @@ class ChoiceOption(Base):
     # For equipment ("located" lists): where it is, e.g. INESC MN. The forms
     # only offer equipment at the place chosen under Where.
     location: Mapped[str | None] = mapped_column(String(120))
+    # For equipment next to a Method choice (Annealing: Furnace / RTA): the method
+    # it is for. The forms only offer it when that method is chosen; none = any.
+    applies_to: Mapped[str | None] = mapped_column(String(50))
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

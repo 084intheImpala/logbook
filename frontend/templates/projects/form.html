@@ -5,7 +5,7 @@
 {% set saved = project and project.id %}
 <div class="max-w-xl">
   <div class="text-xs text-gray-400 mb-4">
-    <a href="/projects/" class="hover:underline">{{ _("Projects") }}</a> / {{ project.name if saved else _("New") }}
+    <a href="/projects/" class="hover:underline">{{ _("Partners") }}</a> / {{ project.name if saved else _("New") }}
   </div>
   <h1 class="text-2xl font-bold mb-1">{{ project.name if saved else _("New project") }}</h1>
   {% if saved %}
@@ -14,7 +14,7 @@
     {% if not can_edit %}{{ _("Only they or an admin can edit it.") }}{% endif %}
   </p>
   {% else %}
-  <p class="text-sm text-gray-500 mb-6">{{ _("A collaboration with a university or centre that sends us samples; an institution can have several projects. The project's samples get IDs with its code, e.g. UMIN1-2026-001.") }}</p>
+  <p class="text-sm text-gray-500 mb-6">{{ _("A collaboration with a university or centre that sends us samples, or a commercial supplier; one institution can have several projects. The project's samples get IDs with its code, e.g. UMIN1-2026-001.") }}</p>
   {% endif %}
 
   {% if error %}
@@ -42,7 +42,7 @@
       </p>
       <div class="grid grid-cols-[1fr_12rem] gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Institution") }}</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Institution or company") }}</label>
           <input name="institution" list="institution-list" value="{{ project.institution or '' if project else '' }}"
                  placeholder="{{ _("e.g. Universidade do Minho, Centro de Física") }}" class="{{ input_cls }}">
           <datalist id="institution-list">{% for i in institutions %}<option value="{{ i }}">{% endfor %}</datalist>

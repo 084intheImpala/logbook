@@ -33,7 +33,7 @@
       <select name="sample_type" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
         <option value="">{{ _("Any") }}</option>
         {% for value, label in sample_types.items() %}
-        <option value="{{ value }}" {% if filters.sample_type == value %}selected{% endif %}>{{ label }}</option>
+        <option value="{{ value }}" {% if filters.sample_type == value %}selected{% endif %}>{{ _(label) }}</option>
         {% endfor %}
       </select>
     </div>

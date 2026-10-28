@@ -20,15 +20,20 @@
     <!-- Sample type -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-2">{{ _("Sample type") }}</label>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {% for value, label in sample_types.items() %}
-        <label class="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm cursor-pointer has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
-          <input type="radio" name="sample_type" value="{{ value }}" class="type-radio"
+        <label title="{{ _(sample_type_help[value]) }}"
+               class="flex items-start gap-2 border rounded-lg px-3 py-2 text-sm cursor-pointer has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+          <input type="radio" name="sample_type" value="{{ value }}" class="type-radio mt-0.5"
                  {% if sample.sample_type == value %}checked{% endif %}>
-          {{ label }}
+          <span><span class="font-medium">{{ _(label) }}</span>
+            <span class="block text-xs text-gray-500">{{ _(sample_type_help[value]) }}</span></span>
         </label>
         {% endfor %}
       </div>
+      {% if editing and sample.code and not sample.cut_step_id %}
+      <p class="text-xs text-gray-400 mt-2">{{ _("Changing between thin film or bulk and project changes what the ID should start with; you'll be asked about it after saving.") }}</p>
+      {% endif %}
     </div>
 
     <div>
@@ -38,10 +43,10 @@
              class="{{ input_cls }}">
     </div>
 
-    <!-- Collaboration: the project it was sent for -->
-    <div data-types="collaboration">
+    <!-- Project: the project or supplier it belongs to -->
+    <div data-types="project">
       <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Project") }} <span class="text-red-500">*</span>
-        <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("the collaboration it was sent for; its code goes in the ID") }}</span></label>
+        <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("the project, collaboration or supplier it belongs to; its code goes in the ID") }}</span></label>
       {% if projects %}
       <select name="project_id" id="project-select" class="{{ input_cls }} bg-white">
         <option value="">— {{ _("choose from the list") }} —</option>
@@ -89,37 +94,35 @@
         <input name="film_material" type="text" value="{{ sample.film_material or '' }}"
                placeholder="{{ _("e.g. Ga2O3, TiN") }}" class="{{ input_cls }}">
       </div>
-      <div data-types="bulk commercial collaboration">
+      <div data-types="bulk project">
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          <span data-types="bulk">{{ _("External ID") }}</span><span data-types="commercial">{{ _("Product / batch no.") }}</span><span data-types="collaboration">{{ _("Their sample ID") }}</span></label>
+          <span data-types="bulk">{{ _("External ID") }}</span><span data-types="project">{{ _("Their sample ID, or product / batch no.") }}</span></label>
         <input name="external_id" type="text" value="{{ sample.external_id or '' }}"
                placeholder="{{ _("ID given by the supplier, partner or whoever cut it") }}" class="{{ input_cls }}">
       </div>
     </div>
 
-    <!-- Commercial -->
-    <div data-types="commercial" class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Supplier") }}</label>
-        <input name="supplier" type="text" value="{{ sample.supplier or '' }}" class="{{ input_cls }}">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Spec sheet") }} <span class="text-red-500">*</span>
-          <span class="font-normal text-gray-400 text-xs">— {{ _("PDF or photo") }}</span></label>
-        {% if spec_files and spec_files[sample.id] %}
-        <p class="text-xs text-gray-500 mb-1">{{ _("Attached:") }}
-          {% for att in spec_files[sample.id] %}<a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>{{ ", " if not loop.last }}{% endfor %}
-        </p>
-        {% endif %}
-        <input type="file" name="files" multiple accept=".pdf,image/*"
-               class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-      </div>
+    <!-- Project: spec sheet, e.g. of a commercial sample -->
+    <div data-types="project">
+      {% if sample.supplier %}
+      <p class="text-sm text-gray-600 mb-3">{{ _("Supplier") }}: <span class="font-medium">{{ sample.supplier }}</span>
+        <span class="text-xs text-gray-400">— {{ _("from before commercial samples became projects; add a project for the supplier above") }}</span></p>
+      {% endif %}
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Spec sheet") }}
+        <span class="font-normal text-gray-400 text-xs">— {{ _("optional, PDF or photo") }}</span></label>
+      {% if spec_files and spec_files[sample.id] %}
+      <p class="text-xs text-gray-500 mb-1">{{ _("Attached:") }}
+        {% for att in spec_files[sample.id] %}<a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>{{ ", " if not loop.last }}{% endfor %}
+      </p>
+      {% endif %}
+      <input type="file" name="files" multiple accept=".pdf,image/*"
+             class="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
     </div>
 
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Description") }}
-        <span data-types="commercial collaboration" class="text-red-500">*</span>
-        <span data-types="collaboration" class="font-normal text-gray-400 text-xs">— {{ _("what the sample is: material, structure, what they want measured…") }}</span>
+        <span data-types="project" class="text-red-500">*</span>
+        <span data-types="project" class="font-normal text-gray-400 text-xs">— {{ _("what the sample is: material, structure, what they want measured…") }}</span>
         <span data-types="thin_film bulk" class="font-normal text-gray-400 text-xs">— {{ _("optional") }}</span></label>
       <textarea name="description" rows="3" class="{{ input_cls }}">{{ sample.description or '' }}</textarea>
     </div>
@@ -166,12 +169,12 @@
     </div>
     {% endif %}
 
-    {% if not editing %}
+    {% if can_set_visibility %}
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Who can see the details") }}</label>
       <select name="visibility" class="{{ input_cls }} bg-white">
         {% for value, label in visibilities.items() %}
-        <option value="{{ value }}">{{ _(label) }}</option>
+        <option value="{{ value }}" {% if sample.visibility == value %}selected{% endif %}>{{ _(label) }}</option>
         {% endfor %}
       </select>
       <p class="text-xs text-gray-500 mt-1">{{ _("Personal: you and the people you share it with. Team: also your team. Public: everyone logged in. Everyone always sees the summary. You can change this later under Sharing.") }}</p>
@@ -187,42 +190,6 @@
          class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">{{ _("Cancel") }}</a>
     </div>
   </form>
-
-  {% if editing and current_user.is_admin and sample.code and not sample.cut_step_id %}
-  <form method="post" action="/samples/{{ sample.id }}/recode" class="bg-white rounded-xl border border-gray-200 p-6 mt-6 space-y-3"
-        onsubmit="return confirm({{ _("Change this sample's ID? Its pieces and its files folder are renamed too, and the owner is emailed.")|tojson }})">
-    <h2 class="text-sm font-semibold text-gray-800">{{ _("Change the sample ID") }}
-      <span class="font-normal text-gray-400 text-xs ml-1">— {{ _("admin only") }}</span></h2>
-    <p class="text-xs text-gray-500">
-      {{ _("For a sample created under the wrong owner or type. It gets the next free number under the initials or project code you choose. The old ID is kept on the sample and never reused.") }}
-    </p>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Number it under") }}</label>
-        <select name="prefix" class="{{ input_cls }} bg-white">
-          <option value="">—</option>
-          <optgroup label="{{ _("Researchers") }}">
-            {% for u in users if u.initials %}
-            <option value="user:{{ u.id }}">{{ u.initials }} — {{ u.display_name }}</option>
-            {% endfor %}
-          </optgroup>
-          <optgroup label="{{ _("Projects") }}">
-            {% for p in projects %}
-            <option value="project:{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
-            {% endfor %}
-          </optgroup>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("or type the ID") }}</label>
-        <input name="code" placeholder="ABC-{{ now_year }}-001" class="{{ input_cls }}">
-      </div>
-    </div>
-    <button type="submit" class="bg-gray-800 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-gray-900">
-      {{ _("Change ID") }}
-    </button>
-  </form>
-  {% endif %}
 </div>
 
 <script>
@@ -240,7 +207,7 @@
   document.querySelectorAll('.type-radio').forEach(r => r.addEventListener('change', applyType));
   applyType();
 
-  // ID preview: the owner's initials, or the project's code for a collaboration sample.
+  // ID preview: the owner's initials, or the project's code for a project sample.
   const owner = document.getElementById('owner-select');
   const project = document.getElementById('project-select');
   const preview = document.getElementById('id-preview');
@@ -249,7 +216,7 @@
       document.getElementById('owner-hint').classList.toggle('hidden', owner.value === '{{ current_user.id }}');
     if (!preview) return;
     const type = document.querySelector('.type-radio:checked').value;
-    const prefix = type === 'collaboration'
+    const prefix = type === 'project'
       ? (project && project.selectedOptions[0].dataset.code) || '…'
       : owner ? owner.selectedOptions[0].dataset.initials : {{ (current_user.initials or '')|tojson }};
     preview.textContent = `${prefix}-{{ now_year }}-…`;

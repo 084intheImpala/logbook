@@ -106,7 +106,7 @@ A barra lateral à esquerda (um botão de menu no telemóvel) tem:
 \menu{Amostras}       & Todas as amostras do laboratório, das mais recentes para as mais antigas, com os pedaços agrupados sob a amostra de que foram cortados. \\
 \menu{Pesquisa}       & Filtrar, agrupar, partilhar e exportar amostras. \\
 \menu{Substratos}     & A biblioteca partilhada de substratos a partir dos quais se fazem as amostras. \\
-\menu{Projetos}       & Projetos de colaboração com outras instituições. \\
+\menu{Parceiros}      & Projetos e colaborações com outras instituições, e fornecedores de amostras comerciais. \\
 \menu{Nova amostra}   & Criar uma amostra. \\
 \menu{Sugestões}      & Enviar uma ideia, um problema ou uma pergunta aos administradores. \\
 \menu{Caixa de entrada}, \menu{Configurações} & Só para administradores (Secção~\ref{sec:admin}). \\
@@ -154,8 +154,8 @@ valores das listas) ficam em inglês nos dois idiomas.
     orientação, espessura, polimento, fornecedor, n.º de lote, ficha técnica). As
     amostras de filme fino e bulk são feitas a partir de um substrato.
   \item[Projeto] Uma colaboração com outra universidade ou centro que nos
-    envia amostras. O seu código curto substitui as iniciais nos IDs dessas
-    amostras.
+    envia amostras, ou um fornecedor de amostras comerciais. O seu código
+    curto substitui as iniciais nos IDs dessas amostras.
   \item[Pedaços] Dividir uma amostra cria novas amostras que herdam a sua
     história até ao corte.
 \end{description}
@@ -176,8 +176,10 @@ valores das listas) ficam em inglês nos dois idiomas.
 
 Os IDs são atribuídos quando a amostra é guardada e não mudam, mesmo que
 a amostra passe para outra pessoa. Só um administrador pode alterar um ID,
-por exemplo quando a amostra foi criada com o dono ou o tipo errados; as
-peças e os ficheiros acompanham a alteração, o dono recebe um email e o ID antigo fica registado na amostra (``Anteriormente'') e nunca é reutilizado. Use o \ui{Rótulo} (opcional) para a sua
+e só quando a mudança de tipo ou de projeto o deixa fora de passo (ver abaixo); as
+peças e os ficheiros acompanham a alteração, o dono recebe um email e o ID antigo fica registado na amostra (``Anteriormente'') e nunca é reutilizado. Se ao editar uma amostra mudar o tipo entre \emph{Thin film} ou \emph{Bulk} e \emph{Project} (ou o projeto), o ID deixa de começar pelo que devia e a página da amostra pergunta o que fazer. Um administrador pode atualizar o ID para o próximo número livre das iniciais do dono ou do código do projeto, ou mantê-lo. Os outros utilizadores podem manter o ID ou \ui{Pedir a um administrador que corrija}, o que envia uma sugestão aos administradores; nada muda até um administrador alterar o ID. As amostras que são pedaços ficam de fora: altere o ID da amostra de que foram cortadas.
+
+Use o \ui{Rótulo} (opcional) para a sua
 própria descrição (``teste de guia de onda, lote 2''); não precisa de ser
 único.
 
@@ -197,8 +199,9 @@ notas, datas, ficheiros) só são visíveis para:
         \ui{Realizado por}.
 \end{itemize}
 
-A \emph{visibilidade} define-se ao criar a amostra e depois em
-\ui{Partilha} (responsável ou administrador): \ui{Pessoal} (por omissão: só
+A \emph{visibilidade} define-se ao criar a amostra e, a qualquer momento,
+na página \ui{Editar} da amostra ou em \ui{Partilha} (responsável ou
+administrador): \ui{Pessoal} (por omissão: só
 as pessoas acima), \ui{Equipa} (também todos os da equipa do responsável) ou
 \ui{Público} (todos os utilizadores). Uma peça cortada começa com a
 visibilidade da amostra de origem. A visibilidade só decide quem pode
@@ -269,15 +272,16 @@ Thin film     & O substrato da biblioteca (obrigatório), as dimensões e, depoi
                 da deposição, o material do filme. \\
 Bulk          & O substrato da biblioteca de que é um pedaço (obrigatório), as
                 dimensões, e um \ui{ID externo} se foi cortado por outra pessoa. \\
-Commercial    & Descrição, fornecedor, n.º de produto/lote e a ficha técnica
-                (PDF ou fotografia, obrigatória). \\
-Collaboration & O projeto (obrigatório), uma descrição (obrigatória) e,
-                opcionalmente, o ID que o parceiro lhe deu. \\
+Project       & Uma amostra comercial, ou enviada para um projeto ou
+                colaboração: o projeto (obrigatório; para uma amostra comercial,
+                o do fornecedor), uma descrição (obrigatória) e, opcionalmente,
+                o ID de origem ou n.º de produto/lote e a ficha técnica (PDF
+                ou fotografia). \\
 \bottomrule
 \end{tabularx}
 \end{center}
 
-Os nomes dos tipos ficam em inglês, como na aplicação. Todos os tipos têm
+Cada tipo traz uma explicação ao lado do botão, no formulário. Os nomes dos tipos ficam em inglês, como na aplicação. Todos os tipos têm
 \ui{Rótulo} e \ui{Etiquetas}. Se o substrato ou o projeto de que precisa
 não estiver na lista, siga a ligação \ui{Falta algum?}: abre o formulário
 noutro separador; acrescente-o lá e depois recarregue o formulário da
@@ -322,7 +326,10 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
   \item[Onde] CTN, INESC MN ou outro instituto.
   \item[Equipamento] A máquina utilizada. A lista só mostra o equipamento
     que existe no local escolhido em \ui{Onde}. (Numa deposição chama-se
-    \ui{Máquina}.)
+    \ui{Máquina}.) No recozimento, o equipamento também depende do método:
+    o AnnealSYS só serve para RTA, por isso desaparece da lista quando o
+    método é \emph{Furnace}. O equipamento novo fica associado ao método
+    escolhido nesse momento.
   \item[Realizado por] Por omissão, o próprio. Acrescente colegas, ou
     \ui{Outra pessoa (escreva o nome)} para alguém sem conta.
   \item[Parâmetros] Os campos próprios do tipo (ver abaixo).
@@ -371,7 +378,7 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 
 O Cut e o Devices made não estão na lista: um corte regista-se com
 \ui{Dividir em pedaços} (Secção~\ref{sec:cut}) e os dispositivos criam-se no
-painel \ui{Dispositivos} (Secção~\ref{sec:devices}); um passo existente não
+botão \ui{Criar dispositivos} (Secção~\ref{sec:devices}); um passo existente não
 pode passar a um destes tipos nem deixar de o ser.
 
 Os administradores podem acrescentar tipos ou alterar os seus campos
@@ -452,8 +459,9 @@ data vai para o fim.
 %=====================================================================
 
 Quando de uma amostra saem vários dispositivos (D1, D2, \ldots), termine o
-processo que os produz e use \ui{Processo concluído: criar dispositivos}, no
-painel \ui{Dispositivos} da página da amostra.
+processo que os produz e clique em \ui{Criar dispositivos}, ao lado de
+\ui{Dividir em pedaços}, na página da amostra; a janela que abre explica o
+procedimento e tem o botão \ui{Processo concluído: criar dispositivos}.
 
 \begin{enumerate}
   \item Escreva os nomes separados por vírgulas, ou só \ui{quantos}: sem
@@ -595,10 +603,11 @@ Qualquer pessoa pode acrescentar um; quem o acrescentou e os
 administradores podem editá-lo. Um substrato usado por alguma amostra não
 pode ser eliminado.
 
-\subsection{Projetos}
+\subsection{Parceiros (projetos)}
 
-O separador \menu{Projetos} lista as colaborações: nome, instituição
-parceira, código, país, contacto e notas. O código (2--6 letras ou
+O separador \menu{Parceiros} lista os projetos: colaborações com outras
+instituições e fornecedores de amostras comerciais. Cada um tem nome,
+instituição ou empresa, código, país, contacto e notas. O código (2--6 letras ou
 algarismos) é usado nos IDs das amostras do projeto; por isso não pode
 coincidir com as iniciais de ninguém, e fica fixo assim que uma amostra o
 usa. Uma instituição pode ter vários projetos; escolha-a entre as
@@ -737,6 +746,13 @@ docker compose exec -T db pg_dump -U logbook logbook > backup_$(date +%Y%m%d).sq
 \end{verbatim}
 \end{tcolorbox}
 
+Confirme que a cópia ficou boa: o resultado vai direto para o ficheiro, por
+isso, se o comando falhar, não aparece nada no ecrã e o ficheiro fica vazio.
+Veja o tamanho com \texttt{ls -lh backup\_*.sql} (tem de ser bem maior que 0) e
+confirme que o fim do ficheiro diz \texttt{-- PostgreSQL database dump complete}.
+Se o Docker precisar de \texttt{sudo}, execute primeiro \texttt{sudo -v} e dê a
+palavra-passe, para o pedido não ficar escondido.
+
 Guarde a cópia da base de dados junto com uma cópia de \texttt{uploads/}.
 Essa pasta tem uma subpasta por ID de amostra e, dentro dela, uma por
 passo ou análise, com os ficheiros com os nomes originais (por exemplo
@@ -791,6 +807,12 @@ Cria uma tarefa que, em cada início de sessão, arranca o WSL, o Docker e os
 contentores e reencaminha o porto 8000, e abre a \emph{firewall} para ele.
 Depois de reiniciar, alguém tem de iniciar sessão; o progresso fica em
 \texttt{scripts/start-logbook.log}.
+
+Depois de atualizar o código (\texttt{git pull}), reconstrua a imagem com
+\texttt{docker compose up -d --build app}. Se a página não abrir, apesar de
+\texttt{docker compose ps} dizer \emph{Up}, veja o registo com
+\texttt{docker compose logs --tail 30 app}: um erro \texttt{No module named \dots}
+significa que a imagem está mais antiga que o código.
 
 \begin{careful}
 \texttt{docker compose down} para o logbook e mantém os dados.

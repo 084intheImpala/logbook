@@ -19,12 +19,12 @@ from starlette.datastructures import UploadFile
 
 from backend import approvals
 from backend.auth import can_edit, can_edit_entry, can_view
-from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, remember
+from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, option_methods, remember
 from backend.config import settings
 from backend.i18n import t
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
-from backend.params import (describe, extra_params, located_lists, params_to_text, parse_date, parse_form,
+from backend.params import (describe, extra_params, located_lists, located_methods, params_to_text, parse_date, parse_form,
                             parse_params, scalar_fields, schema_keys, varied_params)
 from backend.performers import apply_performer, tell_performer, users_for_form
 from backend.templating import templates
@@ -115,6 +115,7 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
                                                   if current_type else None)) if entry else "",
         "options": options,
         "places": await option_locations(db),
+        "methods": await option_methods(db),
         "location_list": LOCATION_LIST,
         # New entries default to where most work happens
         "location": entry.location if entry else DEFAULT_LOCATION if DEFAULT_LOCATION in options.get(LOCATION_LIST, []) else None,
@@ -250,7 +251,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         for f in _uploads(form, f"files_for_{member_sample.id}"):
             await save_upload(f, kind.name, member.id, db, uploaded_by=user.username)
 
-    await remember(db, picked, user.id, location, located_lists(entry_type.parameter_schema))
+    await remember(db, picked, user.id, location, located_lists(entry_type.parameter_schema),
+                   located_methods(entry_type.parameter_schema, params))
     await db.commit()
     if proposing:
         await approvals.tell_owner_of_proposal(request, sample, user, entry_type.name)
