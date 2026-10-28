@@ -30,7 +30,7 @@ from backend.utils import _safe
 log = logging.getLogger("uvicorn.error")
 
 FILE_NAME = "sample.json"
-FORMAT = 3   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices
+FORMAT = 4   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"
 
 # What changed since the last write: ("sample" | "step" | "analysis", id), or
 # ("gone", folder) for a deleted sample. Filled as the database is changed.

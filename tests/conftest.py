@@ -19,8 +19,8 @@ from fastapi.testclient import TestClient
 from backend.auth import hash_password
 from backend.database import AsyncSessionLocal
 from backend.main import app
-from backend.models import (Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample,
-                            SampleShare, Team, TeamMember, User)
+from backend.models import (Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Project, Sample,
+                            SampleShare, Substrate, Team, TeamMember, User)
 from sqlalchemy import select
 from tests.loop import run
 
@@ -65,6 +65,28 @@ class World:
                 db.add(s)
                 await db.commit()
                 return s
+        return run(make())
+
+    def project(self, name: str = "Test project") -> Project:
+        n = next(_n)
+
+        async def make():
+            async with AsyncSessionLocal() as db:
+                p = Project(name=f"{name} {n}", code=f"P{n:03d}")
+                db.add(p)
+                await db.commit()
+                return p
+        return run(make())
+
+    def substrate(self) -> Substrate:
+        n = next(_n)
+
+        async def make():
+            async with AsyncSessionLocal() as db:
+                sub = Substrate(name=f"Sub {n}", material="Si")
+                db.add(sub)
+                await db.commit()
+                return sub
         return run(make())
 
     def step(self, sample: Sample, notes: str, performer: User | None = None, with_file: str | None = None,

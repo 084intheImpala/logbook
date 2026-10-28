@@ -126,7 +126,7 @@
   \begin{tikzpicture}
     \node[box] (sub) {Substrato\\[-2pt]\scriptsize biblioteca partilhada};
     \node[box,right=2.1cm of sub] (sam) {Amostra\\[-2pt]\scriptsize\texttt{ASS-2026-001}};
-    \node[box,right=2.3cm of sam] (prj) {Projeto\\[-2pt]\scriptsize colaborações};
+    \node[box,right=2.3cm of sam] (prj) {Projeto\\[-2pt]\scriptsize colaborações, fornecedores};
     \node[box,below left=1.0cm and -0.4cm of sam] (stp) {Passos de processo\\[-2pt]\scriptsize deposição, recozimento, \ldots};
     \node[box,below right=1.0cm and -0.4cm of sam] (ana) {Análises\\[-2pt]\scriptsize XRD, RBS, SEM, \ldots};
     \node[box,below=2.3cm of sam,minimum width=3.4cm] (att) {Fotografias e ficheiros};
@@ -157,7 +157,7 @@
     \toprule
     \sid{ASS-2026-001}     & primeira amostra de ASS em 2026 \\
     \sid{ASS-2026-001-REF} & um pedaço de referência dessa amostra \\
-    \sid{UMIN1-2026-001}   & amostra de colaboração (código do projeto) \\
+    \sid{UMIN1-2026-001}   & amostra de projeto (código do projeto) \\
     \bottomrule
   \end{tabular}
 
@@ -167,14 +167,13 @@
 \end{frame}
 
 %---------------------------------------------------------------------
-\begin{frame}{Quatro tipos de amostra}
+\begin{frame}{Três tipos de amostra}
   \centering
   \begin{tabular}{@{}l>{\raggedright\arraybackslash}p{9.5cm}@{}}
     \toprule
-    \textbf{Thin film}     & um substrato da biblioteca + dimensões;\newline material do filme depois da deposição \\
-    \textbf{Bulk}          & um pedaço de um substrato da biblioteca;\newline ID externo do fabricante \\
-    \textbf{Commercial}    & descrição, fornecedor, n.º de lote,\newline ficha técnica como anexo \\
-    \textbf{Collaboration} & enviada por uma instituição parceira:\newline o projeto, uma descrição, o ID de origem \\
+    \textbf{Thin film} & amostra que depositámos nós: um substrato da biblioteca + dimensões;\newline material do filme depois da deposição \\
+    \textbf{Bulk}      & cristal bulk ou membrana: um pedaço de um substrato da biblioteca;\newline ID externo \\
+    \textbf{Project}   & amostra comercial, ou enviada para um projeto ou colaboração:\newline o projeto, uma descrição, o ID de origem \\
     \bottomrule
   \end{tabular}
 

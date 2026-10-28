@@ -4,13 +4,14 @@
    and their inputs disabled by the script in entries/form.html. #}
 {% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2" %}
 
-{# `at` (equipment lists): value → place; the form only offers equipment at the place chosen under Where. #}
-{% macro choice_input(name, opts, value, ring, empty=True, at=none) %}
+{# `at` (equipment lists): value → place; the form only offers equipment at the place chosen under Where.
+   `by` (name of a Method select next to it) and `how`: value → method; only the equipment for the chosen method is offered. #}
+{% macro choice_input(name, opts, value, ring, empty=True, at=none, by=none, how=none) %}
 {% set opts = opts or [] %}
 <div class="choice">
-  <select name="{{ name }}" class="choice-select {{ input_cls }} {{ ring }} bg-white" {% if at is not none %}data-located{% endif %}>
+  <select name="{{ name }}" class="choice-select {{ input_cls }} {{ ring }} bg-white" {% if at is not none %}data-located{% endif %}{% if by and how %} data-by="{{ by }}"{% endif %}>
     {% if empty %}<option value="">—</option>{% endif %}
-    {% for v in opts %}<option value="{{ v }}" {% if value == v %}selected{% endif %}{% if at and at.get(v) %} data-place="{{ at[v] }}"{% endif %}>{{ v }}</option>{% endfor %}
+    {% for v in opts %}<option value="{{ v }}" {% if value == v %}selected{% endif %}{% if at and at.get(v) %} data-place="{{ at[v] }}"{% endif %}{% if how and how.get(v) %} data-method="{{ how[v] }}"{% endif %}>{{ v }}</option>{% endfor %}
     {% if value and value not in opts %}<option value="{{ value }}" selected>{{ value }}</option>{% endif %}
     <option value="__new__">+ {{ _("Add new…") }}</option>
   </select>
@@ -84,8 +85,11 @@
   <div class="{% if kind == 'longtext' %}col-span-2{% endif %}">
     {{ label(f) }}
     {% if kind == "choice" %}
+    {% set method_field = (schema | selectattr("type", "equalto", "variant") | first) if f.located else none %}
     {{ choice_input(name, options.get(f.list or f.key), value, ring,
-                    at=(places.get(f.list or f.key, {}) if places is defined else {}) if f.located else none) }}
+                    at=(places.get(f.list or f.key, {}) if places is defined else {}) if f.located else none,
+                    by=(prefix ~ "::" ~ method_field.key) if method_field else none,
+                    how=(methods.get(f.list or f.key, {}) if methods is defined else {}) if f.located else none) }}
     {% elif kind == "longtext" %}
     <textarea name="{{ name }}" rows="5" placeholder="{{ _(f.placeholder) if f.placeholder else '' }}"
               class="{{ input_cls }} {{ ring }}">{{ value if value is not none else '' }}</textarea>

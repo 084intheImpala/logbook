@@ -105,7 +105,7 @@ def test_coordinator_cannot_change_ids(world, lab):
 def test_coordinator_reassigns_only_within_the_team(world, lab):
     sample, _ = make(world, lab, "personal")
     coord, sid = lab["clients"]["coord"], sample.id
-    data = {"sample_type": "commercial", "description": "bought"}
+    data = {"sample_type": "project", "project_id": str(world.project().id), "description": "bought"}
 
     async def owner_of():
         async with AsyncSessionLocal() as db:
@@ -135,7 +135,7 @@ def test_only_owner_admin_or_team_coordinator_change_visibility(world, lab, who)
 def test_new_sample_gets_the_chosen_visibility(world, lab):
     owner = lab["users"]["owner"]
     r = lab["clients"]["owner"].post("/samples/new", data={
-        "sample_type": "commercial", "description": "bought", "visibility": "team"},
+        "sample_type": "project", "project_id": str(world.project().id), "description": "bought", "visibility": "team"},
         files={"files": ("spec.txt", b"spec", "text/plain")})
     assert r.status_code == 303, r.text[:300]
 

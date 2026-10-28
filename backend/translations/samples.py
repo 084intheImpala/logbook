@@ -111,9 +111,6 @@ PT = {
     # backend/routers/samples.py
     "Choose the substrate from the library (add it on the Substrates tab if it's missing).":
         "Escolha o substrato da biblioteca (adicione-o no separador Substratos se não existir).",
-    "A commercial sample needs a description.": "Uma amostra comercial precisa de uma descrição.",
-    "A commercial sample needs its spec sheet (PDF or photo).":
-        "Uma amostra comercial precisa da sua ficha técnica (PDF ou fotografia).",
     "That researcher hasn't set their initials yet, so their samples can't get an ID.":
         "Esse(a) investigador(a) ainda não definiu as suas iniciais, pelo que as suas amostras não podem receber um ID.",
     "Created for {name}. They'll be asked to confirm it; meanwhile you can edit it.":
@@ -150,6 +147,8 @@ PT = {
     "D1, D2, … or leave empty for the next": "D1, D2, … ou deixe vazio para o seguinte",
     "or how many": "ou quantos",
     "Process done: make devices": "Processo concluído: criar dispositivos",
+    "Make devices": "Criar dispositivos",
+    "manage": "gerir",
     "Make devices when the process that produces them is done: a 'Devices made' step goes on the timeline. Steps after it, such as annealing, still apply to all the devices. Pick a device when adding an analysis to say which one it was measured on.":
         "Crie os dispositivos quando o processo que os produz estiver concluído: um passo 'Devices made' fica na cronologia. Os passos seguintes, como o recozimento, continuam a aplicar-se a todos os dispositivos. Ao adicionar uma análise, escolha o dispositivo em que foi medida.",
 }

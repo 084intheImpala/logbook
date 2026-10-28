@@ -3,12 +3,12 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
 from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
-                            Substrate, Project, User, SAMPLE_TYPES, VISIBILITY, AccessRequest)
+                            Substrate, Project, User, Suggestion, SAMPLE_TYPES, SAMPLE_TYPE_HELP, VISIBILITY, AccessRequest)
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
 from backend.activity import log as log_activity
@@ -110,6 +110,7 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "editing": editing,
         "error": error,
         "sample_types": SAMPLE_TYPES,
+        "sample_type_help": SAMPLE_TYPE_HELP,
         "visibilities": VISIBILITY,
         "substrates": (await db.execute(select(Substrate).order_by(Substrate.material, Substrate.name))).scalars().all(),
         "projects": (await db.execute(select(Project).order_by(Project.name))).scalars().all(),
@@ -127,42 +128,37 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "direct_handover": current_user.is_admin or (editing and is_coordinator_of(current_user, sample)),
         "now_year": date.today().year,
         "current_user": current_user,
+        # Owner, admin and the owner's coordinators set it, on the Sharing panel or here
+        "can_set_visibility": not editing or is_owner(current_user, sample),
     }
 
 
 def _apply_form(sample: Sample, form: dict):
     """Copy submitted fields onto the sample, dropping those its type doesn't use."""
     sample.sample_type = form["sample_type"] if form["sample_type"] in SAMPLE_TYPES else "thin_film"
-    commercial = sample.sample_type == "commercial"
-    collaboration = sample.sample_type == "collaboration"
+    project = sample.sample_type == "project"
     sample.label = form["label"].strip() or None
-    sample.substrate_id = (None if commercial or collaboration
+    sample.substrate_id = (None if project
                            else int(form["substrate_id"]) if form["substrate_id"].isdigit() else None)
-    sample.project_id = (int(form["project_id"]) if collaboration and form["project_id"].isdigit()
-                              else None)
+    sample.project_id = int(form["project_id"]) if project and form["project_id"].isdigit() else None
     sample.substrate_dimensions = form["substrate_dimensions"].strip() or None
     sample.film_material = form["film_material"].strip() or None if sample.sample_type == "thin_film" else None
     sample.external_id = form["external_id"].strip() or None if sample.sample_type != "thin_film" else None
-    sample.supplier = form["supplier"].strip() or None if commercial else None
+    if not project:
+        sample.supplier = None   # only samples that were commercial before 0010 have one
     sample.description = form["description"].strip() or None
     sample.tags = parse_tags(form["tags"])
 
 
-async def _validate(request: Request, db: AsyncSession, sample: Sample, new_files: list[UploadFile],
-                    has_spec: bool) -> str | None:
+async def _validate(request: Request, db: AsyncSession, sample: Sample, new_files: list[UploadFile]) -> str | None:
     if sample.sample_type in ("thin_film", "bulk"):
         if not sample.substrate_id or not await db.get(Substrate, sample.substrate_id):
             return t(request, "Choose the substrate from the library (add it on the Substrates tab if it's missing).")
-    if sample.sample_type == "commercial":
-        if not sample.description:
-            return t(request, "A commercial sample needs a description.")
-        if not has_spec and not any(f.filename for f in new_files):
-            return t(request, "A commercial sample needs its spec sheet (PDF or photo).")
-    if sample.sample_type == "collaboration":
+    if sample.sample_type == "project":
         if not sample.project_id or not await db.get(Project, sample.project_id):
-            return t(request, "Choose the project the sample belongs to (add it on the Projects tab if it's missing).")
+            return t(request, "Choose the project the sample belongs to (add it on the Partners tab if it's missing).")
         if not sample.description:
-            return t(request, "A collaboration sample needs a description.")
+            return t(request, "A project sample needs a description.")
     return None
 
 
@@ -171,6 +167,29 @@ def _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensi
     return dict(sample_type=sample_type, label=label, substrate_id=substrate_id, project_id=project_id,
                 substrate_dimensions=substrate_dimensions, film_material=film_material,
                 external_id=external_id, supplier=supplier, description=description, tags=tags)
+
+
+def _coded_by(sample: Sample) -> tuple:
+    """What the sample's ID is numbered under: its project's code or the owner's initials.
+    Changing it (thin film or bulk to project and back, or to another project) leaves the ID out of step."""
+    return ("project", sample.project_id) if sample.sample_type == "project" else ("owner", None)
+
+
+async def _code_prompt(db: AsyncSession, request: Request, sample: Sample) -> dict | None:
+    """Set after a type change that moved the ID's prefix: what the page should offer.
+    None if the flag isn't set or the ID already fits."""
+    if request.session.pop("code_prompt", None) != sample.id or not sample.code:
+        return None
+    if sample.sample_type == "project":
+        project = await db.get(Project, sample.project_id) if sample.project_id else None
+        prefix, source = (project.code, f"project:{project.id}") if project else (None, None)
+    else:
+        prefix, source = (sample.owner.initials, f"user:{sample.owner_id}") if sample.owner else (None, None)
+    if not prefix or sample.code.split("-")[0] == prefix:
+        return None
+    year = sample.code.split("-")[1] if sample.code.count("-") >= 2 else None
+    return {"prefix": prefix, "source": source,
+            "new_code": await next_code(db, prefix, int(year) if year and year.isdigit() else None)}
 
 
 @router.get("/new", response_class=HTMLResponse)
@@ -204,7 +223,7 @@ async def create_sample(
     current_user=Depends(require_login),
 ):
     """Create a sample, for yourself or on behalf of another researcher. It gets
-    the owner's initials (a collaboration sample gets its project's code). An
+    the owner's initials (a project sample gets its project's code). An
     admin's goes straight to the owner; anyone else's waits for the owner to
     confirm it, and the creator gets edit access."""
     # Plain values: the retry below rolls back, which expires loaded objects.
@@ -229,8 +248,8 @@ async def create_sample(
 
     sample = new_sample()
     files = chosen_files(files)
-    error = await _validate(request, db, sample, files, has_spec=False)
-    if not error and sample.sample_type == "collaboration":
+    error = await _validate(request, db, sample, files)
+    if not error and sample.sample_type == "project":
         initials = (await db.get(Project, sample.project_id)).code
     elif not error and not initials:
         error = t(request, "That researcher hasn't set their initials yet, so their samples can't get an ID.")
@@ -366,6 +385,7 @@ async def sample_detail(
     spec_files = (await _attachments_for(db, "sample", [sample_id]))[sample_id] if viewable else []
     return templates.TemplateResponse("samples/detail.html", {
         "spec_files": spec_files,
+        "code_prompt": await _code_prompt(db, request, sample) if can_edit(current_user, sample) else None,
         "request": request,
         "sample": sample,
         "timeline": timeline,
@@ -436,17 +456,18 @@ async def update_sample(
     description: str = Form(""),
     tags: str = Form(""),
     owner_id: str = Form(None),
+    visibility: str = Form(None),
     files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
     sample = await load_sample(db, sample_id, current_user, "edit")
     was_owner = sample.owner_id == current_user.id
+    coded_by = _coded_by(sample)
     _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                                      external_id, supplier, description, tags))
-    has_spec = bool((await _attachments_for(db, "sample", [sample_id]))[sample_id])
     files = chosen_files(files)
-    error = await _validate(request, db, sample, files, has_spec)
+    error = await _validate(request, db, sample, files)
     if error:
         response = templates.TemplateResponse(  # renders now, before the rollback expires `sample`
             "samples/form.html", await _form_context(db, request, current_user, sample, True, error),
@@ -465,6 +486,10 @@ async def update_sample(
             new_owner = candidate
     elif owner_id == "" and current_user.is_admin:
         sample.owner_id = sample.requested_by_id = None
+    if visibility in VISIBILITY and visibility != sample.visibility and is_owner(current_user, sample):
+        log_activity(db, current_user, "sample_visibility", sample.title, sample.owner_id,
+                     f"{sample.visibility} → {visibility}")
+        sample.visibility = visibility
     previous_owner = sample.owner.display_name if sample.owner else "—"
     pending = new_owner is not None and _hand_over(
         sample, new_owner.id, current_user.id, current_user.is_admin or (team_admin and not was_owner))
@@ -479,6 +504,8 @@ async def update_sample(
             request, "Given to {name}. They'll be asked to confirm it; you keep edit access.",
             name=new_owner.display_name)
         await _ask_to_confirm(request, current_user.display_name, new_owner.display_name, new_owner.email, [sample])
+    if _coded_by(sample) != coded_by and sample.code and not sample.cut_step_id:
+        request.session["code_prompt"] = sample_id   # the sample page asks what to do with the ID
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
 
@@ -537,6 +564,27 @@ async def recode_sample(
             except Exception as exc:
                 request.session["flash_error"] = t(request, "Couldn't email {name} ({error}); tell them about the new ID.",
                                                    name=owner.display_name, error=exc)
+    return RedirectResponse(f"/samples/{sample_id}", status_code=303)
+
+
+@router.post("/{sample_id}/ask-recode")
+async def ask_admin_to_recode(
+    request: Request,
+    sample_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    """After a type change that left the ID with the wrong prefix: send the admins
+    a suggestion asking them to fix it (only they can change an ID)."""
+    sample = await load_sample(db, sample_id, current_user, "edit")
+    db.add(Suggestion(
+        user_id=current_user.id, kind="problem", page=f"/samples/{sample_id}", author_seen_at=func.now(),
+        text=f"The sample {sample.title} is now a {sample.type_label.lower()} sample"
+             f"{f' of project {sample.project.name} ({sample.project.code})' if sample.project else ''}, "
+             f"but its ID still has the old prefix. Please change its ID."))
+    await db.commit()
+    request.session["flash"] = t(request, "Sent to the admins. The ID stays {code} until one of them changes it.",
+                                 code=sample.title)
     return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
 

@@ -231,7 +231,8 @@
   });
 
   // Equipment belongs to a place: its dropdown only offers what's at the
-  // place chosen under Where (plus equipment with no place set). Options are
+  // place chosen under Where (plus equipment with no place set), and, next to
+  // a Method choice, what suits that method (plus equipment for any method). Options are
   // removed rather than hidden, which phones' dropdowns would ignore.
   const where = form.querySelector('select.choice-select[name="location"], select.choice-select[data-name="location"]');
   const located = [...form.querySelectorAll('select[data-located]')].map(select =>
@@ -240,13 +241,18 @@
     const place = where ? where.value : '';   // '__new__' (a new place) has no equipment yet
     located.forEach(({select, all}) => {
       const current = select.value;
-      const fits = o => !o.dataset.place || !place || o.dataset.place === place;
+      const method = select.dataset.by ? (form.querySelector(`[name="${select.dataset.by}"]`) || {}).value : '';
+      const fits = o => (!o.dataset.place || !place || o.dataset.place === place) &&
+                        (!o.dataset.method || !method || o.dataset.method === method);
       const keep = all.filter(o => ['', '__new__'].includes(o.value) || fits(o) || (!resetMismatch && o.value === current));
       select.replaceChildren(...keep.map(o => o.cloneNode(true)));
       select.value = keep.some(o => o.value === current) ? current : '';
     });
   }
   if (where) where.addEventListener('change', () => filterEquipment(true));
+  form.addEventListener('change', e => {   // equipment next to a Method choice (Annealing: AnnealSYS is RTA only)
+    if (e.target.classList.contains('variant-select')) filterEquipment(true);
+  });
   filterEquipment(false);   // an entry being edited keeps its machine even if it moved since
 
   // Modes (e.g. XRD): ticking one shows its fields; new modes can be added.

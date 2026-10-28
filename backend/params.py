@@ -102,6 +102,15 @@ def located_lists(schema: list[dict] | None) -> set[str]:
     return names
 
 
+def located_methods(schema: list[dict] | None, params: dict) -> dict[str, str]:
+    """list → the method chosen alongside it, for equipment next to a Method
+    choice (a variant field in the same schema), e.g. Annealing → RTA."""
+    method = next((params.get(f["key"]) for f in schema or [] if f.get("type") == "variant"), None)
+    if not method:
+        return {}
+    return {option_list(f): method for f in schema if f.get("type") == "choice" and f.get("located")}
+
+
 def equipment_field(type_name: str) -> dict:
     """The Equipment dropdown every technique starts with: its own list
     (e.g. "ellipsometry_equipment"), filtered by the place under Where."""

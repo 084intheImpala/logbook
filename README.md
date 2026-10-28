@@ -131,7 +131,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 ```
 Substrate         (shared library: material, orientation, thickness, polishing, spec files)
-Project           (collaboration: name, partner institution, code used in its samples' IDs, contact)
+Project           (collaboration or commercial supplier: name, institution or company, code used in its samples' IDs, contact)
 Sample            (generated ID, type, optional label and tags)
  ├── ProcessStep  (can repeat types, e.g. two annealings)
  │    └── Attachment (uploaded files)
@@ -147,12 +147,12 @@ year, and that researcher's counter for the year, e.g. `ASS-2026-001`. Pieces
 cut from it add `-A`, `-B`, … (pieces of pieces `-1`, `-2`, …), and a
 reference piece adds `-REF`. IDs don't change when the sample changes
 owner or the researcher's initials change later. Only an admin can change one,
-for a sample created under the wrong owner or type (see below). The optional
+for a sample created under the wrong type (see below). The optional
 **Label** is for your own description and doesn't need to be unique.
 
-**Changing an ID (admins).** On the sample's *Edit* page, *Change the sample
-ID* gives it the next free number under a researcher's initials or a project's
-code (or an ID you type). Its pieces are renamed with it (`ASS-2026-005-A`
+**Changing an ID (admins).** There is no ID field on the Edit page. When an
+edit changes the type or project (see below), the sample page offers an admin
+the next free number under the owner's initials or the project's code. Its pieces are renamed with it (`ASS-2026-005-A`
 becomes `UMIN-2026-001-A`), the folders in `uploads/` are renamed and the
 stored file names updated, and the owner gets an email listing the old and new
 IDs. The old ID is kept on the sample (shown as *Previously*, searchable, and
@@ -161,8 +161,17 @@ meaning two things. A piece's ID can't be changed on its own; change the
 sample it was cut from. Samples are not renumbered in the emails, links or
 notes people kept: the owner's email is how they find out.
 
-Collaboration samples use their project's code instead of initials, with
+Project samples use their project's code instead of initials, with
 the project's own counter, e.g. `UMIN1-2026-001`, whoever receives them.
+
+If an edit moves a sample between thin film or bulk and project (or to another
+project), its ID no longer starts with what it should, so the sample page asks
+what to do. An admin is offered the new ID (the next free number under the
+owner's initials or the project's code) and can update it or keep the old one.
+Anyone else can keep the ID, or **Ask an admin to fix it**, which sends the
+admins a suggestion (Suggestions inbox) naming the sample. Nothing changes
+until an admin recodes it. Pieces are skipped: change the ID of the sample
+they were cut from.
 
 Everyone sets their display name and initials (2–4 letters, unique) on first
 login; they're asked again until they do. Once someone has samples, only an
@@ -170,16 +179,24 @@ admin can change their initials (Configurations → Users).
 
 ### Sample types
 
-- **Thin film:** a substrate from the library, dimensions, and optionally the
-  film material (a sample is just its substrate until it's deposited).
-- **Bulk:** a piece of a library substrate, e.g. a 5×5 mm piece of a wafer.
-  **External ID** holds the identifier given by whoever cut it.
-- **Commercial:** a description, supplier, product/batch number, and the
-  spec sheet (PDF or photo), which is required.
-- **Collaboration:** any sample sent by another university or centre, thin
-  film or not. Choose its project from the Projects tab and describe the
-  sample (both required); optionally add their own ID for it. Its owner is
-  the researcher who receives it.
+Each type is explained beside its button on the new-sample form.
+
+- **Thin film:** a sample we deposited ourselves. A substrate from the library,
+  dimensions, and optionally the film material (a sample is just its substrate
+  until it's deposited).
+- **Bulk:** a bulk crystal or membrane, e.g. a 5×5 mm piece of a library
+  substrate. **External ID** holds the identifier given by whoever cut it.
+- **Project:** a commercial sample, or any sample sent for a project or
+  collaboration, thin film or not. Choose its project from the Partners tab
+  (for a commercial sample, a project for its supplier) and describe the sample
+  (both required); optionally add their own ID or the product/batch number, and
+  a spec sheet (PDF or photo). Its owner is the researcher who receives it.
+
+There used to be a separate *Commercial* type. A migration (`0010`) turned
+those samples, and the old *Collaboration* ones, into *Project*. Commercial
+samples keep their ID, supplier and spec sheet, and have no project yet: the
+next time one is edited it asks for one (the ID keeps its initials until an
+admin changes it, see above).
 
 ### Substrate library
 
@@ -188,10 +205,11 @@ thickness, orientation, polishing, size, supplier, batch number, notes and spec 
 (PDF or photos). Anyone can add one; whoever added it and admins can edit
 it. A substrate used by any sample can't be deleted.
 
-### Projects
+### Projects (the Partners tab)
 
-The **Projects** tab lists collaboration projects with universities and
-centres that send us samples: name, partner institution, code, country,
+The **Partners** tab lists the projects: collaborations with universities and
+centres that send us samples, and the companies we buy commercial samples
+from. For each: name, institution or company, code, country,
 contact person and email, notes. One institution can have several projects,
 each with its own samples. The institution field suggests the ones already
 entered, so each is spelled the same way. The code (2–6 letters or digits)
@@ -277,8 +295,7 @@ and the Cut step, and they are in the parent's file. Users, entry types,
 dropdown values and suggestions aren't in these files; the database dump is
 still the real backup.
 
-Mandatory: the substrate for thin-film and bulk samples, the description and
-spec sheet for commercial ones, and the type of each step/analysis. `required` in
+Mandatory: the substrate for thin-film and bulk samples, a project and a description for project samples, and the type of each step/analysis. `required` in
 a type's schema is a hint shown on the form, not enforced.
 
 The tables are created and kept up to date by migrations that run when the
@@ -292,13 +309,13 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 3: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them). |
+| `format` | Version of this layout (currently 4: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
-| `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk`, `commercial` or `collaboration`; `visibility` is `personal`, `team` or `public`. |
+| `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk` or `project`; `visibility` is `personal`, `team` or `public`. |
 | `owner`, `requested_by` | `{username, name, initials}` or `null`. |
 | `shared_with` | List of `{username, name, initials, can_edit}`. |
-| `substrate`, `project` | The library substrate / collaboration project it refers to, copied in full (`null` if none). |
+| `substrate`, `project` | The library substrate / project it refers to, copied in full (`null` if none). |
 | `cut_from` | For a piece: `{sample, cut_step_id, cut_position}`: the parent's ID and where on its timeline the Cut step is. The piece inherits everything before that position; those entries are in the parent's file, not repeated here. |
 | `files` | Files attached to the sample itself (e.g. a spec sheet). |
 | `devices` | The devices made on the sample: list of `{label, notes}`. |
@@ -341,8 +358,9 @@ longer has stay as they were. Example, trimmed:
 ## Devices on a sample
 
 When several devices come out of one sample, finish the process that makes
-them, then use **Process done: make devices** under *Devices* on the sample's
-page: give the labels (D1, D2, …, or just how many) and the date. This puts
+them, then click **Make devices** next to *Add Process Step*, *Add Analysis* and
+*Cut into pieces* on the sample's page (the dialog explains it too, and lists
+the existing devices so you can remove one): give the labels (D1, D2, …, or just how many) and the date. This puts
 a **Devices made** step on the timeline, listing the devices; everything
 before it is their shared history. Steps added afterwards, such as annealing,
 still go on the sample and so apply to all its devices. It isn't tied to any
@@ -402,8 +420,8 @@ parameters, notes, dates and files) are visible to:
 - the **coordinators** of the owner's team, who have the owner's rights (see [Teams](#teams)),
 - anyone the sample's **visibility** lets in.
 
-**Visibility** is set per sample, when it is created and later under
-*Sharing* (owner or admin): **Personal** (the default: only the people above),
+**Visibility** is set per sample, when it is created and at any time later,
+either on the sample's *Edit* page or under *Sharing* (owner or admin): **Personal** (the default: only the people above),
 **Team** (also everyone in the owner's team) or **Public** (everyone logged
 in). A piece cut from a sample starts with its parent's visibility. Visibility
 only decides who can *see* details; changing a sample still needs an explicit
@@ -556,7 +574,13 @@ Each step or analysis type has its own fields, filled in on the form:
   Where (INESC MN has the Alcatel SCM 450, UHV1, UHV2 and SentiFet). A new
   piece of equipment typed on the form is filed under that place. New types
   added under Configurations get the Equipment field automatically.
-  Equipment with no place set is offered everywhere.
+  Equipment with no place set is offered everywhere. Equipment can also be
+  tied to a method: on Annealing, **AnnealSYS is RTA only**, so with *Furnace*
+  chosen the Equipment dropdown leaves it out, and with *RTA* chosen it is
+  offered (any other equipment suits both). Equipment typed on the form is
+  filed under the method chosen at the time (migration `0011` tagged the
+  existing AnnealSYS as RTA). The `applies_to` column of `choice_options` holds
+  it; there is no screen for editing it yet.
 - **Other parameters** takes anything else as `key: value` lines.
 
 The step types are Deposition (machine: Alcatel SCM 450, UHV1, UHV2, SentiFet;
@@ -697,6 +721,25 @@ If something fails, `docker compose down`, restore the backup (see
 Same steps 1–6. The app upgrades the database to the newest revision when it
 starts, and `alembic_version` shows the new number.
 
+### Troubleshooting an update
+
+**The page doesn't load after `docker compose up -d`, and `docker compose ps`
+still says the app is "Up".** "Up" only means the container started. Read the
+log: `docker compose logs --tail 30 app`.
+
+If it ends in `ModuleNotFoundError: No module named '...'` (e.g. `alembic`),
+the image is older than the code. `backend/` and `frontend/` are mounted into
+the container, so `git pull` updates the code immediately, but Python packages
+are baked into the image. Rebuild it:
+
+```bash
+docker compose up -d --build app
+```
+
+Rebuild after any `git pull` that changes `requirements.txt`. The database
+container and its data are not touched. The app only reaches the migrations
+once it starts, so the crash above means the database has not been changed.
+
 ### For developers: writing a migration
 
 Change `backend/models.py`, then generate and **read** the migration before
@@ -737,6 +780,20 @@ docker compose exec -T db pg_dump -U logbook logbook > backup_$(date +%Y%m%d).sq
 Keep that file together with a copy of `uploads/` (and `.env`, somewhere
 safe: it holds passwords). Do this regularly, e.g. weekly, and before
 updating the code.
+
+**Check the backup before relying on it.** The output goes straight into the
+file, so a failure shows nothing on screen and leaves an empty or tiny file:
+
+```bash
+ls -lh backup_*.sql       # should be well above 0 bytes
+head -n 3 backup_*.sql    # starts with "-- PostgreSQL database dump"
+tail -n 2 backup_*.sql    # ends with "-- PostgreSQL database dump complete"
+```
+
+If Docker needs `sudo`, run `sudo -v` first and give the password before the
+dump command; otherwise the password prompt can sit unnoticed while the
+command seems to hang. To see errors, run the dump without the redirect, piped
+to `head -n 20`.
 
 ### Restoring
 

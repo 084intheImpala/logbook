@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ _("Projects") }} — Logbook{% endblock %}
+{% block title %}{{ _("Partners") }} — Logbook{% endblock %}
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">{{ _("Projects") }}</h1>
-    <p class="text-sm text-gray-500 mt-1">{{ _("Collaborations with universities and centres that send us samples. Each project's code numbers its samples like a researcher's initials.") }}</p>
+    <h1 class="text-2xl font-bold text-gray-900">{{ _("Partners") }}</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ _("Projects and collaborations with universities and centres that send us samples, and the companies we buy commercial samples from. Each project's code numbers its samples like a researcher's initials.") }}</p>
   </div>
   <a href="/projects/new"
      class="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
@@ -26,7 +26,7 @@
       <tr class="bg-gray-50 border-b border-gray-200">
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Code") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Project") }}</th>
-        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Institution") }}</th>
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Institution or company") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Country") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Contact") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Samples") }}</th>
