@@ -311,6 +311,22 @@ class AccessRequest(Base):
     decided_by: Mapped["User | None"] = relationship("User", foreign_keys=[decided_by_id], lazy="selectin")
 
 
+class ActivityLog(Base):
+    """Management actions (see backend/activity.py). Names are copied in, so
+    entries stay readable after a sample or account is deleted."""
+    __tablename__ = "activity_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    actor_name: Mapped[str | None] = mapped_column(String(120))
+    action: Mapped[str] = mapped_column(String(30), nullable=False)
+    target: Mapped[str] = mapped_column(String(200), nullable=False)
+    # The user whose sample or account it concerns: their team's coordinators can see it
+    subject_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    detail: Mapped[str | None] = mapped_column(Text)
+
+
 class Attachment(Base):
     """A file attached to a process step or analysis."""
     __tablename__ = "attachments"

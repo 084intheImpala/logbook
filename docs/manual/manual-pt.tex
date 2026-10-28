@@ -209,30 +209,46 @@ Partilhar com \ui{Ver} dá acesso a tudo o que está na amostra (parâmetros,
 notas, datas e ficheiros de todos os passos e análises), não só à lista de
 passos. \ui{Editar} acrescenta a possibilidade de adicionar e alterar passos,
 análises e ficheiros; nenhuma das duas permite apagar a amostra nem gerir a
-partilha.
+partilha (a não ser que seja o responsável, um coordenador da sua equipa ou um administrador).
 
 \paragraph{Equipas.} Uma equipa é um grupo dentro do laboratório (distinto dos
-projetos, que são colaboradores externos). Os administradores criam-nas em
-\menu{Configurações}, \ui{Equipas}, juntam membros e marcam um ou mais
-\emph{coordenadores}. Um coordenador vê (mas não edita) os detalhes de todas as
-amostras dos membros da sua equipa, seja qual for a visibilidade.
+projetos, que são colaboradores externos). Foram pensadas para funcionar quase
+sem intervenção dos administradores, em três níveis:
+\begin{itemize}
+  \item \textbf{Administrador:} tudo. Só os administradores criam, renomeiam e
+        apagam equipas (em \menu{Configurações}, \ui{Equipas}), nomeiam e
+        retiram coordenadores, mudam pessoas de equipa, alteram IDs de amostras
+        e editam tipos de entrada e listas.
+  \item \textbf{Coordenador} (de uma equipa): tem os \emph{direitos do
+        responsável em todas as amostras dos membros da sua equipa} (ver, editar,
+        partilhar, mudar a visibilidade, apagar, passar a outro membro da equipa
+        sem confirmação) e responde às propostas e pedidos de acesso. Em
+        \menu{A minha equipa} junta pessoas sem equipa, retira membros (não
+        coordenadores), cria contas para novos membros (que ficam na equipa e
+        recebem o email de boas-vindas) e repõe as palavras-passe dos membros.
+  \item \textbf{Membro:} as suas amostras, o que lhe foi partilhado, o que a
+        visibilidade lhe mostra, e \emph{propor} entradas nas amostras dos
+        colegas.
+\end{itemize}
+As ações de gestão (apagar ou passar amostras, partilha, aprovações, contas,
+alterações às equipas) ficam no \menu{Registo de atividade}: os administradores
+veem tudo e os coordenadores veem o que diz respeito à sua equipa. A edição
+normal não é registada.
 
 \paragraph{Propor entradas.} Qualquer pessoa da equipa do responsável pode
 \emph{propor} um passo ou uma análise numa amostra dele (botões \ui{Propor}
 na página da amostra), mesmo sem acesso de leitura ou edição. A proposta fica
 fora da cronologia, das exportações e da pesquisa até ser aprovada, e o
 responsável recebe um email; o autor vê, altera ou retira a sua proposta
-entretanto. O responsável (ou um administrador) aprova ou recusa em
-\menu{Aprovações}. Se não responder em 7 dias (\texttt{APPROVAL\_ESCALATION\_DAYS}),
-um coordenador da equipa pode decidir. Recusar apaga a proposta e avisa o autor.
+entretanto. O responsável, um coordenador da sua equipa ou um administrador
+aprova ou recusa em \menu{Aprovações}, a qualquer momento. Recusar apaga a
+proposta e avisa o autor.
 
 \paragraph{Pedir acesso.} Numa amostra que não pode ver ou editar,
 \ui{Pedir acesso} pede ao responsável para \ui{Ver os detalhes} ou
 \ui{Editar}, com uma mensagem opcional. O responsável responde em
-\menu{Aprovações}; se aprovar, cria-se a partilha. Passado o mesmo prazo um
-coordenador da equipa também pode responder; assim, um coordenador que peça
-para editar uma amostra de um membro pode aceitar o próprio pedido se o
-responsável não responder.
+\menu{Aprovações}; se aprovar, cria-se a partilha. Um coordenador da equipa do
+responsável (ou um administrador) também pode responder.
 
 As amostras sem responsável estão abertas a todos.
 

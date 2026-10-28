@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import accounts
+from backend.activity import log as log_activity
 from backend.auth import require_login
 from backend.database import get_db
 from backend.i18n import t
@@ -69,6 +70,7 @@ async def add_member(request: Request, team_id: int, user_id: int = Form(...), d
                                            name=user.display_name)
     else:
         team.members.append(TeamMember(user_id=user_id))
+        log_activity(db, current_user, "member_added", user.username, user, team.name)
         await db.commit()
     return RedirectResponse(BACK, status_code=303)
 
@@ -81,6 +83,7 @@ async def remove_member(request: Request, team_id: int, user_id: int, db: AsyncS
     if member.is_coordinator and not current_user.is_admin:
         request.session["flash_error"] = t(request, "Only an admin can remove a coordinator.")
     else:
+        log_activity(db, current_user, "member_removed", member.user.username, member.user, (await db.get(Team, team_id)).name)
         await db.delete(member)
         await db.commit()
     return RedirectResponse(BACK, status_code=303)
@@ -91,7 +94,7 @@ async def create_member(request: Request, team_id: int, username: str = Form(...
                         email: str = Form(...), db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_login)):
     team = await _my_team(db, current_user, team_id)
-    await accounts.create_account(request, db, username, name, email, team=team)
+    await accounts.create_account(request, db, username, name, email, team=team, actor=current_user)
     return RedirectResponse(BACK, status_code=303)
 
 
@@ -102,5 +105,5 @@ async def reset_member_password(request: Request, team_id: int, user_id: int, db
     member = await _member(db, team_id, user_id)
     if (member.is_coordinator or member.user.is_admin) and member.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Only an admin can reset a coordinator's or admin's password.")
-    await accounts.reset_password(request, db, member.user)
+    await accounts.reset_password(request, db, member.user, actor=current_user)
     return RedirectResponse(BACK, status_code=303)

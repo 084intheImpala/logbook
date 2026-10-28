@@ -11,6 +11,7 @@ from backend.database import get_db
 from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User, Team
 from backend.params import validate_schema, with_equipment
 from backend import accounts
+from backend.activity import log as log_activity
 from backend.auth import require_login
 from backend.email_utils import send_admin_message
 from backend.config import settings
@@ -84,7 +85,7 @@ async def create_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    await accounts.create_account(request, db, username, name, email, is_admin=(is_admin == "on"))
+    await accounts.create_account(request, db, username, name, email, is_admin=(is_admin == "on"), actor=admin)
     return RedirectResponse("/admin/", status_code=303)
 
 
@@ -174,6 +175,7 @@ async def toggle_admin(
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
     target.is_admin = not target.is_admin
+    log_activity(db, admin, "admin_set", target.username, target, "granted" if target.is_admin else "removed")
     await db.commit()
     return RedirectResponse("/admin/", status_code=303)
 
@@ -188,7 +190,7 @@ async def reset_user_password(
     target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
-    await accounts.reset_password(request, db, target)
+    await accounts.reset_password(request, db, target, actor=admin)
     return RedirectResponse("/admin/", status_code=303)
 
 
@@ -204,6 +206,7 @@ async def delete_user(
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
+    log_activity(db, admin, "user_deleted", target.username)
     await db.delete(target)
     await db.commit()
     return RedirectResponse("/admin/", status_code=303)

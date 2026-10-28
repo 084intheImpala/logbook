@@ -9,6 +9,7 @@ from fastapi import Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.activity import log as log_activity
 from backend.auth import hash_password
 from backend.config import settings
 from backend.email_utils import send_welcome_email
@@ -30,7 +31,8 @@ def _generate_login_token(user, expires_hours: int = 72) -> str:
 
 
 async def create_account(request: Request, db: AsyncSession, username: str, name: str, email: str,
-                         is_admin: bool = False, team: Team | None = None) -> User | None:
+                         is_admin: bool = False, team: Team | None = None,
+                         actor: User | None = None) -> User | None:
     """Create a user with a temporary password and email them their credentials
     (or show the password in the flash message if email isn't set up). They join
     `team` if given. Returns the user, or None after flashing why not."""
@@ -61,6 +63,7 @@ async def create_account(request: Request, db: AsyncSession, username: str, name
     if team is not None:
         db.add(TeamMember(team_id=team.id, user_id=new_user.id))
     magic_token = _generate_login_token(new_user)
+    log_activity(db, actor, "user_created", username, new_user, f"team: {team.name}" if team else None)
     await db.commit()
 
     email_sent = False
@@ -79,12 +82,13 @@ async def create_account(request: Request, db: AsyncSession, username: str, name
     return new_user
 
 
-async def reset_password(request: Request, db: AsyncSession, target: User) -> None:
+async def reset_password(request: Request, db: AsyncSession, target: User, actor: User | None = None) -> None:
     """Give `target` a new temporary password, emailed to them (or shown in the flash message)."""
     temp_password = _generate_password()
     target.hashed_password = hash_password(temp_password)
     target.must_change_password = True
     magic_token = _generate_login_token(target)
+    log_activity(db, actor, "password_reset", target.username, target)
     await db.commit()
 
     email_sent = False

@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.activity import log as log_activity
 from backend.database import get_db
 from backend.i18n import t
 from backend.models import Team, TeamMember, User
@@ -38,6 +39,7 @@ async def create_team(request: Request, name: str = Form(...), db: AsyncSession 
         request.session["flash_error"] = t(request, "There is already a team called {name}.", name=name)
     else:
         db.add(Team(name=name))
+        log_activity(db, admin, "team_created", name)
         await db.commit()
     return RedirectResponse(BACK, status_code=303)
 
@@ -51,6 +53,7 @@ async def rename_team(request: Request, team_id: int, name: str = Form(...), db:
     elif await _name_taken(db, name, team_id):
         request.session["flash_error"] = t(request, "There is already a team called {name}.", name=name)
     else:
+        log_activity(db, admin, "team_renamed", name, detail=f"{team.name} → {name}")
         team.name = name
         await db.commit()
     return RedirectResponse(BACK, status_code=303)
@@ -59,7 +62,9 @@ async def rename_team(request: Request, team_id: int, name: str = Form(...), db:
 @router.post("/{team_id}/delete")
 async def delete_team(team_id: int, db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
     """Members stay users; samples shown to "team" are then seen by their owners' other teams, if any."""
-    await db.delete(await _team(db, team_id))
+    team = await _team(db, team_id)
+    log_activity(db, admin, "team_deleted", team.name)
+    await db.delete(team)
     await db.commit()
     return RedirectResponse(BACK, status_code=303)
 
@@ -74,7 +79,10 @@ async def add_member(request: Request, team_id: int, user_id: int = Form(...), c
     member = next((m for m in team.members if m.user_id == user_id), None)
     if member is None:
         team.members.append(TeamMember(user_id=user_id, is_coordinator=bool(coordinator)))
+        log_activity(db, admin, "member_added", user.username, user, f"{team.name}{' (coordinator)' if coordinator else ''}")
     else:
+        if member.is_coordinator != bool(coordinator):
+            log_activity(db, admin, "coordinator_set" if coordinator else "coordinator_unset", user.username, user, team.name)
         member.is_coordinator = bool(coordinator)
     await db.commit()
     return RedirectResponse(BACK, status_code=303)
@@ -93,6 +101,8 @@ async def toggle_coordinator(team_id: int, user_id: int, db: AsyncSession = Depe
                              admin: User = Depends(require_admin)):
     member = await _member(db, team_id, user_id)
     member.is_coordinator = not member.is_coordinator
+    log_activity(db, admin, "coordinator_set" if member.is_coordinator else "coordinator_unset",
+                 member.user.username, member.user, (await _team(db, team_id)).name)
     await db.commit()
     return RedirectResponse(BACK, status_code=303)
 
@@ -100,6 +110,8 @@ async def toggle_coordinator(team_id: int, user_id: int, db: AsyncSession = Depe
 @router.post("/{team_id}/members/{user_id}/remove")
 async def remove_member(team_id: int, user_id: int, db: AsyncSession = Depends(get_db),
                         admin: User = Depends(require_admin)):
-    await db.delete(await _member(db, team_id, user_id))
+    member = await _member(db, team_id, user_id)
+    log_activity(db, admin, "member_removed", member.user.username, member.user, (await _team(db, team_id)).name)
+    await db.delete(member)
     await db.commit()
     return RedirectResponse(BACK, status_code=303)

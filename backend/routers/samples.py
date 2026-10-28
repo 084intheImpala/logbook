@@ -11,6 +11,7 @@ from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, A
                             Substrate, Project, User, SAMPLE_TYPES, VISIBILITY, AccessRequest)
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
+from backend.activity import log as log_activity
 from backend.utils import save_upload, chosen_files
 from backend.auth import (require_login, load_sample, can_view, can_edit, can_edit_entry, can_propose, can_decide,
                           coordinates_user, is_coordinator_of, is_owner, is_performer, is_proposer)
@@ -462,8 +463,12 @@ async def update_sample(
             new_owner = candidate
     elif owner_id == "" and current_user.is_admin:
         sample.owner_id = sample.requested_by_id = None
+    previous_owner = sample.owner.display_name if sample.owner else "—"
     pending = new_owner is not None and _hand_over(
         sample, new_owner.id, current_user.id, current_user.is_admin or (team_admin and not was_owner))
+    if new_owner is not None and (current_user.is_admin or team_admin):
+        log_activity(db, current_user, "sample_owner", sample.title, new_owner,
+                     f"{previous_owner} → {new_owner.display_name}")
     for f in files:
         await save_upload(f, "sample", sample.id, db, uploaded_by=current_user.username)
     await db.commit()
@@ -515,6 +520,8 @@ async def recode_sample(
         await db.rollback()
         request.session["flash_error"] = t(request, str(e))
         return back
+    log_activity(db, current_user, "sample_id", new_code, sample.owner_id, f"{old} → {new_code}")
+    await db.commit()
     log.info("%s changed sample ID %s to %s (%d samples renamed)", current_user.username, old, new_code, len(change.codes))
     request.session["flash"] = t(request, "ID changed from {old} to {new}.", old=old, new=new_code)
     owner = sample.owner
@@ -547,6 +554,7 @@ async def delete_sample(
             t(request, "Can't delete: {n} pieces were cut from this sample and inherit its history. "
                        "Delete the pieces first.", n=len(pieces)))
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
+    log_activity(db, current_user, "sample_deleted", sample.title, sample.owner_id)
     await db.delete(sample)
     await db.commit()
     return RedirectResponse("/samples/", status_code=303)
@@ -748,7 +756,10 @@ async def add_share(
     sample = await load_sample(db, sample_id, current_user, "owner")
     if not await db.get(User, user_id):
         raise HTTPException(status_code=404, detail="User not found")
+    target = await db.get(User, user_id)
     _set_share(sample, user_id, access == "edit")
+    log_activity(db, current_user, "share_set", sample.title, sample.owner_id,
+                 f"{target.display_name}: {'edit' if access == 'edit' else 'view'}")
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
 
@@ -763,6 +774,9 @@ async def set_visibility(
     sample = await load_sample(db, sample_id, current_user, "owner")
     if visibility not in VISIBILITY:
         raise HTTPException(status_code=400, detail="Unknown visibility")
+    if sample.visibility != visibility:
+        log_activity(db, current_user, "sample_visibility", sample.title, sample.owner_id,
+                     f"{sample.visibility} → {visibility}")
     sample.visibility = visibility
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
@@ -778,6 +792,7 @@ async def remove_share(
     sample = await load_sample(db, sample_id, current_user, "owner")
     share = next((sh for sh in sample.shares if sh.id == share_id), None)
     if share:
+        log_activity(db, current_user, "share_removed", sample.title, sample.owner_id, share.user.display_name)
         sample.shares.remove(share)
         await db.commit()
     return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
@@ -802,6 +817,8 @@ async def share_many(
     shared = [s for s in samples if is_owner(current_user, s)]
     for s in shared:
         _set_share(s, user_id, access == "edit")
+        log_activity(db, current_user, "share_set", s.title, s.owner_id,
+                     f"{target.display_name}: {'edit' if access == 'edit' else 'view'}")
     await db.commit()
     skipped = len(samples) - len(shared)
     if access == "edit":

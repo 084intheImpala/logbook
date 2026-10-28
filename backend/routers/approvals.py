@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import approvals
+from backend.activity import log as log_activity
 from backend.auth import can_decide, can_edit, can_view, load_sample, require_login
 from backend.database import get_db
 from backend.i18n import t
@@ -73,6 +74,8 @@ async def approve_entry(request: Request, kind: str, entry_id: int, db: AsyncSes
     await db.flush()
     await place_new(db, entry)
     name, proposer = await _type_name(db, kind, entry), await db.get(User, entry.proposed_by_id or 0)
+    log_activity(db, current_user, "entry_approved", sample.title, sample.owner_id,
+                 f"{name} by {proposer.display_name}" if proposer else name)
     await db.commit()
     request.session["flash"] = t(request, "Approved: {name} is now on {sample}.", name=name, sample=sample.title)
     await approvals.tell_decision(request, proposer, current_user, sample, name, True)
@@ -92,6 +95,9 @@ async def reject_entry(request: Request, kind: str, entry_id: int, db: AsyncSess
     for att in (await db.execute(select(Attachment).where(
             Attachment.entity_type == kind, Attachment.entity_id == entry_id))).scalars():
         await delete_attachment(att, db)
+    if not is_author:
+        log_activity(db, current_user, "entry_declined", sample.title, sample.owner_id,
+                     f"{name} by {proposer.display_name}" if proposer else name)
     await db.delete(entry)
     await db.commit()
     request.session["flash"] = (t(request, "Withdrawn: {name}.", name=name) if is_author
@@ -139,6 +145,8 @@ async def approve_request(request: Request, request_id: int, db: AsyncSession = 
     else:
         share.can_edit = share.can_edit or wants_edit
     req.status, req.decided_by_id, req.decided_at = "approved", current_user.id, datetime.utcnow()
+    log_activity(db, current_user, "request_approved", sample.title, sample.owner_id,
+                 f"{req.user.display_name}: {req.level}")
     await db.commit()
     request.session["flash"] = t(request, "{name} now has {level} access to {sample}.", name=req.user.display_name,
                                  level=t(request, "edit") if wants_edit else t(request, "view"), sample=sample.title)
@@ -153,6 +161,9 @@ async def deny_request(request: Request, request_id: int, db: AsyncSession = Dep
     req = await _pending_request(db, request_id, current_user, allow_requester=True)
     withdrawn = req.user_id == current_user.id and not can_decide(current_user, req.sample)
     req.status, req.decided_by_id, req.decided_at = "denied", current_user.id, datetime.utcnow()
+    if not withdrawn:
+        log_activity(db, current_user, "request_denied", req.sample.title, req.sample.owner_id,
+                     f"{req.user.display_name}: {req.level}")
     await db.commit()
     request.session["flash"] = t(request, "Request withdrawn.") if withdrawn else t(request, "Request declined.")
     if not withdrawn:

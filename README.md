@@ -378,7 +378,7 @@ parameters, notes, dates and files) are visible to:
 - the sample's owner (the researcher who created it),
 - admins,
 - users the owner has shared the sample with,
-- the **coordinators** of the owner's team (see below),
+- the **coordinators** of the owner's team, who have the owner's rights (see [Teams](#teams)),
 - anyone the sample's **visibility** lets in.
 
 **Visibility** is set per sample, when it is created and later under
@@ -391,12 +391,21 @@ only decides who can *see* details; changing a sample still needs an explicit
 ### Teams
 
 A team is a group inside the lab (separate from [Projects](#projects), which
-are outside collaborators). Admins manage them under *Configurations → Teams*:
-create a team, add members, and mark one or more as **coordinators**. A
-coordinator can see (not edit) the details of every sample owned by a member
-of their team, whatever its visibility. To change one they request edit access
-(below). People normally belong to one team;
-the data model allows several.
+are outside collaborators). Teams are meant to run themselves with little
+admin input, in three tiers:
+
+| | Can do |
+|---|---|
+| **Admin** | Everything. Only admins create, rename and delete teams, appoint and remove **coordinators**, move people between teams, change sample IDs, edit entry types and dropdown lists, and make other admins. |
+| **Coordinator** (of one team) | Has the **owner's rights on every sample owned by a member of their team**: view, edit, share, change visibility, delete, and hand to another member of the team (straight away, no confirmation). Answers proposals and access requests (below). On the **My team** page: adds people who have no team, removes members (not coordinators), creates accounts for new members (they join the team and get the usual welcome email) and resets members' passwords. |
+| **Member** | Their own samples, anything shared with them, what a sample's visibility shows them, and *proposing* entries on teammates' samples. |
+
+Admins manage teams under *Configurations → Teams*. People normally belong to
+one team; the data model allows several, and a coordinator's rights apply to
+each team they coordinate. Management actions (deleting or handing over
+samples, sharing, approvals, accounts, team changes) are recorded in the
+**Activity log**, which admins see in full and a team's coordinators see for
+their own members. Ordinary editing isn't logged.
 
 ### What a share gives
 
@@ -408,8 +417,8 @@ lets the person delete the sample or manage its sharing.
 Owners share from the **Sharing** panel on a sample's page, or select
 several samples on the **Search** page and share them at once. Each share
 is **View** (read details and download files) or **Edit** (also add and
-change steps, analyses and files). Only the owner or an admin can delete a
-sample or change who it's shared with. Samples without an owner are open to
+change steps, analyses and files). Only the owner, an admin or a coordinator
+of the owner's team can delete a sample or change who it's shared with. Samples without an owner are open to
 everyone; admins can assign an owner from the sample's Edit form.
 
 ### Proposing entries on a teammate's sample
@@ -420,13 +429,10 @@ access. The proposal stays out of the timeline, exports, search and the
 inherited history of pieces until it is approved, and the owner is emailed.
 The author sees and can change or withdraw their own proposal meanwhile.
 
-- The **owner** (or an admin) approves or declines it from the
-  *Approvals* page, or on the sample. Declining deletes the proposal and its
-  files and tells the author.
-- If the owner hasn't answered after `APPROVAL_ESCALATION_DAYS` (7 by
-  default, set in `.env`), a **coordinator** of the owner's team can approve
-  or decline it too. This is how a sample whose owner is away isn't stuck;
-  there is no separate "inactive" flag.
+- The **owner** approves or declines it from the *Approvals* page, or on the
+  sample; so can a **coordinator** of the owner's team (and admins), at any
+  time, so a sample whose owner is away isn't stuck. Declining deletes the
+  proposal and its files and tells the author.
 - Approving puts the entry on the timeline (by its date, or last) and emails
   the author.
 
@@ -435,10 +441,8 @@ The author sees and can change or withdraw their own proposal meanwhile.
 On a sample you can't see or edit, **Request access** asks the owner for
 *See the details* or *Edit*, with an optional message. The owner is emailed
 and answers on the *Approvals* page; approving creates the share (View or
-Edit) and the requester is told. As with proposals, a coordinator of the
-owner's team can answer after the same waiting time, so a coordinator who
-asks to edit a member's sample can accept their own request if the owner
-doesn't respond. Requesters can withdraw a pending request. The sidebar shows
+Edit) and the requester is told. A coordinator of the owner's team (or an
+admin) can answer too. Requesters can withdraw a pending request. The sidebar shows
 how many things are waiting for you.
 
 ### Who performed a step or analysis
