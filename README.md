@@ -135,7 +135,8 @@ Project           (collaboration: name, partner institution, code used in its sa
 Sample            (generated ID, type, optional label and tags)
  ├── ProcessStep  (can repeat types, e.g. two annealings)
  │    └── Attachment (uploaded files)
- └── Analysis     (XRD, RBS, SEM, …)
+ ├── Device       (D1, D2, …; made by a "Devices made" step)
+ └── Analysis     (XRD, RBS, SEM, …; optionally on one Device)
       └── Attachment (data files, images)
 ```
 

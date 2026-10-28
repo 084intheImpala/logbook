@@ -305,6 +305,7 @@ pode:
         administradores; não enquanto tiver pedaços);
   \item \ui{Adicionar passo de processo} e \ui{Adicionar análise};
   \item \ui{Dividir em pedaços} (Secção~\ref{sec:cut});
+  \item criar \ui{Dispositivos} (Secção~\ref{sec:devices});
   \item reordenar a cronologia (Secção~\ref{sec:timeline}).
 \end{itemize}
 
@@ -368,9 +369,10 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \end{tabularx}
 \end{center}
 
-O Cut não está na lista: um corte regista-se com \ui{Dividir em pedaços}
-(Secção~\ref{sec:cut}), e um passo existente não pode passar a Cut nem
-deixar de o ser.
+O Cut e o Devices made não estão na lista: um corte regista-se com
+\ui{Dividir em pedaços} (Secção~\ref{sec:cut}) e os dispositivos criam-se no
+painel \ui{Dispositivos} (Secção~\ref{sec:devices}); um passo existente não
+pode passar a um destes tipos nem deixar de o ser.
 
 Os administradores podem acrescentar tipos ou alterar os seus campos
 (Secção~\ref{sec:admin}).
@@ -443,6 +445,35 @@ data vai para o fim.
         cronológica, mantendo a sua ordem dentro de cada dia. As entradas
         sem data ficam onde estão.
 \end{itemize}
+
+%=====================================================================
+\section{Vários dispositivos numa amostra}
+\label{sec:devices}
+%=====================================================================
+
+Quando de uma amostra saem vários dispositivos (D1, D2, \ldots), termine o
+processo que os produz e use \ui{Processo concluído: criar dispositivos}, no
+painel \ui{Dispositivos} da página da amostra.
+
+\begin{enumerate}
+  \item Escreva os nomes separados por vírgulas, ou só \ui{quantos}: sem
+        nomes, os dispositivos são numerados a partir do maior D já existente
+        (D1, D2, \ldots; depois de D4 vem D5), como nas amostras.
+  \item Indique a data (opcional) e confirme.
+\end{enumerate}
+
+Isto põe na cronologia um passo \emph{Devices made} com a lista dos
+dispositivos; o que vem antes é a história comum a todos. Não está ligado a
+nenhum processo em particular, e pode criar mais dispositivos mais tarde com
+outro passo \emph{Devices made}.
+
+Os passos seguintes, como um recozimento, continuam a registar-se na amostra
+e aplicam-se a \emph{todos} os dispositivos. Numa análise, o campo
+\ui{Dispositivo} indica em qual foi medida; vazio, diz respeito à amostra
+inteira. O \ui{×} ao lado de um dispositivo remove-o, e eliminar o passo
+\emph{Devices made} remove os seus dispositivos; as análises ficam na
+amostra, sem dispositivo. Os pedaços cortados depois herdam as análises com o
+nome do dispositivo. O CSV tem a coluna \texttt{device}.
 
 %=====================================================================
 \section{Dividir uma amostra em pedaços}
@@ -725,12 +756,13 @@ cópia da base de dados continua a ser a cópia de segurança principal.
 \subsubsection*{Estrutura do \texttt{sample.json}}
 
 O ficheiro é JSON simples (UTF-8), legível sem a aplicação. No topo:
-\texttt{format} (versão do formato, atualmente 2), \texttt{written\_at},
+\texttt{format} (versão do formato, atualmente 3), \texttt{written\_at},
 \texttt{code} (o ID) e \texttt{previous\_codes} (IDs anteriores), os dados da
 amostra (\texttt{label}, \texttt{sample\_type}, \texttt{visibility},
 \texttt{tags}, \texttt{description}, \texttt{film\_material}, \ldots),
 \texttt{owner} e \texttt{shared\_with} (com \texttt{can\_edit}),
 \texttt{substrate} e \texttt{project} (copiados por inteiro),
+\texttt{devices} (os dispositivos: \texttt{label} e \texttt{notes}),
 \texttt{cut\_from} (nas peças: a amostra de origem e a posição do corte; o que
 vem antes do corte está no ficheiro dessa amostra), \texttt{files} (ficheiros
 da própria amostra) e \texttt{timeline}, a lista ordenada dos passos e
@@ -739,7 +771,8 @@ análises da amostra.
 Cada entrada de \texttt{timeline} tem \texttt{kind} (\texttt{step} ou
 \texttt{analysis}), \texttt{type} (a técnica), \texttt{position},
 \texttt{performed\_at}, \texttt{location}, \texttt{performed\_by},
-\texttt{notes}, \texttt{status} (\texttt{approved}, ou \texttt{pending} se foi
+\texttt{notes}, nas análises \texttt{device} (o nome do dispositivo, ou
+\texttt{null}), \texttt{status} (\texttt{approved}, ou \texttt{pending} se foi
 proposta por um colega e ainda não aprovada), \texttt{files} (o caminho em
 \texttt{uploads/}, o nome original, etc.) e \texttt{parameters}: um objeto com
 uma chave por campo do tipo de entrada, com números como números e texto como
