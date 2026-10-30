@@ -587,8 +587,11 @@ The step types are Deposition (machine: Alcatel SCM 450, UHV1, UHV2, SentiFet;
 technique, target, atmosphere, base and working pressure, power, gas flow,
 duration, station, the deposition rate and thickness when known, and a
 calibration sample tick box with details), Annealing, Ion
-Implantation, Lithography (optical or e-beam), Etching (dry or wet), Cut and
-Other Process. The analysis types are XRD / HRXRD, XPS, SEM (the equipment,
+Implantation, Lithography (optical or e-beam), Etching (dry or wet), CMP (slurry type,
+abrasive size and concentration, pH, dilution, slurry flow, pad type, force,
+back pressure, platen and carrier speed, time, temperature, a pad conditioning
+tick box with details, thickness removed, removal rate and post-CMP clean), Cut
+and Other Process. The analysis types are XRD / HRXRD, XPS, SEM (the equipment,
 e.g. Hitachi S-2500), TEM, RBS, AFM, Raman, Optical Microscopy (mode, e.g.
 bright/dark field or DIC, magnifications and observations), Hall / 4-probe,
 Ellipsometry
