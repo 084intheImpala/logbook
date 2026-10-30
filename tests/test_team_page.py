@@ -99,3 +99,23 @@ def test_only_admins_appoint_coordinators(lab):
     lab["clients"]["admin"].post(f"/admin/teams/{team.id}/members/{mate.id}/coordinator")
     assert memberships(team)[mate.id] is True
     lab["clients"]["admin"].post(f"/admin/teams/{team.id}/members/{mate.id}/coordinator")
+
+
+def test_admin_message_can_go_to_a_team(world, monkeypatch):
+    from backend.config import settings
+    from backend.routers import admin as admin_routes
+    sent = []
+
+    async def fake(to, subject, body):
+        sent.append(to)
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "x")
+    monkeypatch.setattr(admin_routes, "send_admin_message", fake)
+    a, b, outsider = world.user("msg-a"), world.user("msg-b"), world.user("msg-out")
+    team = world.team("msg-team", members=[a], coordinators=[b])
+    admin = world.client(world.user("msg-admin", admin=True))
+    assert f'value="team:{team.id}"' in admin.get("/admin/").text
+    r = admin.post("/admin/message", data={"to": f"team:{team.id}", "subject": "s", "body": "b"})
+    assert r.status_code == 303
+    assert sorted(sent) == sorted([a.email, b.email]) and outsider.email not in sent
+    assert admin.post("/admin/message", data={"to": "team:99999", "subject": "s", "body": "b"}).status_code == 404
+    assert world.client(a).post("/admin/message", data={"to": f"team:{team.id}", "subject": "s", "body": "b"}).status_code == 403
