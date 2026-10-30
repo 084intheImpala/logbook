@@ -142,9 +142,18 @@
         <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("To") }}</label>
         <select name="to" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
           <option value="all">{{ _("Everyone") }} ({{ users|selectattr("email")|list|length }})</option>
-          {% for u in users if u.email %}
-          <option value="{{ u.id }}">{{ u.display_name }} — {{ u.email }}</option>
-          {% endfor %}
+          {% if teams %}
+          <optgroup label="{{ _("Teams") }}">
+            {% for team in teams %}
+            <option value="team:{{ team.id }}">{{ team.name }} ({{ team.members|selectattr("user.email")|list|length }})</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+          <optgroup label="{{ _("Users") }}">
+            {% for u in users if u.email %}
+            <option value="{{ u.id }}">{{ u.display_name }} — {{ u.email }}</option>
+            {% endfor %}
+          </optgroup>
         </select>
       </div>
       <div>

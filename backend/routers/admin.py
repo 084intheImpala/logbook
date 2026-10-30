@@ -98,8 +98,8 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """Email everyone ("all") or one user (their id). Each person gets their
-    own copy, so recipients don't see each other's addresses."""
+    """Email everyone ("all"), a team ("team:<id>") or one user (their id). Each
+    person gets their own copy, so recipients don't see each other's addresses."""
     subject, body = subject.strip(), body.strip()
     if not subject or not body:
         request.session["flash_error"] = t(request, "A message needs a subject and some text.")
@@ -110,6 +110,11 @@ async def send_message(
 
     if to == "all":
         recipients = (await db.execute(select(User).where(User.email.is_not(None)).order_by(User.username))).scalars().all()
+    elif to.startswith("team:") and to[5:].isdigit():
+        team = await db.get(Team, int(to[5:]))
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+        recipients = sorted((m.user for m in team.members), key=lambda u: u.username)
     elif to.isdigit():
         target = await db.get(User, int(to))
         if not target:
