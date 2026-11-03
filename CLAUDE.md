@@ -41,5 +41,7 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   over members' samples (`auth.py`, `routers/team*.py`), proposed entries awaiting owner approval, access requests,
   hand-over of a sample to another owner with confirmation (`approvals.py`).
 - **Activity log** of management actions for admins/coordinators (`activity.py`).
+- **Add files** tab (`routers/attach.py`): find entries across samples (type, dates, done by me) and attach the
+  same photos/files to all ticked ones; stored once and shared (`copy_attachment`).
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).

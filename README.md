@@ -240,6 +240,15 @@ files**. Uploads start as soon as files are chosen, and you can also drag
 files onto a card (images count as photos). The step and analysis forms take
 photos and files too.
 
+To add the same photos or files to several entries at once, across samples,
+use the **Add files** tab (`/attach`, `routers/attach.py`). Filter by type
+(one step or analysis type, or any step / any analysis), date range (with
+**Today** and **Yesterday** shortcuts), sample or notes, and **Done by me**
+(on by default: entries you performed). Only entries you can edit are listed,
+newest first, up to 300. Tick them (or tick all), choose photos and/or files
+and press **Add to the ticked entries**: each file is stored once, in the
+first ticked entry's folder, and shared by the others, as for a run.
+
 - **Photos** larger than 2560 px or 2 MB are rotated upright, downscaled and
   saved as JPEG (quality 85, stepped down if needed to stay under 2 MB;
   about 0.5–1 MB for a typical phone photo). Smaller photos are kept as
