@@ -112,6 +112,10 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
           {{ _("Search") }}
         </a>
+        <a href="/attach" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/attach') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.17 7l-6.59 6.59a2 2 0 102.83 2.83l6.41-6.59a4 4 0 00-5.66-5.66l-6.4 6.58a6 6 0 108.49 8.49L20.5 13"/></svg>
+          {{ _("Add files") }}
+        </a>
         <a href="/substrates/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/substrates') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7l8-4 8 4-8 4-8-4zm0 5l8 4 8-4M4 17l8 4 8-4"/></svg>
           {{ _("Substrates") }}

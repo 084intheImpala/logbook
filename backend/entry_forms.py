@@ -25,7 +25,7 @@ from backend.i18n import t
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
 from backend.params import (describe, extra_params, located_lists, located_methods, params_to_text, parse_date, parse_form,
-                            parse_params, scalar_fields, schema_keys, varied_params)
+                            parse_params, schema_keys, varied_params, vary_choices)
 from backend.performers import apply_performer, tell_performer, users_for_form
 from backend.templating import templates
 from backend.timeline import place_new
@@ -126,8 +126,8 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
         # Single-value fields that can differ from sample to sample, per type
         "vary_fields": {ty.id: [{"key": f["key"], "label": t(request, f.get("label") or f["key"]),
                                  "unit": f.get("unit", ""), "options": options.get(f.get("list") or f["key"], [])
-                                 if f.get("type") == "choice" else None}
-                                for f in scalar_fields(ty.parameter_schema)] for ty in types},
+                                 if f.get("type") == "choice" else None, "when": when}
+                                for f, when in vary_choices(ty.parameter_schema)] for ty in types},
         "run_candidates": await _run_candidates(db, user, sample, run),
         "photo_max_px": settings.PHOTO_MAX_PX,
         "error": error,

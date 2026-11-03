@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Add files") }} — Logbook{% endblock %}
+{% block content %}
+{% set field_cls = "w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white" %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">{{ _("Add files") }}</h1>
+  <p class="text-sm text-gray-500 mt-1">{{ _("Find steps and analyses on any of your samples, tick them and add the same photos or files to all of them at once.") }}</p>
+</div>
+
+<form method="get" action="/attach" id="attach-search" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 space-y-3">
+  <input type="hidden" name="searched" value="1">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="col-span-2 md:col-span-1">
+      <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Type") }}</label>
+      <select name="type" class="{{ field_cls }}">
+        <option value="">{{ _("Any") }}</option>
+        <option value="step" {% if filters.type == "step" %}selected{% endif %}>{{ _("Any process step") }}</option>
+        <option value="analysis" {% if filters.type == "analysis" %}selected{% endif %}>{{ _("Any analysis") }}</option>
+        <optgroup label="{{ _('Process steps') }}">
+          {% for value, group, name in type_options if group == "step" %}
+          <option value="{{ value }}" {% if filters.type == value %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </optgroup>
+        <optgroup label="{{ _('Analyses') }}">
+          {% for value, group, name in type_options if group == "analysis" %}
+          <option value="{{ value }}" {% if filters.type == value %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </optgroup>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("From") }}</label>
+      <input type="date" name="date_from" value="{{ filters.date_from }}" class="{{ field_cls }}">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Until") }}</label>
+      <input type="date" name="date_to" value="{{ filters.date_to }}" class="{{ field_cls }}">
+    </div>
+    <div class="col-span-2 md:col-span-1">
+      <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Sample or notes") }}</label>
+      <input type="search" name="q" value="{{ filters.q }}" class="{{ field_cls }}">
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center gap-3 text-sm">
+    <label class="flex items-center gap-2 cursor-pointer text-gray-700">
+      <input type="checkbox" name="mine" value="1" {% if filters.mine %}checked{% endif %}> {{ _("Done by me") }}
+    </label>
+    <span class="text-gray-300">|</span>
+    <button type="button" data-day="{{ today }}" class="text-blue-600 hover:underline">{{ _("Today") }}</button>
+    <button type="button" data-day="{{ yesterday }}" class="text-blue-600 hover:underline">{{ _("Yesterday") }}</button>
+    <span class="flex-1"></span>
+    <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-blue-700">{{ _("Search") }}</button>
+    <a href="/attach" class="text-sm text-gray-500 px-2 py-1.5 hover:text-gray-700">{{ _("Clear") }}</a>
+  </div>
+</form>
+
+{% if flash %}
+<div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ flash }}</div>
+{% endif %}
+
+<form method="post" action="/attach" enctype="multipart/form-data" id="attach-form"
+      class="bg-white rounded-xl border border-gray-200 shadow-sm">
+  {% for k, v in filters.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  <input type="hidden" name="searched" value="1">
+  {% if rows %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-xs text-gray-500 border-b border-gray-200">
+        <tr>
+          <th class="px-3 py-2 text-left"><input type="checkbox" id="tick-all" title="{{ _('Tick all') }}"></th>
+          <th class="px-3 py-2 text-left font-medium">{{ _("Date") }}</th>
+          <th class="px-3 py-2 text-left font-medium">{{ _("Type") }}</th>
+          <th class="px-3 py-2 text-left font-medium">{{ _("Sample") }}</th>
+          <th class="px-3 py-2 text-left font-medium">{{ _("Performed by") }}</th>
+          <th class="px-3 py-2 text-left font-medium">{{ _("Where") }}</th>
+          <th class="px-3 py-2 text-left font-medium">{{ _("Files") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        {% set e = r.entry %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50">
+          <td class="px-3 py-2"><input type="checkbox" name="entry" value="{{ r.kind }}:{{ e.id }}" class="entry-tick"></td>
+          <td class="px-3 py-2 whitespace-nowrap text-gray-600">{{ e.performed_at or "—" }}</td>
+          <td class="px-3 py-2">
+            <span class="{% if r.kind == 'step' %}text-blue-700{% else %}text-emerald-700{% endif %} font-medium">{{ r.type_name }}</span>
+            {% if r.device %}<span class="text-xs text-gray-500">· {{ r.device }}</span>{% endif %}
+            {% if e.status == "pending" %}<span class="text-xs text-amber-600">· {{ _("awaiting approval") }}</span>{% endif %}
+            {% if e.notes %}<div class="text-xs text-gray-400 truncate max-w-xs">{{ e.notes }}</div>{% endif %}
+          </td>
+          <td class="px-3 py-2 whitespace-nowrap">
+            <a href="/samples/{{ r.sample.id }}#{{ r.kind }}-{{ e.id }}" class="font-mono text-gray-800 hover:underline">{{ r.sample.title }}</a>
+            {% if r.sample.label %}<div class="text-xs text-gray-500">{{ r.sample.label }}</div>{% endif %}
+          </td>
+          <td class="px-3 py-2 text-gray-600">{{ e.performer_name or "—" }}</td>
+          <td class="px-3 py-2 text-gray-600">{{ e.location or "—" }}</td>
+          <td class="px-3 py-2 text-gray-600">{{ r.files }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if more %}
+  <p class="px-4 py-2 text-xs text-amber-700">{{ _("Only the newest {n} are shown; narrow the search to see the others.", n=limit) }}</p>
+  {% endif %}
+  <div class="p-4 border-t border-gray-200 space-y-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">📷 {{ _("Photos") }}</label>
+        <input type="file" name="photos" accept="image/*" multiple class="text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">📎 {{ _("Files") }}</label>
+        <input type="file" name="files" multiple class="text-sm">
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="submit" id="attach-submit" disabled
+              class="bg-blue-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40">{{ _("Add to the ticked entries") }}</button>
+      <span id="tick-count" class="text-xs text-gray-500"></span>
+    </div>
+  </div>
+  {% else %}
+  <p class="p-6 text-sm text-gray-500">{{ _("No entries match. Entries without a date only show when no dates are set.") }}</p>
+  {% endif %}
+</form>
+
+<script>
+(() => {
+  const search = document.getElementById('attach-search');
+  search.querySelectorAll('[data-day]').forEach(b => b.addEventListener('click', () => {
+    search.date_from.value = search.date_to.value = b.dataset.day;
+    search.submit();
+  }));
+  const ticks = [...document.querySelectorAll('.entry-tick')];
+  const all = document.getElementById('tick-all');
+  const submit = document.getElementById('attach-submit');
+  const count = document.getElementById('tick-count');
+  const label = {{ _("{n} ticked")|tojson }};
+  function update() {
+    const n = ticks.filter(t => t.checked).length;
+    if (submit) submit.disabled = n === 0;
+    if (count) count.textContent = n ? label.replace('{n}', n) : '';
+    if (all) all.checked = n > 0 && n === ticks.length;
+  }
+  ticks.forEach(t => t.addEventListener('change', update));
+  if (all) all.addEventListener('change', () => { ticks.forEach(t => { t.checked = all.checked; }); update(); });
+  update();
+})();
+</script>
+{% endblock %}

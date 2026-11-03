@@ -240,6 +240,15 @@ files**. Uploads start as soon as files are chosen, and you can also drag
 files onto a card (images count as photos). The step and analysis forms take
 photos and files too.
 
+To add the same photos or files to several entries at once, across samples,
+use the **Add files** tab (`/attach`, `routers/attach.py`). Filter by type
+(one step or analysis type, or any step / any analysis), date range (with
+**Today** and **Yesterday** shortcuts), sample or notes, and **Done by me**
+(on by default: entries you performed). Only entries you can edit are listed,
+newest first, up to 300. Tick them (or tick all), choose photos and/or files
+and press **Add to the ticked entries**: each file is stored once, in the
+first ticked entry's folder, and shared by the others, as for a run.
+
 - **Photos** larger than 2560 px or 2 MB are rotated upright, downscaled and
   saved as JPEG (quality 85, stepped down if needed to stay under 2 MB;
   about 0.5–1 MB for a typical phone photo). Smaller photos are kept as
@@ -578,7 +587,9 @@ Each step or analysis type has its own fields, filled in on the form:
   Equipment with no place set is offered everywhere. Equipment can also be
   tied to a method: on Annealing, **AnnealSYS is RTA only**, so with *Furnace*
   chosen the Equipment dropdown leaves it out, and with *RTA* chosen it is
-  offered (any other equipment suits both). Equipment typed on the form is
+  offered (any other equipment suits both). On the form the Equipment
+  dropdown sits right after the method, before that method's own fields.
+  Equipment typed on the form is
   filed under the method chosen at the time (migration `0011` tagged the
   existing AnnealSYS as RTA). The `applies_to` column of `choice_options` holds
   it; there is no screen for editing it yet.
@@ -588,11 +599,13 @@ The step types are Deposition (machine: Alcatel SCM 450, UHV1, UHV2, SentiFet;
 technique, target, atmosphere, base and working pressure, power, gas flow,
 duration, station, the deposition rate and thickness when known, and a
 calibration sample tick box with details), Annealing, Ion
-Implantation, Lithography (optical or e-beam), Etching (dry or wet), CMP (slurry type,
-abrasive size and concentration, pH, dilution, slurry flow, pad type, force,
-back pressure, platen and carrier speed, time, temperature, a pad conditioning
-tick box with details, thickness removed, removal rate and post-CMP clean), Cut
-and Other Process. The analysis types are XRD / HRXRD, XPS, SEM (the equipment,
+Implantation, Lithography (optical or e-beam), Etching (dry or wet), CMP (slurry
+type, dilution, slurry flow (the machine's setting, no unit), pad type, force application, force, rotation, head and base
+speed, time, and the thickness removed and removal rate when known; new steps
+start with the typical recipe: SF1 Polishing Solutions, Chemomet, central force
+of 20 N, same direction, 30 rpm head and base),
+Cleaning (where, under the Where every entry has, and details), Cut and Other
+Process. The analysis types are XRD / HRXRD, XPS, SEM (the equipment,
 e.g. Hitachi S-2500), TEM, RBS, AFM, Raman, Optical Microscopy (mode, e.g.
 bright/dark field or DIC, magnifications and observations), Hall / 4-probe,
 Ellipsometry
@@ -619,7 +632,8 @@ The list starts with sibling samples (cut from the same step), then the
 same researcher's newest samples, then the rest. For a series where one
 parameter changes, tick **What differs between samples?** in that section:
 every ticked sample (and the current one) gets a box for it, and Enter moves
-to the next sample's box. Empty boxes keep the common value. Deleting a copy only
+to the next sample's box. Empty boxes keep the common value. Only the chosen
+method's parameters are offered (Annealing: Furnace or RTA), each once. Deleting a copy only
 removes it from that sample.
 
 ---
@@ -642,6 +656,9 @@ field has a `key` and a `label`; its `type` is one of:
 | `variant` | pick one option; each has its own fields | `options`: `[{"value": "RTA", "fields": [...]}]` |
 | `check` | a tick box; its fields show when ticked | `fields` |
 | `modes` | tick several from a shared list; each gets the same fields | `list`, `fields` |
+
+A `number`, `duration`, `text`, `longtext` or `choice` field can also have a
+`default`: the typical value, filled in on the form for a new entry.
 
 For example, Annealing:
 
