@@ -367,7 +367,7 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
 \textbf{Passos de processo} & Deposition, Annealing (Furnace / RTA), Ion
-  Implantation, Lithography (optical / e-beam), Etching (dry / wet), CMP, Other Process \\
+  Implantation, Lithography (optical / e-beam), Etching (dry / wet), CMP, Cleaning, Other Process \\
 \midrule
 \textbf{Análises} & XRD / HRXRD, XPS, SEM, TEM, RBS (RBS / Channeling),
   AFM, Raman, Optical Microscopy, Hall / 4-probe, Ellipsometry,
@@ -375,6 +375,10 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \bottomrule
 \end{tabularx}
 \end{center}
+
+Num passo CMP novo, o formulário já vem preenchido com a receita habitual
+(SF1 Polishing Solutions, Chemomet, força central de 20~N, mesmo sentido,
+cabeça e base a 30~rpm); altere o que for diferente.
 
 O Cut e o Devices made não estão na lista: um corte regista-se com
 \ui{Dividir em pedaços} (Secção~\ref{sec:cut}) e os dispositivos criam-se no

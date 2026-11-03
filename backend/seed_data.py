@@ -134,26 +134,25 @@ PROCESS_STEP_TYPES = [
         "name": "CMP",
         "description": "Chemical mechanical polishing",
         "parameter_schema": [
-            choice("slurry", "Slurry type", "cmp_slurry"),
-            num("abrasive_size", "Abrasive size", "nm"),
-            num("abrasive_concentration", "Abrasive concentration", "wt%"),
-            num("ph", "pH"),
+            choice("slurry", "Slurry type", "cmp_slurry", default="SF1 Polishing Solutions"),
             text("dilution", "Dilution", placeholder="e.g. 1:10 with DI water"),
-            num("slurry_flow", "Slurry flow", "mL/min"),
-            choice("pad", "Pad type", "cmp_pad"),
-            num("force", "Force", "N"),
-            num("back_pressure", "Back pressure", "psi"),
-            num("platen_speed", "Platen speed", "rpm"),
-            num("carrier_speed", "Carrier speed", "rpm"),
+            num("slurry_flow", "Slurry flow"),   # the machine's setting: no unit
+            choice("pad", "Pad type", "cmp_pad", default="Chemomet"),
+            choice("force_mode", "Force application", "cmp_force_mode", default="Central"),
+            num("force", "Force", "N", default=20),
+            choice("rotation", "Rotation", "cmp_rotation", default="Same direction"),
+            num("carrier_speed", "Head speed", "rpm", default=30),
+            num("platen_speed", "Base speed", "rpm", default=30),
             duration("duration", "Time", placeholder="e.g. 12:30"),
-            num("temperature", "Temperature", "°C"),
-            check("conditioning", "Pad conditioning", [
-                longtext("conditioning_details", "Conditioning details",
-                         placeholder="In situ or ex situ, conditioner, force, time, …"),
-            ]),
             num("thickness_removed", "Thickness removed", "nm", placeholder="if known"),
             num("removal_rate", "Removal rate", "nm/min", placeholder="if known"),
-            longtext("post_clean", "Post-CMP clean", placeholder="Rinse, brush, megasonic, chemistry, …"),
+        ],
+    },
+    {
+        "name": "Cleaning",
+        "description": "Cleaning the sample",
+        "parameter_schema": [
+            longtext("details", "Details", placeholder="Solvents, rinse, ultrasonic bath, time, …"),
         ],
     },
     {
@@ -316,9 +315,10 @@ ANALYSIS_TYPES = [
 ]
 
 # Every technique gets an Equipment dropdown tied to the place (Where), unless
-# it has one already (Deposition's Machine, SEM). Cut has its own form.
+# it has one already (Deposition's Machine, SEM). Cut has its own form, and
+# Cleaning only asks where and the details.
 for _type in PROCESS_STEP_TYPES + ANALYSIS_TYPES:
-    if _type["name"] not in ("Cut", "Devices made"):
+    if _type["name"] not in ("Cleaning", "Cut", "Devices made"):
         _type["parameter_schema"] = with_equipment(_type["parameter_schema"], _type["name"])
 
 # Starting values of the shared dropdowns; people add more as they go.
@@ -329,8 +329,10 @@ CHOICE_OPTIONS = {
     "deposition_technique": ["RF magnetron sputtering", "DC magnetron sputtering"],
     "atmosphere": ["Ar", "Ar + O2", "Ar + N2", "N2", "O2", "Air", "Vacuum"],
     "dry_etch_technique": ["RIE", "ICP"],
-    "cmp_slurry": ["Colloidal silica", "Fumed silica", "Ceria", "Alumina"],
-    "cmp_pad": ["IC1000", "IC1000/Suba IV", "Suba IV", "Politex"],
+    "cmp_slurry": ["SF1 Polishing Solutions"],
+    "cmp_pad": ["Chemomet"],
+    "cmp_force_mode": ["Central"],
+    "cmp_rotation": ["Same direction"],
     "cut_method": ["Diamond-tipped pen", "Dicing"],
     "xrd_mode": ["2θ/ω", "Rocking curve", "Grazing incidence"],
     "xps_source": ["Al Kα", "Mg Kα"],

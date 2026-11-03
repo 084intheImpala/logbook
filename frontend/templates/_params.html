@@ -27,6 +27,7 @@
 {% for f in schema or [] %}
   {% set name = prefix ~ "::" ~ f.key %}
   {% set value = values.get(f.key) %}
+  {% if value is none and not entry and f.default is defined %}{% set value = f.default %}{% endif %}
   {% set kind = f.type or "text" %}
   {% if kind == "variant" %}
   <div class="col-span-2">

@@ -22,6 +22,10 @@ its `type` decides how it's entered and stored:
   be added); each ticked mode gets the sub-fields in `fields`. Stored as
   {mode: {sub-key: value}}, e.g. XRD → rocking curve, 2θ/ω.
 
+A number, duration, text, longtext or choice field can have a `default`: the
+typical value, filled in on the form for a new entry (it can be changed or
+cleared, and existing entries are left alone).
+
 Stored parameters are never rewritten when a schema changes: keys the schema
 no longer has stay on old entries and are shown as they are. Keys outside the
 schema can also be typed as `key: value` lines (the "extra parameters").
