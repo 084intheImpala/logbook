@@ -578,7 +578,9 @@ Each step or analysis type has its own fields, filled in on the form:
   Equipment with no place set is offered everywhere. Equipment can also be
   tied to a method: on Annealing, **AnnealSYS is RTA only**, so with *Furnace*
   chosen the Equipment dropdown leaves it out, and with *RTA* chosen it is
-  offered (any other equipment suits both). Equipment typed on the form is
+  offered (any other equipment suits both). On the form the Equipment
+  dropdown sits right after the method, before that method's own fields.
+  Equipment typed on the form is
   filed under the method chosen at the time (migration `0011` tagged the
   existing AnnealSYS as RTA). The `applies_to` column of `choice_options` holds
   it; there is no screen for editing it yet.
@@ -621,7 +623,8 @@ The list starts with sibling samples (cut from the same step), then the
 same researcher's newest samples, then the rest. For a series where one
 parameter changes, tick **What differs between samples?** in that section:
 every ticked sample (and the current one) gets a box for it, and Enter moves
-to the next sample's box. Empty boxes keep the common value. Deleting a copy only
+to the next sample's box. Empty boxes keep the common value. Only the chosen
+method's parameters are offered (Annealing: Furnace or RTA), each once. Deleting a copy only
 removes it from that sample.
 
 ---

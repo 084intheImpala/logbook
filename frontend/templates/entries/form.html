@@ -292,8 +292,22 @@
     const varyBox = document.getElementById('vary-keys');
     const typed = {}, chosenKeys = new Set();
     const inputClass = 'w-28 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 {{ ring }}';
+    // Only the chosen method's fields (Annealing: Furnace or RTA), each key once.
+    function currentVaryFields() {
+      const block = document.querySelector(`.type-fields[data-type="${typeSelect.value}"]`);
+      const seen = new Set();
+      return (varyFields[typeSelect.value] || []).filter(f => {
+        if (f.when) {
+          const method = block && block.querySelector(`select[name="p::${f.when.key}"]`);
+          if (!method || method.value !== f.when.value) return false;
+        }
+        if (seen.has(f.key)) return false;
+        seen.add(f.key);
+        return true;
+      });
+    }
     function renderVary() {
-      const fields = varyFields[typeSelect.value] || [];
+      const fields = currentVaryFields();
       [...chosenKeys].forEach(k => { if (!fields.some(f => f.key === k)) chosenKeys.delete(k); });
       varyBox.replaceChildren(...fields.map(f => {
         const label = document.createElement('label');
@@ -342,6 +356,7 @@
       }
     });
     typeSelect.addEventListener('change', renderVary);
+    form.addEventListener('change', e => { if (e.target.classList.contains('variant-select')) renderVary(); });
     renderVary();
 
     document.getElementById('run-picker').addEventListener('change', e => {

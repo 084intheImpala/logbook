@@ -231,13 +231,33 @@ def parse_form(form, schema: list[dict] | None, prefix="p") -> tuple[dict, list[
 
 def scalar_fields(schema: list[dict] | None) -> list[dict]:
     """The single-value fields a form can vary from sample to sample (not
-    modes or tick boxes), including those inside variants and checks."""
+    modes or tick boxes), including those inside variants and checks; a key
+    that several variant options share (Annealing: Furnace and RTA both have
+    a temperature) is listed once."""
+    found, seen = [], set()
+    for f, _ in vary_choices(schema):
+        if f["key"] not in seen:
+            seen.add(f["key"])
+            found.append(f)
+    return found
+
+
+def vary_choices(schema: list[dict] | None) -> list[tuple[dict, dict | None]]:
+    """Every single-value field with the variant option it belongs to
+    ({"key": variant key, "value": option}, or None), so the form offers only
+    the chosen option's fields. A key can appear once per option."""
     found = []
     for f in schema or []:
-        if f.get("type", "text") not in ("modes", "check", "variant"):
-            found.append(f)
+        kind = f.get("type", "text")
+        if kind == "variant":
+            for o in f.get("options", []):
+                found += [(sf, when or {"key": f["key"], "value": o["value"]})
+                          for sf, when in vary_choices(o.get("fields"))]
+            continue
+        if kind not in ("modes", "check"):
+            found.append((f, None))
         for fields in _side_fields(f):
-            found += scalar_fields(fields)
+            found += vary_choices(fields)
     return found
 
 

@@ -328,7 +328,8 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
     que existe no local escolhido em \ui{Onde}. (Numa deposição chama-se
     \ui{Máquina}.) No recozimento, o equipamento também depende do método:
     o AnnealSYS só serve para RTA, por isso desaparece da lista quando o
-    método é \emph{Furnace}. O equipamento novo fica associado ao método
+    método é \emph{Furnace}; por isso, no recozimento, o campo do equipamento
+    vem logo a seguir ao método. O equipamento novo fica associado ao método
     escolhido nesse momento.
   \item[Realizado por] Por omissão, o próprio. Acrescente colegas, ou
     \ui{Outra pessoa (escreva o nome)} para alguém sem conta.
@@ -408,6 +409,8 @@ si como um ensaio (``Também em: \ldots'' na página da amostra).
         para esse parâmetro, e Enter passa à caixa da amostra seguinte. Uma
         caixa vazia mantém o valor comum. Aplica-se aos campos de valor
         único (números, durações, listas, texto) quando as cópias são criadas.
+        Só aparecem os parâmetros do método escolhido (no recozimento,
+        Furnace ou RTA), cada um uma vez.
   \item Pode acrescentar mais amostras ao ensaio mais tarde, no formulário
         de edição.
   \item Ao editar uma cópia, pode aplicar as alterações às outras. Se isso
