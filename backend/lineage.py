@@ -12,10 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.models import Sample, ProcessStep, Analysis
-from backend.auth import can_view, is_performer
+from backend.auth import can_view, is_performer, is_proposer
 
 # The step type that cutting records; only the cut form adds it.
 CUT_TYPE_NAME = "Cut"
+# Declares the devices on a sample done; only the Devices panel adds it.
+DEVICES_TYPE_NAME = "Devices made"
+# Steps with their own form: never offered in, or changed to or from, in Add Process Step
+SPECIAL_STEP_TYPES = {CUT_TYPE_NAME, DEVICES_TYPE_NAME}
 
 _LAST = 1 << 30
 
@@ -32,10 +36,18 @@ def _pos(entry) -> int:
     return entry.position if entry.position is not None else _LAST
 
 
-def own_items(sample: Sample) -> list[Item]:
-    """The sample's own steps and analyses (types must be loaded), in timeline order."""
-    items = [Item("process", s.step_type.name, s, sample) for s in sample.process_steps]
-    items += [Item("analysis", a.analysis_type.name, a, sample) for a in sample.analyses]
+def _counts(entry, planned: bool) -> bool:
+    # Proposed entries waiting for approval aren't part of the timeline yet;
+    # planned ones only where asked for (the sample page), not in search,
+    # exports, rates or what pieces inherit.
+    return entry.status == "approved" and (planned or not entry.planned)
+
+
+def own_items(sample: Sample, planned: bool = False) -> list[Item]:
+    """The sample's own steps and analyses (types must be loaded), in timeline
+    order; with `planned`, the planned ones too."""
+    items = [Item("process", s.step_type.name, s, sample) for s in sample.process_steps if _counts(s, planned)]
+    items += [Item("analysis", a.analysis_type.name, a, sample) for a in sample.analyses if _counts(a, planned)]
     return sorted(items, key=lambda i: (_pos(i.entry), i.entry.id))
 
 
@@ -60,14 +72,16 @@ class Family:
         before_cut = [i for i in own_items(parent) if _pos(i.entry) < _pos(cut)]
         return self.inherited(parent, seen) + before_cut
 
-    def timeline(self, sample: Sample) -> list[Item]:
-        return self.inherited(sample) + own_items(sample)
+    def timeline(self, sample: Sample, planned: bool = False) -> list[Item]:
+        """Inherited entries, then the sample's own (its planned ones too, with `planned`)."""
+        return self.inherited(sample) + own_items(sample, planned)
 
 
 def _full_options():
     return (
         selectinload(Sample.process_steps).selectinload(ProcessStep.step_type),
         selectinload(Sample.analyses).selectinload(Analysis.analysis_type),
+        selectinload(Sample.devices),
     )
 
 
@@ -138,6 +152,6 @@ async def can_view_entry(db: AsyncSession, user, sample: Sample, entry) -> bool:
     """Viewing a piece includes its inherited history, so an entry is visible to
     anyone who can view its own sample or a piece that inherits it, and to
     whoever performed it."""
-    if can_view(user, sample) or is_performer(user, entry):
+    if can_view(user, sample) or is_performer(user, entry) or is_proposer(user, entry):
         return True
     return any(can_view(user, p) for p in await pieces_of(db, sample.id, _pos(entry)))

@@ -11,13 +11,13 @@ from backend.lineage import Family
 from backend.params import flatten
 
 SAMPLE_COLUMNS = [
-    "sample_id", "label", "sample_type", "researcher", "created_at", "cut_from", "is_reference", "tags",
+    "sample_id", "previous_ids", "label", "sample_type", "researcher", "created_at", "cut_from", "is_reference", "tags",
     "project", "institution", "film_material", "substrate", "substrate_material", "substrate_dimensions", "external_id",
     "supplier",
     "description",
 ]
 ENTRY_COLUMNS = [
-    "entry_order", "entry_kind", "technique", "inherited_from", "performed_at", "performed_by", "location", "notes",
+    "entry_order", "entry_kind", "technique", "device", "inherited_from", "performed_at", "performed_by", "location", "notes",
     "attachments",
 ]
 
@@ -47,7 +47,7 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
         details = show_details(s)
         parent, _ = family.parent_and_cut(s)
         base = {
-            "sample_id": s.title, "label": s.label, "sample_type": s.type_label, "researcher": s.researcher,
+            "sample_id": s.title, "previous_ids": ", ".join(s.previous_codes or []) or None, "label": s.label, "sample_type": s.type_label, "researcher": s.researcher,
             "cut_from": parent.title if parent else None,
             "is_reference": "yes" if s.is_reference else None, "tags": ", ".join(s.tags or []),
             "project": s.project.name if s.project else None,
@@ -63,6 +63,7 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
         for i, item in enumerate(items, 1):
             kind, e = item.kind, item.entry
             row = {**base, "entry_order": i, "entry_kind": kind, "technique": item.technique,
+                   "device": e.device.label if kind == "analysis" and e.device else None,
                    "inherited_from": item.source.title if item.source is not s else None}
             if not details:
                 rows.append(row)

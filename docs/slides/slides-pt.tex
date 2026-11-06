@@ -126,7 +126,7 @@
   \begin{tikzpicture}
     \node[box] (sub) {Substrato\\[-2pt]\scriptsize biblioteca partilhada};
     \node[box,right=2.1cm of sub] (sam) {Amostra\\[-2pt]\scriptsize\texttt{ASS-2026-001}};
-    \node[box,right=2.3cm of sam] (prj) {Projeto\\[-2pt]\scriptsize colaborações};
+    \node[box,right=2.3cm of sam] (prj) {Projeto\\[-2pt]\scriptsize colaborações, fornecedores};
     \node[box,below left=1.0cm and -0.4cm of sam] (stp) {Passos de processo\\[-2pt]\scriptsize deposição, recozimento, \ldots};
     \node[box,below right=1.0cm and -0.4cm of sam] (ana) {Análises\\[-2pt]\scriptsize XRD, RBS, SEM, \ldots};
     \node[box,below=2.3cm of sam,minimum width=3.4cm] (att) {Fotografias e ficheiros};
@@ -157,7 +157,7 @@
     \toprule
     \sid{ASS-2026-001}     & primeira amostra de ASS em 2026 \\
     \sid{ASS-2026-001-REF} & um pedaço de referência dessa amostra \\
-    \sid{UMIN1-2026-001}   & amostra de colaboração (código do projeto) \\
+    \sid{UMIN1-2026-001}   & amostra de projeto (código do projeto) \\
     \bottomrule
   \end{tabular}
 
@@ -167,14 +167,13 @@
 \end{frame}
 
 %---------------------------------------------------------------------
-\begin{frame}{Quatro tipos de amostra}
+\begin{frame}{Três tipos de amostra}
   \centering
   \begin{tabular}{@{}l>{\raggedright\arraybackslash}p{9.5cm}@{}}
     \toprule
-    \textbf{Thin film}     & um substrato da biblioteca + dimensões;\newline material do filme depois da deposição \\
-    \textbf{Bulk}          & um pedaço de um substrato da biblioteca;\newline ID externo do fabricante \\
-    \textbf{Commercial}    & descrição, fornecedor, n.º de lote,\newline ficha técnica como anexo \\
-    \textbf{Collaboration} & enviada por uma instituição parceira:\newline o projeto, uma descrição, o ID de origem \\
+    \textbf{Thin film} & amostra que depositámos nós: um substrato da biblioteca + dimensões;\newline material do filme depois da deposição \\
+    \textbf{Bulk}      & cristal bulk ou membrana: um pedaço de um substrato da biblioteca;\newline ID externo \\
+    \textbf{Project}   & amostra comercial, ou enviada para um projeto ou colaboração:\newline o projeto, uma descrição, o ID de origem \\
     \bottomrule
   \end{tabular}
 
@@ -197,7 +196,7 @@
     \column{0.46\textwidth}
     \small
     \textbf{Passos:} Deposition, Annealing (Furnace / RTA), Ion
-    Implantation, Lithography, Etching, Other
+    Implantation, Lithography, Etching, CMP, Cleaning, Other
 
     \vspace{0.3cm}
     \textbf{Análises:} XRD / HRXRD (with modes), XPS, SEM, TEM, RBS, AFM,
@@ -308,9 +307,19 @@
   \begin{itemize}
     \item Filtrar por texto, investigador, tipo, material, técnica, etiqueta
     \item Agrupar por investigador, ano, tipo, material, técnica, etiqueta, projeto
+    \item Filtrar por técnica mostra as suas entradas com os parâmetros,
+          das mais recentes; filtros por parâmetro (ex.: alvo Ga2O3, potência
+          100--150~W) e escolha das colunas a ver
+    \item Deposições: taxa medida a partir das espessuras (também nos
+          pedaços) e gráfico da taxa ao longo do tempo nas mesmas condições
+    \item \textbf{Planear um passo}: ex.\ uma deposição com a duração calculada
+          a partir da espessura pretendida e da última taxa conhecida;
+          \ui{Marcar como feito} no dia
     \item \ui{Exportar resultados (CSV)}: uma linha por passo/análise, uma
           coluna por parâmetro, pronto para Origin, Excel ou pandas
     \item Selecionar várias amostras e partilhá-las de uma vez
+    \item \textbf{Adicionar ficheiros}: procurar entradas (ex.: os meus
+          recozimentos de ontem) e juntar a mesma fotografia ou ficheiro a todas
   \end{itemize}
 \end{frame}
 

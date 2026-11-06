@@ -4,13 +4,14 @@
    and their inputs disabled by the script in entries/form.html. #}
 {% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2" %}
 
-{# `at` (equipment lists): value → place; the form only offers equipment at the place chosen under Where. #}
-{% macro choice_input(name, opts, value, ring, empty=True, at=none) %}
+{# `at` (equipment lists): value → place; the form only offers equipment at the place chosen under Where.
+   `by` (name of a Method select next to it) and `how`: value → method; only the equipment for the chosen method is offered. #}
+{% macro choice_input(name, opts, value, ring, empty=True, at=none, by=none, how=none) %}
 {% set opts = opts or [] %}
 <div class="choice">
-  <select name="{{ name }}" class="choice-select {{ input_cls }} {{ ring }} bg-white" {% if at is not none %}data-located{% endif %}>
+  <select name="{{ name }}" class="choice-select {{ input_cls }} {{ ring }} bg-white" {% if at is not none %}data-located{% endif %}{% if by and how %} data-by="{{ by }}"{% endif %}>
     {% if empty %}<option value="">—</option>{% endif %}
-    {% for v in opts %}<option value="{{ v }}" {% if value == v %}selected{% endif %}{% if at and at.get(v) %} data-place="{{ at[v] }}"{% endif %}>{{ v }}</option>{% endfor %}
+    {% for v in opts %}<option value="{{ v }}" {% if value == v %}selected{% endif %}{% if at and at.get(v) %} data-place="{{ at[v] }}"{% endif %}{% if how and how.get(v) %} data-method="{{ how[v] }}"{% endif %}>{{ v }}</option>{% endfor %}
     {% if value and value not in opts %}<option value="{{ value }}" selected>{{ value }}</option>{% endif %}
     <option value="__new__">+ {{ _("Add new…") }}</option>
   </select>
@@ -22,10 +23,37 @@
 <label class="block text-sm font-medium text-gray-700 mb-1">{{ _(f.label or f.key) }}{% if f.unit %} <span class="font-normal text-gray-400">({{ f.unit }})</span>{% endif %}</label>
 {% endmacro %}
 
+{# One plain field (number, duration, text, longtext or choice). #}
+{% macro single(f, schema, value, options, name, prefix, ring) %}
+{% set kind = f.type or "text" %}
+  <div class="{% if kind == 'longtext' %}col-span-2{% endif %}">
+    {{ label(f) }}
+    {% if kind == "choice" %}
+    {% set method_field = (schema | selectattr("type", "equalto", "variant") | first) if f.located else none %}
+    {{ choice_input(name, options.get(f.list or f.key), value, ring,
+                    at=(places.get(f.list or f.key, {}) if places is defined else {}) if f.located else none,
+                    by=(prefix ~ "::" ~ method_field.key) if method_field else none,
+                    how=(methods.get(f.list or f.key, {}) if methods is defined else {}) if f.located else none) }}
+    {% elif kind == "longtext" %}
+    <textarea name="{{ name }}" rows="5" placeholder="{{ _(f.placeholder) if f.placeholder else '' }}"
+              class="{{ input_cls }} {{ ring }}">{{ value if value is not none else '' }}</textarea>
+    {% else %}
+    <input name="{{ name }}" type="text" {% if kind == "number" %}inputmode="decimal"{% endif %}
+           value="{{ value if value is not none else '' }}" placeholder="{{ _(f.placeholder) if f.placeholder else '' }}"
+           class="{{ input_cls }} {{ ring }}">
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{# Next to a Method choice (a variant, e.g. Annealing: Furnace / RTA), the
+   equipment dropdown comes right after the method, before that method's own
+   fields, since what's offered depends on it. #}
 {% macro fields(schema, values, options, prefix, ring) %}
+{% set method_field = (schema or []) | selectattr("type", "equalto", "variant") | first %}
 {% for f in schema or [] %}
   {% set name = prefix ~ "::" ~ f.key %}
   {% set value = values.get(f.key) %}
+  {% if value is none and not entry and f.default is defined %}{% set value = f.default %}{% endif %}
   {% set kind = f.type or "text" %}
   {% if kind == "variant" %}
   <div class="col-span-2">
@@ -34,6 +62,13 @@
       {% for o in f.options %}<option value="{{ o.value }}" {% if value == o.value %}selected{% endif %}>{{ o.value }}</option>{% endfor %}
     </select>
   </div>
+  {% if f.key == method_field.key %}
+  {% for e in schema if e.located and e.type == "choice" %}
+  {% set e_value = values.get(e.key) %}
+  {% if e_value is none and not entry and e.default is defined %}{% set e_value = e.default %}{% endif %}
+  {{ single(e, schema, e_value, options, prefix ~ "::" ~ e.key, prefix, ring) }}
+  {% endfor %}
+  {% endif %}
   {% for o in f.options %}
   <div class="variant-fields col-span-2 grid grid-cols-2 gap-4" data-variant-of="{{ name }}" data-value="{{ o.value }}">
     {{ fields(o.fields, values, options, prefix, ring) }}
@@ -80,21 +115,8 @@
     </template>
     <button type="button" class="add-mode mt-2 text-xs text-blue-600 hover:underline">+ {{ _("Add another mode") }}</button>
   </div>
-  {% else %}
-  <div class="{% if kind == 'longtext' %}col-span-2{% endif %}">
-    {{ label(f) }}
-    {% if kind == "choice" %}
-    {{ choice_input(name, options.get(f.list or f.key), value, ring,
-                    at=(places.get(f.list or f.key, {}) if places is defined else {}) if f.located else none) }}
-    {% elif kind == "longtext" %}
-    <textarea name="{{ name }}" rows="5" placeholder="{{ _(f.placeholder) if f.placeholder else '' }}"
-              class="{{ input_cls }} {{ ring }}">{{ value if value is not none else '' }}</textarea>
-    {% else %}
-    <input name="{{ name }}" type="text" {% if kind == "number" %}inputmode="decimal"{% endif %}
-           value="{{ value if value is not none else '' }}" placeholder="{{ _(f.placeholder) if f.placeholder else '' }}"
-           class="{{ input_cls }} {{ ring }}">
-    {% endif %}
-  </div>
+  {% elif not (f.located and kind == "choice" and method_field) %}
+  {{ single(f, schema, value, options, name, prefix, ring) }}
   {% endif %}
 {% endfor %}
 {% endmacro %}

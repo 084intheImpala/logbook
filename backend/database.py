@@ -11,8 +11,3 @@ class Base(DeclarativeBase):
 async def get_db() -> AsyncSession:
     async with AsyncSessionLocal() as session:
         yield session
-
-async def create_tables():
-    async with engine.begin() as conn:
-        from backend import models  # noqa: ensure models are registered
-        await conn.run_sync(Base.metadata.create_all)

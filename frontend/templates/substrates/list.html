@@ -31,6 +31,7 @@
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Polishing") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Size") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Supplier") }}</th>
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Batch no.") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Specs") }}</th>
         <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Samples") }}</th>
       </tr>
@@ -45,6 +46,7 @@
         <td class="px-4 py-2 text-gray-600">{{ polishing[sub.polishing] if sub.polishing in polishing else '—' }}</td>
         <td class="px-4 py-2 text-gray-600">{{ sub.size or '—' }}</td>
         <td class="px-4 py-2 text-gray-600">{{ sub.supplier or '—' }}</td>
+        <td class="px-4 py-2 text-gray-600">{{ sub.batch_no or '—' }}</td>
         <td class="px-4 py-2 text-gray-500 text-xs">{% if file_counts.get(sub.id) %}📎 {{ file_counts[sub.id] }}{% else %}—{% endif %}</td>
         <td class="px-4 py-2 text-gray-500 text-xs">{{ usage.get(sub.id, 0) }}</td>
       </tr>

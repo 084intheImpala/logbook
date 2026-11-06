@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% set is_step = kind == "step" %}
 {% set ring = "focus:ring-blue-500" if is_step else "focus:ring-emerald-500" %}
-{% set heading = (_("Edit Process Step") if entry else _("Add Process Step")) if is_step else (_("Edit Analysis") if entry else _("Add Analysis")) %}
+{% set heading = (_("Edit Process Step") if entry else _("Plan a Process Step") if planned else _("Add Process Step")) if is_step
+                 else (_("Edit Analysis") if entry else _("Plan an Analysis") if planned else _("Add Analysis")) %}
 {% block title %}{{ heading }} — {{ sample.title }}{% endblock %}
 {% block content %}
 {% from "_performer.html" import performer_field, date_field with context %}
@@ -23,6 +24,11 @@
     {% endif %}
   </div>
 
+  {% if marking_done %}
+  <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
+    {{ _("Marking a planned entry as done: check the values, the date included, and fill in what was only known on the day (for a deposition, the base and working pressure).") }}
+  </div>
+  {% endif %}
   {% if error %}
   <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ error }}</div>
   {% endif %}
@@ -37,12 +43,25 @@
       <select id="type-select" name="type_id" required class="{{ input_cls }} bg-white">
         <option value="">— {{ _("select") }} —</option>
         {% for ty in types %}
-        <option value="{{ ty.id }}" {% if entry and (entry.step_type_id if is_step else entry.analysis_type_id) == ty.id %}selected{% endif %}>
+        <option value="{{ ty.id }}" data-place="{{ ty.default_location or '' }}" {% if entry and (entry.step_type_id if is_step else entry.analysis_type_id) == ty.id %}selected{% endif %}>
           {{ ty.name }}{% if ty.description %} — {{ ty.description[:60] }}{% endif %}
         </option>
         {% endfor %}
       </select>
     </div>
+
+    {% if devices %}
+    <!-- Device -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Device") }}</label>
+      <select name="device_id" class="{{ input_cls }} bg-white">
+        <option value="">{{ _("The whole sample") }}</option>
+        {% for d in devices %}
+        <option value="{{ d.id }}" {% if entry and entry.device_id == d.id %}selected{% endif %}>{{ d.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
 
     <!-- Who / when / where -->
     <div class="grid grid-cols-2 gap-4 items-start">
@@ -52,6 +71,13 @@
         <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Where") }}</label>
         {{ choice_input("location", options.get(location_list), location, ring) }}
       </div>
+    </div>
+    <div>
+      <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+        <input type="checkbox" name="planned" value="1" {% if planned %}checked{% endif %}>
+        {{ _("Planned, not done yet") }}
+      </label>
+      <p class="text-xs text-gray-400 mt-1">{{ _("Shown on the sample's timeline as planned, with the date it's planned for; left out of search, exports and deposition rates until it's marked done.") }}</p>
     </div>
 
     <!-- Parameters of the chosen type -->
@@ -218,7 +244,8 @@
   });
 
   // Equipment belongs to a place: its dropdown only offers what's at the
-  // place chosen under Where (plus equipment with no place set). Options are
+  // place chosen under Where (plus equipment with no place set), and, next to
+  // a Method choice, what suits that method (plus equipment for any method). Options are
   // removed rather than hidden, which phones' dropdowns would ignore.
   const where = form.querySelector('select.choice-select[name="location"], select.choice-select[data-name="location"]');
   const located = [...form.querySelectorAll('select[data-located]')].map(select =>
@@ -227,14 +254,35 @@
     const place = where ? where.value : '';   // '__new__' (a new place) has no equipment yet
     located.forEach(({select, all}) => {
       const current = select.value;
-      const fits = o => !o.dataset.place || !place || o.dataset.place === place;
+      const method = select.dataset.by ? (form.querySelector(`[name="${select.dataset.by}"]`) || {}).value : '';
+      const fits = o => (!o.dataset.place || !place || o.dataset.place === place) &&
+                        (!o.dataset.method || !method || o.dataset.method === method);
       const keep = all.filter(o => ['', '__new__'].includes(o.value) || fits(o) || (!resetMismatch && o.value === current));
       select.replaceChildren(...keep.map(o => o.cloneNode(true)));
       select.value = keep.some(o => o.value === current) ? current : '';
     });
   }
   if (where) where.addEventListener('change', () => filterEquipment(true));
+  form.addEventListener('change', e => {   // equipment next to a Method choice (Annealing: AnnealSYS is RTA only)
+    if (e.target.classList.contains('variant-select')) filterEquipment(true);
+  });
   filterEquipment(false);   // an entry being edited keeps its machine even if it moved since
+{% if not entry %}
+
+  // A new entry's Where starts at the chosen type's usual place (empty if it
+  // has none), until Where is changed by hand.
+  let whereTouched = false;
+  if (where) where.addEventListener('change', () => { whereTouched = true; });
+  function usualPlace() {
+    if (!where || whereTouched) return;
+    const option = typeSelect.selectedOptions[0];
+    const place = option ? option.dataset.place || '' : '';
+    where.value = [...where.options].some(o => o.value === place) ? place : '';
+    filterEquipment(true);
+  }
+  typeSelect.addEventListener('change', usualPlace);
+  usualPlace();
+{% endif %}
 
   // Modes (e.g. XRD): ticking one shows its fields; new modes can be added.
   form.addEventListener('change', e => {
@@ -273,8 +321,22 @@
     const varyBox = document.getElementById('vary-keys');
     const typed = {}, chosenKeys = new Set();
     const inputClass = 'w-28 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 {{ ring }}';
+    // Only the chosen method's fields (Annealing: Furnace or RTA), each key once.
+    function currentVaryFields() {
+      const block = document.querySelector(`.type-fields[data-type="${typeSelect.value}"]`);
+      const seen = new Set();
+      return (varyFields[typeSelect.value] || []).filter(f => {
+        if (f.when) {
+          const method = block && block.querySelector(`select[name="p::${f.when.key}"]`);
+          if (!method || method.value !== f.when.value) return false;
+        }
+        if (seen.has(f.key)) return false;
+        seen.add(f.key);
+        return true;
+      });
+    }
     function renderVary() {
-      const fields = varyFields[typeSelect.value] || [];
+      const fields = currentVaryFields();
       [...chosenKeys].forEach(k => { if (!fields.some(f => f.key === k)) chosenKeys.delete(k); });
       varyBox.replaceChildren(...fields.map(f => {
         const label = document.createElement('label');
@@ -323,6 +385,7 @@
       }
     });
     typeSelect.addEventListener('change', renderVary);
+    form.addEventListener('change', e => { if (e.target.classList.contains('variant-select')) renderVary(); });
     renderVary();
 
     document.getElementById('run-picker').addEventListener('change', e => {
@@ -360,6 +423,58 @@
     form.dataset.confirmed = '1';
     form.submit();
   });
+  {% endif %}
+
+  {% if deposition_type_id %}
+  // Deposition: the duration is worked out from the target thickness and a
+  // rate, typed or the last known one for the conditions filled in (machine,
+  // target, gas, gas flow, power).
+  (function () {
+    const block = form.querySelector('.type-fields[data-type="{{ deposition_type_id }}"]');
+    const field = key => block && block.querySelector(`[name="p::${key}"]`);
+    const thickness = field('target_thickness'), rate = field('rate_used'), duration = field('duration');
+    if (!thickness || !rate || !duration) return;   // an admin removed the fields
+    const number = el => parseFloat((el.value || '').replace(',', '.'));
+    const button = Object.assign(document.createElement('button'), {
+      type: 'button', className: 'mt-1 text-xs text-blue-600 hover:underline',
+      textContent: {{ _("Use the last known rate")|tojson }}});
+    const note = Object.assign(document.createElement('p'), {className: 'text-xs text-gray-500 mt-1'});
+    const hint = Object.assign(document.createElement('p'), {className: 'text-xs text-gray-400 mt-1'});
+    rate.after(button, note);
+    duration.after(hint);
+    hint.textContent = {{ _("Fill in the target thickness and the rate to work it out.")|tojson }};
+    function workOut() {
+      const nm = number(thickness), perMin = number(rate);
+      if (!(nm > 0 && perMin > 0)) return;
+      const seconds = Math.round(nm / perMin * 60);
+      duration.value = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+      hint.textContent = {{ _("Worked out: {nm} nm ÷ {rate} nm/min.")|tojson }}
+        .replace('{nm}', nm).replace('{rate}', perMin);
+    }
+    thickness.addEventListener('input', workOut);
+    rate.addEventListener('input', workOut);
+    button.addEventListener('click', async () => {
+      const query = new URLSearchParams();
+      ['machine', 'target', 'atmosphere', 'gas_flow', 'power'].forEach(key => {
+        const el = field(key);
+        if (el && el.value && el.value !== '__new__') query.append('p::' + key, el.value);
+      });
+      note.textContent = '…';
+      try {
+        const data = await (await fetch(`/samples/{{ sample.id }}/steps/last-rate?${query}`)).json();
+        note.replaceChildren(data.message);
+        if (data.url) {
+          const link = Object.assign(document.createElement('a'), {
+            href: data.url, target: '_blank', className: 'ml-1 text-blue-600 hover:underline',
+            textContent: {{ _("see it")|tojson }}});
+          note.append(link);
+        }
+        if (data.rate != null) { rate.value = data.rate; workOut(); }
+      } catch (err) {
+        note.textContent = {{ _("Couldn't get the last rate.")|tojson }};
+      }
+    });
+  })();
   {% endif %}
 
   sync();

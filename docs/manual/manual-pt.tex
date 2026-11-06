@@ -88,7 +88,7 @@ administrador entrega-lhos).
 
 \begin{careful}
 Escolha as iniciais com cuidado. Depois de ter amostras, só um
-administrador as pode alterar, e os IDs das amostras já criadas nunca mudam.
+administrador as pode alterar, e os IDs das amostras já criadas não mudam com isso.
 \end{careful}
 
 Se se esquecer da palavra-passe, use \ui{Esqueceu-se da palavra-passe?} na
@@ -105,8 +105,9 @@ A barra lateral à esquerda (um botão de menu no telemóvel) tem:
 \toprule
 \menu{Amostras}       & Todas as amostras do laboratório, das mais recentes para as mais antigas, com os pedaços agrupados sob a amostra de que foram cortados. \\
 \menu{Pesquisa}       & Filtrar, agrupar, partilhar e exportar amostras. \\
+\menu{Adicionar ficheiros} & Juntar as mesmas fotografias ou ficheiros a várias entradas de uma vez (Secção~\ref{sec:files}). \\
 \menu{Substratos}     & A biblioteca partilhada de substratos a partir dos quais se fazem as amostras. \\
-\menu{Projetos}       & Projetos de colaboração com outras instituições. \\
+\menu{Parceiros}      & Projetos e colaborações com outras instituições, e fornecedores de amostras comerciais. \\
 \menu{Nova amostra}   & Criar uma amostra. \\
 \menu{Sugestões}      & Enviar uma ideia, um problema ou uma pergunta aos administradores. \\
 \menu{Caixa de entrada}, \menu{Configurações} & Só para administradores (Secção~\ref{sec:admin}). \\
@@ -151,11 +152,11 @@ valores das listas) ficam em inglês nos dois idiomas.
     feitos à amostra, cada um com os seus parâmetros, notas, data,
     fotografias e ficheiros.
   \item[Substrato] Uma entrada na biblioteca partilhada (material,
-    orientação, espessura, polimento, fornecedor, ficha técnica). As
+    orientação, espessura, polimento, fornecedor, n.º de lote, ficha técnica). As
     amostras de filme fino e bulk são feitas a partir de um substrato.
   \item[Projeto] Uma colaboração com outra universidade ou centro que nos
-    envia amostras. O seu código curto substitui as iniciais nos IDs dessas
-    amostras.
+    envia amostras, ou um fornecedor de amostras comerciais. O seu código
+    curto substitui as iniciais nos IDs dessas amostras.
   \item[Pedaços] Dividir uma amostra cria novas amostras que herdam a sua
     história até ao corte.
 \end{description}
@@ -174,8 +175,12 @@ valores das listas) ficam em inglês nos dois idiomas.
 \end{tabular}
 \end{center}
 
-Os IDs são atribuídos quando a amostra é guardada e nunca mudam, mesmo que
-a amostra passe para outra pessoa. Use o \ui{Rótulo} (opcional) para a sua
+Os IDs são atribuídos quando a amostra é guardada e não mudam, mesmo que
+a amostra passe para outra pessoa. Só um administrador pode alterar um ID,
+e só quando a mudança de tipo ou de projeto o deixa fora de passo (ver abaixo); as
+peças e os ficheiros acompanham a alteração, o dono recebe um email e o ID antigo fica registado na amostra (``Anteriormente'') e nunca é reutilizado. Se ao editar uma amostra mudar o tipo entre \emph{Thin film} ou \emph{Bulk} e \emph{Project} (ou o projeto), o ID deixa de começar pelo que devia e a página da amostra pergunta o que fazer. Um administrador pode atualizar o ID para o próximo número livre das iniciais do dono ou do código do projeto, ou mantê-lo. Os outros utilizadores podem manter o ID ou \ui{Pedir a um administrador que corrija}, o que envia uma sugestão aos administradores; nada muda até um administrador alterar o ID. As amostras que são pedaços ficam de fora: altere o ID da amostra de que foram cortadas.
+
+Use o \ui{Rótulo} (opcional) para a sua
 própria descrição (``teste de guia de onda, lote 2''); não precisa de ser
 único.
 
@@ -189,9 +194,65 @@ notas, datas, ficheiros) só são visíveis para:
   \item o responsável pela amostra;
   \item os administradores;
   \item as pessoas com quem o responsável a partilhou (\ui{Ver} ou \ui{Editar});
+  \item os coordenadores da equipa do responsável;
+  \item quem a \ui{visibilidade} da amostra deixar entrar;
   \item num passo ou análise em particular, as pessoas indicadas em
         \ui{Realizado por}.
 \end{itemize}
+
+A \emph{visibilidade} define-se ao criar a amostra e, a qualquer momento,
+na página \ui{Editar} da amostra ou em \ui{Partilha} (responsável ou
+administrador): \ui{Pessoal} (por omissão: só
+as pessoas acima), \ui{Equipa} (também todos os da equipa do responsável) ou
+\ui{Público} (todos os utilizadores). Uma peça cortada começa com a
+visibilidade da amostra de origem. A visibilidade só decide quem pode
+\emph{ver}; para alterar a amostra é preciso uma partilha \ui{Editar} (ou ser
+o responsável ou administrador).
+
+Partilhar com \ui{Ver} dá acesso a tudo o que está na amostra (parâmetros,
+notas, datas e ficheiros de todos os passos e análises), não só à lista de
+passos. \ui{Editar} acrescenta a possibilidade de adicionar e alterar passos,
+análises e ficheiros; nenhuma das duas permite apagar a amostra nem gerir a
+partilha; isso cabe ao responsável, a um coordenador da sua equipa ou a um administrador.
+
+\paragraph{Equipas.} Uma equipa é um grupo dentro do laboratório (distinto dos
+projetos, que são colaboradores externos). Foram pensadas para funcionar quase
+sem intervenção dos administradores, em três níveis:
+\begin{itemize}
+  \item \textbf{Administrador:} tudo. Só os administradores criam, renomeiam e
+        apagam equipas (em \menu{Configurações}, \ui{Equipas}), nomeiam e
+        retiram coordenadores, mudam pessoas de equipa, alteram IDs de amostras
+        e editam tipos de entrada e listas.
+  \item \textbf{Coordenador} (de uma equipa): tem os \emph{direitos do
+        responsável em todas as amostras dos membros da sua equipa} (ver, editar,
+        partilhar, mudar a visibilidade, apagar, passar a outro membro da equipa
+        sem confirmação) e responde às propostas e pedidos de acesso. Em
+        \menu{A minha equipa} junta pessoas sem equipa, retira membros (não
+        coordenadores), cria contas para novos membros (que ficam na equipa e
+        recebem o email de boas-vindas) e repõe as palavras-passe dos membros.
+  \item \textbf{Membro:} as suas amostras, o que lhe foi partilhado, o que a
+        visibilidade lhe mostra, e \emph{propor} entradas nas amostras dos
+        colegas.
+\end{itemize}
+As ações de gestão (apagar ou passar amostras, partilha, aprovações, contas,
+alterações às equipas) ficam no \menu{Registo de atividade}: os administradores
+veem tudo e os coordenadores veem o que diz respeito à sua equipa. A edição
+normal não é registada.
+
+\paragraph{Propor entradas.} Qualquer pessoa da equipa do responsável pode
+\emph{propor} um passo ou uma análise numa amostra dele (botões \ui{Propor}
+na página da amostra), mesmo sem acesso de leitura ou edição. A proposta fica
+fora da cronologia, das exportações e da pesquisa até ser aprovada, e o
+responsável recebe um email; o autor vê, altera ou retira a sua proposta
+entretanto. O responsável, um coordenador da sua equipa ou um administrador
+aprova ou recusa em \menu{Aprovações}, a qualquer momento. Recusar apaga a
+proposta e avisa o autor.
+
+\paragraph{Pedir acesso.} Numa amostra que não pode ver ou editar,
+\ui{Pedir acesso} pede ao responsável para \ui{Ver os detalhes} ou
+\ui{Editar}, com uma mensagem opcional. O responsável responde em
+\menu{Aprovações}; se aprovar, cria-se a partilha. Um coordenador da equipa do
+responsável (ou um administrador) também pode responder.
 
 As amostras sem responsável estão abertas a todos.
 
@@ -209,18 +270,21 @@ Clique em \menu{Nova amostra} e escolha o \ui{Tipo de amostra}:
 \textbf{Tipo} & \textbf{O que preencher} \\
 \midrule
 Thin film     & O substrato da biblioteca (obrigatório), as dimensões e, depois
-                da deposição, o material do filme. \\
+                da deposição, o material do filme, escolhido de uma lista
+                partilhada (\ui{+ Adicionar novo…} acrescenta um), para que
+                todas as amostras o escrevam da mesma forma. \\
 Bulk          & O substrato da biblioteca de que é um pedaço (obrigatório), as
                 dimensões, e um \ui{ID externo} se foi cortado por outra pessoa. \\
-Commercial    & Descrição, fornecedor, n.º de produto/lote e a ficha técnica
-                (PDF ou fotografia, obrigatória). \\
-Collaboration & O projeto (obrigatório), uma descrição (obrigatória) e,
-                opcionalmente, o ID que o parceiro lhe deu. \\
+Project       & Uma amostra comercial, ou enviada para um projeto ou
+                colaboração: o projeto (obrigatório; para uma amostra comercial,
+                o do fornecedor), uma descrição (obrigatória) e, opcionalmente,
+                o ID de origem ou n.º de produto/lote e a ficha técnica (PDF
+                ou fotografia). \\
 \bottomrule
 \end{tabularx}
 \end{center}
 
-Os nomes dos tipos ficam em inglês, como na aplicação. Todos os tipos têm
+Cada tipo traz uma explicação ao lado do botão, no formulário. Os nomes dos tipos ficam em inglês, como na aplicação. Todos os tipos têm
 \ui{Rótulo} e \ui{Etiquetas}. Se o substrato ou o projeto de que precisa
 não estiver na lista, siga a ligação \ui{Falta algum?}: abre o formulário
 noutro separador; acrescente-o lá e depois recarregue o formulário da
@@ -248,6 +312,7 @@ pode:
         administradores; não enquanto tiver pedaços);
   \item \ui{Adicionar passo de processo} e \ui{Adicionar análise};
   \item \ui{Dividir em pedaços} (Secção~\ref{sec:cut});
+  \item criar \ui{Dispositivos} (Secção~\ref{sec:devices});
   \item reordenar a cronologia (Secção~\ref{sec:timeline}).
 \end{itemize}
 
@@ -261,10 +326,19 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 
 \begin{description}
   \item[Data] Opcional, só o dia. O botão \ui{Hoje} preenche-a.
-  \item[Onde] CTN, INESC MN ou outro instituto.
+  \item[Onde] CTN, INESC MN, FCUL ou outro instituto. Num registo novo
+    começa no local onde o tipo escolhido é normalmente feito, e acompanha
+    o tipo até ser mudado à mão: INESC MN para Deposition, Etching,
+    Lithography, CMP, Ellipsometry, Hall / 4-probe, Profilometry e SEM;
+    FCUL para AFM; vazio para TEM e XPS (feitos noutro sítio); CTN para os
+    restantes.
   \item[Equipamento] A máquina utilizada. A lista só mostra o equipamento
     que existe no local escolhido em \ui{Onde}. (Numa deposição chama-se
-    \ui{Máquina}.)
+    \ui{Máquina}.) No recozimento, o equipamento também depende do método:
+    o AnnealSYS só serve para RTA, por isso desaparece da lista quando o
+    método é \emph{Furnace}; por isso, no recozimento, o campo do equipamento
+    vem logo a seguir ao método. O equipamento novo fica associado ao método
+    escolhido nesse momento.
   \item[Realizado por] Por omissão, o próprio. Acrescente colegas, ou
     \ui{Outra pessoa (escreva o nome)} para alguém sem conta.
   \item[Parâmetros] Os campos próprios do tipo (ver abaixo).
@@ -297,12 +371,13 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \end{itemize}
 
 \subsection{Tipos disponíveis}
+\label{sec:types}
 
 \begin{center}
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
 \textbf{Passos de processo} & Deposition, Annealing (Furnace / RTA), Ion
-  Implantation, Lithography (optical / e-beam), Etching (dry / wet), Other Process \\
+  Implantation, Lithography (optical / e-beam), Etching (dry / wet), CMP, Cleaning, Other Process \\
 \midrule
 \textbf{Análises} & XRD / HRXRD, XPS, SEM, TEM, RBS (RBS / Channeling),
   AFM, Raman, Optical Microscopy, Hall / 4-probe, Ellipsometry,
@@ -311,9 +386,43 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \end{tabularx}
 \end{center}
 
-O Cut não está na lista: um corte regista-se com \ui{Dividir em pedaços}
-(Secção~\ref{sec:cut}), e um passo existente não pode passar a Cut nem
-deixar de o ser.
+\textbf{Taxa de deposição medida.} Uma Ellipsometry ou Profilometry com
+espessura mede a deposição anterior na cronologia, se for a única deposição
+até aí (senão a espessura é a de todo o empilhamento) e se entretanto só houve
+um corte ou uma limpeza (uma corrosão, CMP, recozimento, \ldots{} mudam a
+espessura e a medida deixa de contar). As medidas nos pedaços contam para a
+deposição da amostra-mãe, e as cópias de uma deposição no mesmo ensaio juntam
+as suas. Cada medida dá espessura a dividir pela duração, em nm/min; o cartão
+da deposição lista-as em \ui{Taxa de deposição medida}, com a média. Nada fica
+gravado: a média é recalculada a partir das análises. Ao guardar a medida, a
+página diz qual é agora a média. Se a taxa não puder ser calculada (várias
+camadas, ou sem duração), a página pergunta-a: escreva-a e carregue em
+\ui{Adicionar à deposição} (fica também nas cópias do mesmo ensaio sem taxa), ou
+\ui{Agora não}.
+
+O cartão da deposição mostra ainda um pequeno gráfico com a taxa, ao longo do
+tempo, de todas as deposições com a mesma máquina, alvo, gás, fluxo de gás e
+potência (esta assinalada com um círculo), e \ui{Em tabela} com os valores.
+
+\textbf{Calcular a duração de uma deposição.} O formulário da Deposition tem,
+antes da duração, \ui{Espessura pretendida} (nm) e \ui{Taxa usada para o
+tempo} (nm/min): preenchidas as duas, a duração é calculada (espessura a
+dividir pela taxa, em min:s). \ui{Usar a última taxa conhecida}, por baixo da
+taxa, vai buscar a taxa da deposição mais recente (das que pode ver) com a
+mesma máquina, alvo, gás, fluxo de gás e potência que preencheu (os campos
+vazios aceitam qualquer valor), a medida se a houver, e diz de que deposição
+é. Os dois valores ficam guardados na entrada, separados da \ui{Taxa de
+deposição} (a taxa realmente obtida), e não contam como taxas na pesquisa nem
+nos gráficos. Serve para qualquer deposição, planeada ou não.
+
+Num passo CMP novo, o formulário já vem preenchido com a receita habitual
+(SF1 Polishing Solutions, Chemomet, força central de 20~N, mesmo sentido,
+cabeça e base a 30~rpm); altere o que for diferente.
+
+O Cut e o Devices made não estão na lista: um corte regista-se com
+\ui{Dividir em pedaços} (Secção~\ref{sec:cut}) e os dispositivos criam-se no
+botão \ui{Criar dispositivos} (Secção~\ref{sec:devices}); um passo existente não
+pode passar a um destes tipos nem deixar de o ser.
 
 Os administradores podem acrescentar tipos ou alterar os seus campos
 (Secção~\ref{sec:admin}).
@@ -338,6 +447,8 @@ si como um ensaio (``Também em: \ldots'' na página da amostra).
         para esse parâmetro, e Enter passa à caixa da amostra seguinte. Uma
         caixa vazia mantém o valor comum. Aplica-se aos campos de valor
         único (números, durações, listas, texto) quando as cópias são criadas.
+        Só aparecem os parâmetros do método escolhido (no recozimento,
+        Furnace ou RTA), cada um uma vez.
   \item Pode acrescentar mais amostras ao ensaio mais tarde, no formulário
         de edição.
   \item Ao editar uma cópia, pode aplicar as alterações às outras. Se isso
@@ -348,6 +459,7 @@ si como um ensaio (``Também em: \ldots'' na página da amostra).
 \end{itemize}
 
 \subsection{Fotografias e ficheiros}
+\label{sec:files}
 
 Cada cartão da cronologia tem \ui{Adicionar fotografias} e \ui{Anexar
 ficheiros}; também pode arrastar ficheiros para um cartão. O envio começa
@@ -365,6 +477,28 @@ assim que os ficheiros são escolhidos.
 
 As imagens têm uma miniatura na cronologia; clique nela para abrir o
 ficheiro completo.
+
+Cada ficheiro é guardado uma só vez. Se enviar um ficheiro igual a um que já
+está no logbook, mesmo com outro nome ou noutra amostra, a entrada passa a
+apontar para o ficheiro já guardado, sem ocupar mais espaço. O mesmo
+ficheiro enviado duas vezes para a mesma entrada só fica anexado uma vez.
+
+Ao apagar um ficheiro, ou o passo, análise ou amostra onde está, o ficheiro
+não desaparece logo: vai para o lixo, em
+\nolinkurl{uploads/.trash/<dia em que foi apagado>/}, onde fica 30 dias com o
+mesmo caminho que tinha. Para o recuperar, peça a quem gere o servidor. Um
+ficheiro que outra entrada ainda usa fica onde está.
+
+Para juntar as mesmas fotografias ou ficheiros a várias entradas de uma
+vez, mesmo em amostras diferentes, use o separador \menu{Adicionar
+ficheiros}. Filtre por tipo (um tipo de passo ou análise, ou qualquer passo
+/ qualquer análise), por datas (os botões \ui{Hoje} e \ui{Ontem} preenchem-nas),
+por amostra ou notas e por \ui{Feitos por mim} (ligado por omissão). Só
+aparecem as entradas que pode alterar. Marque as entradas (ou todas), escolha
+as fotografias e/ou ficheiros e carregue em \ui{Juntar às entradas marcadas}:
+cada ficheiro é guardado uma vez e fica em todas. Por exemplo, para juntar a
+mesma fotografia aos recozimentos de ontem: tipo \emph{Annealing},
+\ui{Ontem}, marcar todos.
 
 \begin{tip}
 Fotografe a amostra, o porta-amostras ou o ecrã do instrumento diretamente
@@ -386,6 +520,53 @@ data vai para o fim.
         cronológica, mantendo a sua ordem dentro de cada dia. As entradas
         sem data ficam onde estão.
 \end{itemize}
+
+\subsection{Passos planeados}
+\label{sec:planned}
+
+\ui{Planear um passo}, na página da amostra, abre o formulário do passo com
+\ui{Planeado, ainda não feito} assinalado (a caixa está em todos os
+formulários de passos e análises). Ponha a data para que está planeado e o
+que já sabe; numa deposição, por exemplo, a máquina, o alvo, o gás, o fluxo,
+a potência, a espessura pretendida e a taxa, e a duração é calculada
+(Secção~\ref{sec:types}).
+
+Uma entrada planeada aparece na cronologia com um contorno tracejado, a
+etiqueta \ui{Planeado} e a data como ``para \ldots''. Enquanto não for feita
+fica fora da pesquisa, das exportações, das taxas de deposição e do que os
+pedaços herdam. No dia, carregue em \ui{Marcar como feito} no cartão: abre-se
+o formulário com a caixa desassinalada; confirme os valores (e a data) e
+preencha o que só se soube no dia, como a pressão de base e a de trabalho.
+
+%=====================================================================
+\section{Vários dispositivos numa amostra}
+\label{sec:devices}
+%=====================================================================
+
+Quando de uma amostra saem vários dispositivos (D1, D2, \ldots), termine o
+processo que os produz e clique em \ui{Criar dispositivos}, ao lado de
+\ui{Dividir em pedaços}, na página da amostra; a janela que abre explica o
+procedimento e tem o botão \ui{Processo concluído: criar dispositivos}.
+
+\begin{enumerate}
+  \item Escreva os nomes separados por vírgulas, ou só \ui{quantos}: sem
+        nomes, os dispositivos são numerados a partir do maior D já existente
+        (D1, D2, \ldots; depois de D4 vem D5), como nas amostras.
+  \item Indique a data (opcional) e confirme.
+\end{enumerate}
+
+Isto põe na cronologia um passo \emph{Devices made} com a lista dos
+dispositivos; o que vem antes é a história comum a todos. Não está ligado a
+nenhum processo em particular, e pode criar mais dispositivos mais tarde com
+outro passo \emph{Devices made}.
+
+Os passos seguintes, como um recozimento, continuam a registar-se na amostra
+e aplicam-se a \emph{todos} os dispositivos. Numa análise, o campo
+\ui{Dispositivo} indica em qual foi medida; vazio, diz respeito à amostra
+inteira. O \ui{×} ao lado de um dispositivo remove-o, e eliminar o passo
+\emph{Devices made} remove os seus dispositivos; as análises ficam na
+amostra, sem dispositivo. Os pedaços cortados depois herdam as análises com o
+nome do dispositivo. O CSV tem a coluna \texttt{device}.
 
 %=====================================================================
 \section{Dividir uma amostra em pedaços}
@@ -502,15 +683,16 @@ mantém acesso de edição.
 \subsection{Biblioteca de substratos}
 
 O separador \menu{Substratos} lista os substratos com material, espessura,
-orientação, polimento, tamanho, fornecedor, notas e fichas técnicas.
+orientação, polimento, tamanho, fornecedor, n.º de lote, notas e fichas técnicas.
 Qualquer pessoa pode acrescentar um; quem o acrescentou e os
 administradores podem editá-lo. Um substrato usado por alguma amostra não
 pode ser eliminado.
 
-\subsection{Projetos}
+\subsection{Parceiros (projetos)}
 
-O separador \menu{Projetos} lista as colaborações: nome, instituição
-parceira, código, país, contacto e notas. O código (2--6 letras ou
+O separador \menu{Parceiros} lista os projetos: colaborações com outras
+instituições e fornecedores de amostras comerciais. Cada um tem nome,
+instituição ou empresa, código, país, contacto e notas. O código (2--6 letras ou
 algarismos) é usado nos IDs das amostras do projeto; por isso não pode
 coincidir com as iniciais de ninguém, e fica fixo assim que uma amostra o
 usa. Uma instituição pode ter vários projetos; escolha-a entre as
@@ -525,6 +707,36 @@ amostra, material, técnica e etiqueta, e agrupa os resultados (por
 investigador, ano, tipo, material, técnica, etiqueta ou projeto). O texto
 livre procura em IDs, rótulos, descrições, notas, parâmetros e nomes de
 projetos, mas só nas amostras cujos detalhes pode ver.
+
+Ao filtrar por uma técnica, aparece também, por cima das amostras, a lista
+das entradas dessa técnica nas amostras encontradas, das mais recentes para
+as mais antigas (as sem data no fim): data, amostra, uma coluna por
+parâmetro (com unidades), local, quem fez e notas. Uma entrada herdada por
+pedaços aparece uma só vez, na amostra onde está registada.
+
+O formulário passa também a ter \ui{Parâmetros de \ldots}, um filtro por
+campo dessa técnica: nas listas (alvo, máquina, método, \ldots) escolhe um
+dos valores usados; nos números indica um intervalo mín.--máx. (os extremos
+contam; entradas sem número nesse campo ficam de fora); nos textos, o que o
+campo contém. Só aparecem as entradas que cumprem todos os filtros, e só as
+amostras que têm uma dessas entradas (também na exportação). Por exemplo,
+\ui{Filme fino} + Deposition + alvo Ga2O3 mostra todas as deposições de
+Ga2O3, das mais recentes para as mais antigas, com a potência, o fluxo de
+gás e a taxa de deposição. No mínimo de um campo numérico também pode
+escrever um valor que não é número, como um fluxo de gás de 20/5, para o
+procurar exatamente. Só aparecem filtros para os parâmetros que alguma das
+entradas tem, para o formulário não ficar demasiado comprido; ao pesquisar,
+a página salta para a tabela das entradas.
+
+Nas deposições, a coluna da taxa (e o seu filtro) usa a taxa medida (média
+das medidas de espessura) quando a há, senão a introduzida, e por cima da
+tabela aparece um gráfico da taxa ao longo do tempo, com uma linha por
+conjunto de máquina, alvo, gás, fluxo de gás e potência. Passe o rato por um
+ponto para ver a amostra e a taxa; clique para a abrir.
+
+Em \ui{Colunas}, por cima da tabela, escolha que colunas quer ver. A escolha
+fica guardada para cada técnica no seu navegador, por isso cada pessoa vê as
+suas.
 
 \ui{Exportar resultados (CSV)} descarrega as amostras encontradas, com uma
 linha por passo ou análise e uma coluna \texttt{param:\ldots} por
@@ -554,7 +766,9 @@ As \menu{Configurações} têm três partes.
     repor palavras-passe, tornar ou deixar de ser administrador, alterar o
     nome ou as iniciais de alguém, eliminar utilizadores.
   \item[Tipos de passo de processo / Tipos de análise] Acrescentar, editar
-    ou eliminar (quando não estão em uso) tipos. Cada tipo tem um
+    ou eliminar (quando não estão em uso) tipos. \ui{Feito normalmente em}
+    é o local com que começa o \ui{Onde} de um registo novo desse tipo.
+    Cada tipo tem um
     \emph{esquema de parâmetros}: uma lista JSON de campos. Editá-lo nunca
     altera os dados já guardados.
   \item[Exportar a base de dados completa (CSV)] Tudo, independentemente
@@ -566,8 +780,8 @@ marque-as como resolvidas ou reabra-as.
 
 \subsection{Enviar mensagens aos utilizadores}
 
-Em \ui{Enviar uma mensagem}, nas \menu{Configurações}, escolha \ui{Todos} ou
-uma pessoa, escreva o assunto e a mensagem e clique em \ui{Enviar}. Cada
+Em \ui{Enviar uma mensagem}, nas \menu{Configurações}, escolha \ui{Todos}, uma
+equipa (todos os seus membros) ou uma pessoa, escreva o assunto e a mensagem e clique em \ui{Enviar}. Cada
 pessoa recebe a sua própria cópia, por isso os endereços não são mostrados
 aos outros. Requer o email configurado e só chega a utilizadores com
 endereço de email; o envio a todos pede confirmação antes.
@@ -630,6 +844,37 @@ docker compose exec app python -m backend.create_admin
 \end{verbatim}
 \end{tcolorbox}
 
+\subsection{Cópias de segurança automáticas}
+
+O serviço \texttt{backup} do \texttt{docker-compose.yml} faz uma vez por dia
+uma cópia da base de dados e da pasta \texttt{uploads/}, na pasta
+\nolinkurl{backups/<dia>/} (\texttt{logbook.dump} e \texttt{uploads/}). Verifica
+de hora a hora, por isso, se o PC esteve desligado à noite, a cópia do dia é
+feita pouco depois de ser ligado.
+
+Ficam guardadas a cópia mais recente de cada um dos últimos 7 dias, 4 semanas
+e 12 meses em que houve cópia (no máximo cerca de 23). Os ficheiros que não
+mudaram desde a cópia anterior não são copiados outra vez (são ligações
+físicas, \emph{hard links}), por isso todas juntas ocupam pouco mais do que a
+pasta \texttt{uploads/} uma vez. Isto exige um disco formatado em ext4 ou NTFS
+(não FAT32 nem exFAT).
+
+Por omissão as cópias ficam em \texttt{backups/}, no mesmo disco que o
+logbook: protegem contra enganos, mas não contra uma avaria do disco. Para as
+guardar noutro disco, ponha o caminho em \texttt{.env}
+(\texttt{BACKUP\_DIR=/mnt/discoexterno/logbook}) e reinicie.
+
+\begin{tcolorbox}[colback=gray!5,colframe=gray!40,boxrule=0.4pt,arc=1pt]
+\footnotesize
+\begin{verbatim}
+docker compose logs backup                            # ver se correu bem
+docker compose exec backup python3 /backup.py --now   # fazer uma agora
+\end{verbatim}
+\end{tcolorbox}
+
+Para restaurar uma cópia, ou só um ficheiro, veja a secção ``Automatic
+backups'' do README.
+
 \subsection{O que guardar nas cópias de segurança}
 
 \begin{center}
@@ -649,11 +894,24 @@ docker compose exec -T db pg_dump -U logbook logbook > backup_$(date +%Y%m%d).sq
 \end{verbatim}
 \end{tcolorbox}
 
+Confirme que a cópia ficou boa: o resultado vai direto para o ficheiro, por
+isso, se o comando falhar, não aparece nada no ecrã e o ficheiro fica vazio.
+Veja o tamanho com \texttt{ls -lh backup\_*.sql} (tem de ser bem maior que 0) e
+confirme que o fim do ficheiro diz \texttt{-- PostgreSQL database dump complete}.
+Se o Docker precisar de \texttt{sudo}, execute primeiro \texttt{sudo -v} e dê a
+palavra-passe, para o pedido não ficar escondido.
+
 Guarde a cópia da base de dados junto com uma cópia de \texttt{uploads/}.
 Essa pasta tem uma subpasta por ID de amostra e, dentro dela, uma por
 passo ou análise, com os ficheiros com os nomes originais (por exemplo
 \nolinkurl{ASS-2026-001/2026-10-22_XRD-HRXRD/scan01.raw}), mas é a base de
 dados que liga cada ficheiro à sua entrada.
+
+Os ficheiros apagados ficam 30 dias em \nolinkurl{uploads/.trash/} (ver
+secção~\ref{sec:files}). Para juntar os ficheiros repetidos guardados antes
+de o logbook os detetar, execute uma vez no servidor
+\texttt{docker compose exec app python -m backend.dedupe\_files} (só mostra o
+que faria) e depois o mesmo com \texttt{-{}-apply}.
 
 Cada pasta de amostra tem também um ficheiro \texttt{sample.json}: uma
 cópia de tudo o que a base de dados sabe sobre essa amostra (dados,
@@ -665,6 +923,35 @@ arranca (ou a pedido: \texttt{docker compose exec app python -m backend.sample\_
 os tipos de entrada, os valores das listas e as sugestões não estão lá: a
 cópia da base de dados continua a ser a cópia de segurança principal.
 
+\subsubsection*{Estrutura do \texttt{sample.json}}
+
+O ficheiro é JSON simples (UTF-8), legível sem a aplicação. No topo:
+\texttt{format} (versão do formato, atualmente 5), \texttt{written\_at},
+\texttt{code} (o ID) e \texttt{previous\_codes} (IDs anteriores), os dados da
+amostra (\texttt{label}, \texttt{sample\_type}, \texttt{visibility},
+\texttt{tags}, \texttt{description}, \texttt{film\_material}, \ldots),
+\texttt{owner} e \texttt{shared\_with} (com \texttt{can\_edit}),
+\texttt{substrate} e \texttt{project} (copiados por inteiro),
+\texttt{devices} (os dispositivos: \texttt{label} e \texttt{notes}),
+\texttt{cut\_from} (nas peças: a amostra de origem e a posição do corte; o que
+vem antes do corte está no ficheiro dessa amostra), \texttt{files} (ficheiros
+da própria amostra) e \texttt{timeline}, a lista ordenada dos passos e
+análises da amostra.
+
+Cada entrada de \texttt{timeline} tem \texttt{kind} (\texttt{step} ou
+\texttt{analysis}), \texttt{type} (a técnica), \texttt{position},
+\texttt{performed\_at}, \texttt{location}, \texttt{performed\_by},
+\texttt{notes}, nas análises \texttt{device} (o nome do dispositivo, ou
+\texttt{null}), \texttt{status} (\texttt{approved}, ou \texttt{pending} se foi
+proposta por um colega e ainda não aprovada), \texttt{planned}
+(\texttt{true} se está planeada e ainda não foi feita), \texttt{files} (o caminho em
+\texttt{uploads/}, o nome original, etc.) e \texttt{parameters}: um objeto com
+uma chave por campo do tipo de entrada, com números como números e texto como
+texto. Num campo de escolha entre variantes (por exemplo Forno/RTA em
+Recozimento) guarda-se o valor escolhido e, a seguir, os campos dessa
+variante; num campo com caixa de seleção guarda-se \texttt{true} e os seus
+campos; nos modos de XRD guarda-se \texttt{\{modo: \{campo: valor\}\}}.
+
 \subsection{Windows 10}
 
 O Windows 10 não tem rede espelhada (\emph{mirrored}), por isso os outros
@@ -675,6 +962,12 @@ Cria uma tarefa que, em cada início de sessão, arranca o WSL, o Docker e os
 contentores e reencaminha o porto 8000, e abre a \emph{firewall} para ele.
 Depois de reiniciar, alguém tem de iniciar sessão; o progresso fica em
 \texttt{scripts/start-logbook.log}.
+
+Depois de atualizar o código (\texttt{git pull}), reconstrua a imagem com
+\texttt{docker compose up -d --build app}. Se a página não abrir, apesar de
+\texttt{docker compose ps} dizer \emph{Up}, veja o registo com
+\texttt{docker compose logs --tail 30 app}: um erro \texttt{No module named \dots}
+significa que a imagem está mais antiga que o código.
 
 \begin{careful}
 \texttt{docker compose down} para o logbook e mantém os dados.

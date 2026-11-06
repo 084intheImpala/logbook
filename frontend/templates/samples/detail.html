@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_rate_plot.html" import rate_plot with context %}
 {% block title %}{{ sample.title }} — Logbook{% endblock %}
 {% block content %}
 {% macro param_rows(rows) %}
@@ -34,6 +35,9 @@
       {% if sample.is_reference %}<span class="align-middle font-sans bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded">{{ _("Reference") }}</span>{% endif %}
     </h1>
     {% if sample.label %}<div class="text-lg text-gray-600">{{ sample.label }}</div>{% endif %}
+    {% if sample.previous_codes %}
+    <div class="mt-1 text-sm text-gray-500">{{ _("Previously") }}: <span class="font-mono">{{ sample.previous_codes|join(", ") }}</span></div>
+    {% endif %}
     {% if parent %}
     <div class="mt-1 text-sm text-gray-500">
       ✂ {{ _("Cut from") }} <a href="/samples/{{ parent.id }}" class="text-blue-600 hover:underline font-mono">{{ parent.title }}</a>
@@ -74,7 +78,7 @@
         <span class="text-gray-500">· {{ sample.project.institution }}</span>{% endif %}</dd>
       {% endif %}
       {% if sample.external_id %}
-      <dt class="text-gray-400">{% if sample.sample_type == "commercial" %}{{ _("Product / batch no.") }}{% elif sample.sample_type == "collaboration" %}{{ _("Their sample ID") }}{% else %}{{ _("External ID") }}{% endif %}</dt>
+      <dt class="text-gray-400">{% if sample.sample_type == "project" %}{{ _("Their sample ID, or product / batch no.") }}{% else %}{{ _("External ID") }}{% endif %}</dt>
       <dd class="text-gray-700 font-mono">{{ sample.external_id }}</dd>
       {% endif %}
       {% if sample.supplier %}
@@ -128,6 +132,70 @@
 <div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ flash_error }}</div>
 {% endif %}
 
+{% if code_prompt %}
+<!-- Asked after a type change moved the ID's prefix -->
+<dialog id="code-prompt" class="rounded-xl shadow-xl p-0 max-w-md w-full backdrop:bg-black/40">
+  <div class="p-6 space-y-3">
+    <h2 class="text-lg font-semibold text-gray-900">{{ _("Update the sample ID?") }}</h2>
+    <p class="text-sm text-gray-600">
+      {{ _("This sample is now a {type} sample, so its ID would normally start with {prefix}, but it is {code}.",
+           type=_(sample.type_label), prefix=code_prompt.prefix, code=sample.title) }}
+    </p>
+    {% if current_user.is_admin %}
+    <p class="text-sm text-gray-600">{{ _("Update it to {new}? Its pieces and files folder are renamed too, the old ID is kept on the sample and never reused, and the owner is emailed.", new=code_prompt.new_code) }}</p>
+    <div class="flex flex-wrap gap-2 pt-2">
+      <form method="post" action="/samples/{{ sample.id }}/recode">
+        <input type="hidden" name="prefix" value="{{ code_prompt.source }}">
+        <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Update to {new}", new=code_prompt.new_code) }}</button>
+      </form>
+      <button type="button" onclick="this.closest('dialog').close()" class="text-sm text-gray-600 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">{{ _("Keep {code}", code=sample.title) }}</button>
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-600">{{ _("Only an admin can change an ID. You can keep it as it is, or ask an admin to fix it.") }}</p>
+    <div class="flex flex-wrap gap-2 pt-2">
+      <button type="button" onclick="this.closest('dialog').close()" class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Keep {code}", code=sample.title) }}</button>
+      <form method="post" action="/samples/{{ sample.id }}/ask-recode">
+        <button class="text-sm text-gray-700 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">{{ _("Ask an admin to fix it") }}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</dialog>
+<script>document.getElementById('code-prompt').showModal();</script>
+{% endif %}
+
+{% if rate_prompt %}
+<!-- Asked after a thickness was measured (Ellipsometry, Profilometry): see backend/deposition_rate.py -->
+<dialog id="rate-prompt" class="rounded-xl shadow-xl p-0 max-w-md w-full backdrop:bg-black/40">
+  <form method="post" action="/samples/{{ rate_prompt.sample_id }}/steps/{{ rate_prompt.step_id }}/deposition-rate" class="p-6 space-y-3">
+    <input type="hidden" name="back" value="{{ sample.id }}">
+    <h2 class="text-lg font-semibold text-gray-900">{{ _("Add the deposition rate?") }}</h2>
+    <p class="text-sm text-gray-600">
+      {% if rate_prompt.step_date %}{{ _("The {analysis} gave a thickness of {thickness} nm. The deposition of {date} has no deposition rate yet.", analysis=_(rate_prompt.analysis), thickness="%g"|format(rate_prompt.thickness), date=rate_prompt.step_date) }}
+      {% else %}{{ _("The {analysis} gave a thickness of {thickness} nm. The deposition before it has no deposition rate yet.", analysis=_(rate_prompt.analysis), thickness="%g"|format(rate_prompt.thickness)) }}{% endif %}
+      {% if rate_prompt.inherited %}{{ _("It is recorded on {sample}, which this piece was cut from.", sample=rate_prompt.source_title) }}{% endif %}
+    </p>
+    {% if rate_prompt.stack %}
+    <p class="text-sm text-gray-600">{{ _("There are other depositions before it, so the thickness measured is of the whole stack: work out this layer's rate yourself.") }}</p>
+    {% else %}
+    <p class="text-sm text-gray-600">{{ _("The deposition has no duration, so the rate can't be worked out from the thickness.") }}</p>
+    {% endif %}
+    <label class="block text-sm font-medium text-gray-700">{{ _("Deposition rate") }}
+      <span class="flex items-center gap-2 mt-1">
+        <input name="rate" inputmode="decimal" required
+               class="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <span class="text-sm text-gray-500">nm/min</span>
+      </span>
+    </label>
+    <div class="flex flex-wrap gap-2 pt-2">
+      <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add to the deposition") }}</button>
+      <button type="button" onclick="this.closest('dialog').close()" class="text-sm text-gray-600 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">{{ _("Not now") }}</button>
+    </div>
+  </form>
+</dialog>
+<script>document.getElementById('rate-prompt').showModal();</script>
+{% endif %}
+
 {% if sample.requested_by_id %}
 <div class="mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg flex items-center gap-3">
   {% if sample.owner_id == current_user.id %}
@@ -165,6 +233,15 @@
     {{ _("Sharing") }} <span class="font-normal text-gray-400">· {{ _("{n} user", n=sample.shares|length) if sample.shares|length == 1 else _("{n} users", n=sample.shares|length) }}</span>
   </summary>
   <div class="px-4 pb-4 space-y-3">
+    <form method="post" action="/samples/{{ sample.id }}/visibility" class="flex items-center gap-2 text-sm">
+      <label class="text-gray-600">{{ _("Who can see the details") }}</label>
+      <select name="visibility" onchange="this.form.submit()" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+        {% for value, label in visibilities.items() %}
+        <option value="{{ value }}" {% if sample.visibility == value %}selected{% endif %}>{{ _(label) }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <p class="text-xs text-gray-400">{{ _("Personal: you and the people listed below. Team: also everyone in your team. Public: everyone logged in. Coordinators of your team and admins can always see it. Everyone sees the summary (ID, type, materials, tags).") }}</p>
     {% if sample.shares %}
     <ul class="divide-y divide-gray-100 text-sm">
       {% for sh in sample.shares %}
@@ -183,8 +260,6 @@
       </li>
       {% endfor %}
     </ul>
-    {% else %}
-    <p class="text-xs text-gray-400">{{ _("Only you and admins can see this sample's details.") }}</p>
     {% endif %}
     {% if share_candidates %}
     <form method="post" action="/samples/{{ sample.id }}/shares" class="flex items-center gap-2">
@@ -206,15 +281,76 @@
 <div class="mb-6 text-xs text-gray-500">{{ _("This sample has no owner, so everyone can see and edit it.") }}{% if current_user.is_admin %} {{ _("Assign an owner from") }} <a href="/samples/{{ sample.id }}/edit" class="text-blue-600 hover:underline">{{ _("Edit") }}</a>.{% endif %}</div>
 {% endif %}
 
+<!-- Teammates propose; others can ask for access -->
+{% if can_propose %}
+<div class="flex flex-wrap items-center gap-3 mb-6 text-sm">
+  <a href="/samples/{{ sample.id }}/steps/new" class="inline-flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm">+ {{ _("Propose a process step") }}</a>
+  <a href="/samples/{{ sample.id }}/analyses/new" class="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 shadow-sm">+ {{ _("Propose an analysis") }}</a>
+  <span class="text-xs text-gray-500">{{ _("Your entry is added once the owner approves it.") }}</span>
+</div>
+{% endif %}
+{% if sample.owner_id and not is_owner and (not can_view or not can_edit) %}
+<details class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+  <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">
+    {{ _("Request access") }}
+    {% if my_requests %}<span class="font-normal text-gray-400">· {{ _("pending") }}</span>{% endif %}
+  </summary>
+  <form method="post" action="/samples/{{ sample.id }}/request-access" class="px-4 pb-4 space-y-3 text-sm">
+    <div class="flex items-center gap-3">
+      <select name="level" class="border border-gray-300 rounded px-2 py-1 bg-white">
+        {% if not can_view %}<option value="view">{{ _("See the details") }}</option>{% endif %}
+        <option value="edit">{{ _("Edit") }}</option>
+      </select>
+      <input name="message" placeholder="{{ _("Why? (optional)") }}" class="flex-1 border border-gray-300 rounded px-2 py-1">
+      <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Send request") }}</button>
+    </div>
+    <p class="text-xs text-gray-400">{{ _("The owner is emailed. If they don't answer, a coordinator of their team can approve it after a few days.") }}</p>
+  </form>
+</details>
+{% endif %}
+
+<!-- Entries waiting for approval -->
+{% if pending %}
+<section id="pending" class="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-4">
+  <h2 class="text-sm font-semibold text-amber-800 mb-2">{{ _("Waiting for approval") }}</h2>
+  <ul class="space-y-2 text-sm">
+    {% for p in pending %}
+    <li class="bg-white rounded-lg border border-amber-100 px-3 py-2 flex items-start justify-between gap-3">
+      <div>
+        <span class="font-semibold">{{ p.type_name }}</span>
+        <span class="text-gray-500">· {{ _("proposed by") }} {{ p.proposer.display_name if p.proposer else "—" }}</span>
+        {% if p.entry.notes and (can_view or p.mine) %}<div class="text-xs text-gray-500 whitespace-pre-line mt-0.5">{{ p.entry.notes }}</div>{% endif %}
+      </div>
+      <div class="flex items-center gap-3 shrink-0 text-xs">
+        {% if p.mine or p.can_decide %}<a href="/samples/{{ sample.id }}/{{ p.path }}/{{ p.entry.id }}/edit" class="text-blue-600 hover:underline">{{ _("Edit") }}</a>{% endif %}
+        {% if p.can_decide %}
+        <form method="post" action="/approvals/entries/{{ p.kind }}/{{ p.entry.id }}/approve?back=/samples/{{ sample.id }}"><button class="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Approve") }}</button></form>
+        {% endif %}
+        {% if p.can_decide or p.mine %}
+        <form method="post" action="/approvals/entries/{{ p.kind }}/{{ p.entry.id }}/reject?back=/samples/{{ sample.id }}"
+              onsubmit='return confirm({{ _("Decline this proposal? It is deleted and the author is told.")|tojson }})'><button class="text-red-600 hover:underline">{{ _("Withdraw") if p.mine and not p.can_decide else _("Decline") }}</button></form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <!-- Add buttons -->
 {% if can_edit %}
-<div class="flex gap-3 mb-8">
+<div class="flex flex-wrap gap-3 mb-8">
   <a href="/samples/{{ sample.id }}/steps/new"
      class="inline-flex items-center gap-1.5 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
     </svg>
     {{ _("Add Process Step") }}
+  </a>
+  <a href="/samples/{{ sample.id }}/steps/new?planned=1"
+     title="{{ _("A step to do later, e.g. a deposition with its duration worked out from the target thickness") }}"
+     class="inline-flex items-center gap-1.5 text-sm border-2 border-dashed border-amber-400 text-amber-800 px-4 py-1.5 rounded-lg hover:bg-amber-50">
+    {{ _("Plan a step") }}
   </a>
   <a href="/samples/{{ sample.id }}/analyses/new"
      class="inline-flex items-center gap-1.5 text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 shadow-sm">
@@ -227,6 +363,11 @@
      class="inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 shadow-sm">
     ✂ {{ _("Cut into pieces") }}
   </a>
+  <button type="button" onclick="document.getElementById('devices-dialog').showModal()"
+          title="{{ _("Process done: make devices") }}"
+          class="inline-flex items-center gap-1.5 text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 shadow-sm">
+    {{ _("Make devices") }}
+  </button>
   {% if can_edit and timeline|length > 1 %}
   <form method="post" action="/samples/{{ sample.id }}/timeline/sort-by-date" class="ml-auto"
         onsubmit='return confirm({{ _("Reorder dated entries chronologically? Entries without a date keep their place.")|tojson }})'>
@@ -234,6 +375,52 @@
   </form>
   {% endif %}
 </div>
+{% endif %}
+
+<!-- Devices: made when the process is declared done; later steps apply to all of them -->
+{% if sample.devices %}
+<div id="devices" class="mb-6 flex flex-wrap items-center gap-2 text-sm">
+  <span class="text-gray-500">{{ _("Devices") }}</span>
+  {% for d in sample.devices %}
+  <span class="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-2 py-0.5 rounded-full">{{ d.label }}</span>
+  {% endfor %}
+  {% if can_edit %}<button type="button" onclick="document.getElementById('devices-dialog').showModal()"
+                           class="text-xs text-gray-400 hover:text-gray-600 underline">{{ _("manage") }}</button>{% endif %}
+</div>
+{% endif %}
+{% if can_edit %}
+<dialog id="devices-dialog" class="rounded-xl shadow-xl p-0 max-w-lg w-full backdrop:bg-black/40">
+  <div class="p-6 space-y-4 text-sm">
+    <h2 class="text-lg font-semibold text-gray-900">{{ _("Process done: make devices") }}</h2>
+    <p class="text-xs text-gray-500">{{ _("Make devices when the process that produces them is done: a 'Devices made' step goes on the timeline. Steps after it, such as annealing, still apply to all the devices. Pick a device when adding an analysis to say which one it was measured on.") }}</p>
+    {% if sample.devices %}
+    <div class="flex flex-wrap gap-2">
+      {% for d in sample.devices %}
+      <span class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-2 py-0.5 rounded-full">
+        {{ d.label }}
+        <form method="post" action="/samples/{{ sample.id }}/devices/{{ d.id }}/delete" class="inline"
+              onsubmit='return confirm({{ _("Remove this device? Its analyses stay on the sample.")|tojson }})'>
+          <button class="text-emerald-400 hover:text-red-600" title="{{ _("Remove") }}">×</button>
+        </form>
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <form method="post" action="/samples/{{ sample.id }}/devices" class="space-y-3">
+      <input name="labels" placeholder="{{ _("D1, D2, … or leave empty for the next") }}"
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <div class="flex gap-3">
+        <input type="number" name="count" min="1" max="100" placeholder="{{ _("or how many") }}"
+               class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32">
+        <input type="date" name="performed_at" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button class="bg-teal-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-teal-700">{{ _("Process done: make devices") }}</button>
+        <button type="button" onclick="this.closest('dialog').close()" class="text-sm text-gray-600 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">{{ _("Cancel") }}</button>
+      </div>
+    </form>
+  </div>
+</dialog>
 {% endif %}
 
 <!-- ═══ UNIFIED TIMELINE ══════════════════════════════════════════════════ -->
@@ -270,7 +457,7 @@
       <!-- Card -->
       <div id="{{ 'step' if is_process else 'analysis' }}-{{ entry.id }}"
            class="{% if entry.editable %}drop-card {% endif %}bg-white rounded-xl border shadow-sm overflow-hidden
-                  {% if is_process %}border-blue-100{% else %}border-emerald-100{% endif %}">
+                  {% if entry.planned %}border-2 border-dashed border-amber-300{% elif is_process %}border-blue-100{% else %}border-emerald-100{% endif %}">
 
         <!-- Card header -->
         <div class="flex items-center gap-3 px-5 py-3
@@ -280,15 +467,21 @@
                        {% if is_process %}bg-blue-100 text-blue-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">
             {{ _("Process") if is_process else _("Analysis") }}
           </span>
+          {% if entry.planned %}
+          <span class="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-amber-100 text-amber-800"
+                title="{{ _("Not done yet: left out of search, exports and deposition rates until it's marked done") }}">{{ _("Planned") }}</span>
+          {% endif %}
           <span class="font-semibold text-gray-900 flex-1">{{ entry.type_name }}
             {% if entry.inherited %}
             <a href="/samples/{{ entry.source.id }}" class="ml-2 text-xs font-normal text-gray-500 hover:underline"
                title="{{ _("Inherited — edit it on {title}", title=entry.source.title) }}">{{ _("from") }} <span class="font-mono">{{ entry.source.title }}</span></a>
             {% endif %}
+            {% for label in entry.made_devices %}<span class="ml-1 text-xs font-normal bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">{{ label }}</span>{% endfor %}
+            {% if entry.device %}<span class="ml-2 text-xs font-normal bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded" title="{{ _("Measured on this device") }}">{{ entry.device }}</span>{% endif %}
           </span>
           <div class="flex items-center gap-3 text-xs text-gray-400 shrink-0">
             {% if entry.visible and entry.performed_at %}
-              <span>{{ entry.performed_at.strftime('%Y-%m-%d') }}</span>
+              <span>{% if entry.planned %}{{ _("for {date}", date=entry.performed_at.strftime('%Y-%m-%d')) }}{% else %}{{ entry.performed_at.strftime('%Y-%m-%d') }}{% endif %}</span>
             {% endif %}
             {% if entry.visible and entry.performed_by %}
               <span>{{ _("by {name}", name=entry.performed_by) }}</span>
@@ -296,6 +489,10 @@
           </div>
           {% if entry.editable %}
           <div class="flex items-center gap-1 shrink-0 ml-2">
+            {% if entry.planned %}
+            <a href="{{ entry.edit_url }}?done=1"
+               class="text-xs bg-amber-500 text-white px-2.5 py-1 rounded-lg hover:bg-amber-600 mr-1">{{ _("Mark as done") }}</a>
+            {% endif %}
             {% if can_edit %}
             {% for dir, arrow, show in [("up", "↑", not entry.first_own), ("down", "↓", not entry.last_own)] %}
             <form method="post" action="/samples/{{ sample.id }}/timeline/move" class="inline">
@@ -345,6 +542,52 @@
             {{ param_rows(group.rows) }}
           </div>
           {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Deposition: thickness measurements, measured rate, rate history (backend/deposition_rate.py) -->
+        {% if entry.rate and (entry.rate.measured or entry.rate.plot) %}
+        <div class="px-5 pb-3 pt-2 border-t border-gray-50 space-y-2">
+          {% if entry.rate.measured %}
+          <div class="text-sm">
+            <span class="text-xs text-gray-400">{{ _("Measured deposition rate") }}</span>
+            {% if entry.rate.average is not none %}
+            <span class="font-medium text-gray-800 ml-1">{{ '%g'|format(entry.rate.average) }} nm/min</span>
+            <span class="text-xs text-gray-500">{{ _("average of {n}", n=entry.rate.n) if entry.rate.n > 1 else _("from 1 measurement") }}</span>
+            {% else %}
+            <span class="text-xs text-gray-500 ml-1">{{ _("no duration recorded, so no rate") }}</span>
+            {% endif %}
+          </div>
+          <ul class="text-xs text-gray-600 space-y-0.5">
+            {% for m in entry.rate.measured %}
+            <li>{{ m.item.technique }}
+              {% if m.item.entry.performed_at %}{{ m.item.entry.performed_at.isoformat() }}{% endif %}
+              {{ _("on") }} <a href="/samples/{{ m.sample.id }}#analysis-{{ m.item.entry.id }}" class="font-mono text-blue-600 hover:underline">{{ m.sample.title }}</a>:
+              {{ '%g'|format(m.thickness) }} nm{% if m.rate is not none %} → {{ '%g'|format(m.rate) }} nm/min{% endif %}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          {% if entry.rate.plot %}
+          <details class="text-sm" open>
+            <summary class="text-xs text-gray-500 cursor-pointer select-none">{{ _("Rate history with the same conditions") }} <span class="text-gray-400">({{ entry.rate.conditions }})</span></summary>
+            <div class="mt-2 max-w-2xl">
+              {{ rate_plot(entry.rate.plot) }}
+              <details class="mt-1">
+                <summary class="text-xs text-gray-400 cursor-pointer select-none">{{ _("As a table") }}</summary>
+                <table class="text-xs mt-1">
+                  {% for p in entry.rate.history %}
+                  <tr class="{% if p.step.id == entry.id %}font-semibold{% endif %}">
+                    <td class="pr-3 text-gray-500">{{ p.step.performed_at.isoformat() if p.step.performed_at else '—' }}</td>
+                    <td class="pr-3"><a href="/samples/{{ p.sample.id }}#step-{{ p.step.id }}" class="font-mono text-blue-600 hover:underline">{{ p.sample.title }}</a></td>
+                    <td class="pr-3 text-gray-700">{{ '%g'|format(p.rate) }} nm/min</td>
+                    <td class="text-gray-400">{{ _("average of {n}", n=p.n) if p.n > 1 else _("measured") if p.n else _("typed") }}</td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              </details>
+            </div>
+          </details>
+          {% endif %}
         </div>
         {% endif %}
 
@@ -447,6 +690,10 @@
        class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
       {{ _("Add Process Step") }}
     </a>
+    <a href="/samples/{{ sample.id }}/steps/new?planned=1"
+       class="text-sm border-2 border-dashed border-amber-400 text-amber-800 px-4 py-1.5 rounded-lg hover:bg-amber-50">
+      {{ _("Plan a step") }}
+    </a>
     <a href="/samples/{{ sample.id }}/analyses/new"
        class="text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
       {{ _("Add Analysis") }}
@@ -455,6 +702,8 @@
        class="text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700">
       ✂ {{ _("Cut into pieces") }}
     </a>
+    <button type="button" onclick="document.getElementById('devices-dialog').showModal()"
+            class="text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700">{{ _("Make devices") }}</button>
   </div>
   {% endif %}
 </div>

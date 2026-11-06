@@ -50,6 +50,8 @@ PT = {
     "Polishing": "Polimento",
     "Size": "Dimensões",
     "Supplier": "Fornecedor",
+    "Batch no.": "N.º de lote",
+    "Batch or lot number from the supplier": "Número de lote do fornecedor",
     "Specs": "Fichas técnicas",
     "Samples": "Amostras",
     "No substrates yet. Add the ones your group uses so samples can refer to them.":
@@ -117,4 +119,20 @@ PT = {
     "Idea": "Ideia",
     "Problem": "Problema",
     "Question": "Dúvida",
+    # search/index.html: the entries of the technique filtered by
+    "{technique} entries": "Entradas de {technique}",
+    "newest first": "mais recentes primeiro",
+    "None that you can see.": "Nenhuma que possa ver.",
+    "None match these parameters.": "Nenhuma corresponde a estes parâmetros.",
+    "{technique} parameters": "Parâmetros de {technique}",
+    "{n} filter on": "{n} filtro ativo",
+    "{n} filters on": "{n} filtros ativos",
+    "min": "mín.",
+    "max": "máx.",
+    "contains": "contém",
+    "Only entries matching all of these are listed, and only samples with such an entry. Ranges include their ends.":
+        "Só se mostram as entradas que cumprem todos estes filtros, e só as amostras com uma dessas entradas. Os intervalos incluem os extremos.",
+    "Columns": "Colunas",
+    "Show all": "Mostrar todas",
+    "Hide all": "Esconder todas",
 }

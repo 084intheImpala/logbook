@@ -22,6 +22,10 @@ its `type` decides how it's entered and stored:
   be added); each ticked mode gets the sub-fields in `fields`. Stored as
   {mode: {sub-key: value}}, e.g. XRD → rocking curve, 2θ/ω.
 
+A number, duration, text, longtext or choice field can have a `default`: the
+typical value, filled in on the form for a new entry (it can be changed or
+cleared, and existing entries are left alone).
+
 Stored parameters are never rewritten when a schema changes: keys the schema
 no longer has stay on old entries and are shown as they are. Keys outside the
 schema can also be typed as `key: value` lines (the "extra parameters").
@@ -100,6 +104,15 @@ def located_lists(schema: list[dict] | None) -> set[str]:
         for fields in _side_fields(f):
             names |= located_lists(fields)
     return names
+
+
+def located_methods(schema: list[dict] | None, params: dict) -> dict[str, str]:
+    """list → the method chosen alongside it, for equipment next to a Method
+    choice (a variant field in the same schema), e.g. Annealing → RTA."""
+    method = next((params.get(f["key"]) for f in schema or [] if f.get("type") == "variant"), None)
+    if not method:
+        return {}
+    return {option_list(f): method for f in schema if f.get("type") == "choice" and f.get("located")}
 
 
 def equipment_field(type_name: str) -> dict:
@@ -218,13 +231,33 @@ def parse_form(form, schema: list[dict] | None, prefix="p") -> tuple[dict, list[
 
 def scalar_fields(schema: list[dict] | None) -> list[dict]:
     """The single-value fields a form can vary from sample to sample (not
-    modes or tick boxes), including those inside variants and checks."""
+    modes or tick boxes), including those inside variants and checks; a key
+    that several variant options share (Annealing: Furnace and RTA both have
+    a temperature) is listed once."""
+    found, seen = [], set()
+    for f, _ in vary_choices(schema):
+        if f["key"] not in seen:
+            seen.add(f["key"])
+            found.append(f)
+    return found
+
+
+def vary_choices(schema: list[dict] | None) -> list[tuple[dict, dict | None]]:
+    """Every single-value field with the variant option it belongs to
+    ({"key": variant key, "value": option}, or None), so the form offers only
+    the chosen option's fields. A key can appear once per option."""
     found = []
     for f in schema or []:
-        if f.get("type", "text") not in ("modes", "check", "variant"):
-            found.append(f)
+        kind = f.get("type", "text")
+        if kind == "variant":
+            for o in f.get("options", []):
+                found += [(sf, when or {"key": f["key"], "value": o["value"]})
+                          for sf, when in vary_choices(o.get("fields"))]
+            continue
+        if kind not in ("modes", "check"):
+            found.append((f, None))
         for fields in _side_fields(f):
-            found += scalar_fields(fields)
+            found += vary_choices(fields)
     return found
 
 
@@ -254,8 +287,8 @@ def format_value(value, unit: str = "") -> str:
 
 
 def describe(params: dict | None, schema: list[dict] | None) -> list[dict]:
-    """Rows for display, in schema order: {label, value, long} for plain
-    values, {label, rows} for each mode. Keys the schema doesn't know (e.g.
+    """Rows for display, in schema order: {key, label, value, long} for plain
+    values, {key, label, group, rows} for each mode. Keys the schema doesn't know (e.g.
     from an older schema, or typed as extra parameters) come last, as is."""
     params = dict(params or {})
     rows = []
@@ -273,13 +306,13 @@ def describe(params: dict | None, schema: list[dict] | None) -> list[dict]:
                     sub_rows = []
                     for sf in f.get("fields") or []:
                         if sf["key"] in sub:
-                            sub_rows.append({"label": sf.get("label") or sf["key"],
+                            sub_rows.append({"key": sf["key"], "label": sf.get("label") or sf["key"],
                                              "value": format_value(sub.pop(sf["key"]), sf.get("unit", "")),
                                              "long": sf.get("type") == "longtext"})
-                    sub_rows += [{"label": k, "value": format_value(v), "long": False} for k, v in sub.items()]
-                    rows.append({"label": mode, "group": label, "rows": sub_rows})
+                    sub_rows += [{"key": k, "label": k, "value": format_value(v), "long": False} for k, v in sub.items()]
+                    rows.append({"key": f"{key}/{mode}", "label": mode, "group": label, "rows": sub_rows})
                 continue
-            rows.append({"label": label, "value": format_value(value, f.get("unit", "")),
+            rows.append({"key": key, "label": label, "value": format_value(value, f.get("unit", "")),
                          "long": kind == "longtext"})
             if kind == "variant":
                 option = next((o for o in f.get("options", []) if o["value"] == value), None)
@@ -291,10 +324,10 @@ def describe(params: dict | None, schema: list[dict] | None) -> list[dict]:
     walk(schema, params)
     for key, value in params.items():
         if isinstance(value, dict):
-            rows.append({"label": key, "group": "", "rows": [
-                {"label": k, "value": format_value(v), "long": False} for k, v in flatten(value).items()]})
+            rows.append({"key": key, "label": key, "group": "", "rows": [
+                {"key": k, "label": k, "value": format_value(v), "long": False} for k, v in flatten(value).items()]})
         else:
-            rows.append({"label": key, "value": format_value(value), "long": False})
+            rows.append({"key": key, "label": key, "value": format_value(value), "long": False})
     return rows
 
 

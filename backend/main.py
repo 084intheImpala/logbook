@@ -1,26 +1,33 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.config import settings
-from backend.database import create_tables, AsyncSessionLocal
-from backend.routers import samples, steps, analyses, files, admin, search, substrates, suggestions, projects
+from backend.database import AsyncSessionLocal
+from backend.migrate import migrate
+from backend.routers import samples, steps, analyses, files, attach, admin, search, substrates, suggestions, projects, teams, approvals, team, activity, devices
 from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException, RequiresProfileException
 from backend.seed import seed_types
+from backend.trash import empty_daily
 from backend.i18n import LANGS
 from backend.sample_backup import write_all, write_pending
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_tables()
+    await migrate()
     async with AsyncSessionLocal() as session:
         await seed_types(session)
     await write_all()
+    trash = asyncio.create_task(empty_daily())
     yield
+    trash.cancel()
+    with suppress(asyncio.CancelledError):
+        await trash
 
 
 app = FastAPI(title=settings.APP_TITLE, lifespan=lifespan)
@@ -51,7 +58,13 @@ app.include_router(suggestions.router)
 app.include_router(samples.router, prefix="/samples", tags=["samples"])
 app.include_router(steps.router, prefix="/samples", tags=["steps"])
 app.include_router(analyses.router, prefix="/samples", tags=["analyses"])
+app.include_router(devices.router, prefix="/samples", tags=["devices"])
 app.include_router(files.router)
+app.include_router(attach.router)
+app.include_router(approvals.router)
+app.include_router(team.router)
+app.include_router(activity.router)
+app.include_router(teams.router)   # before admin: admin's /{kind}/new would catch /admin/teams/new
 app.include_router(admin.router)
 
 

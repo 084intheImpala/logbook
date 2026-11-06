@@ -95,4 +95,42 @@ PT = {
     "No steps or analyses recorded yet.": "Ainda não há passos nem análises registados.",
     "Uploading {n} file…": "A carregar {n} ficheiro…",
     "Uploading {n} files…": "A carregar {n} ficheiros…",
+    # Deposition rate asked after a thickness measurement (backend/deposition_rate.py)
+    "Add the deposition rate?": "Adicionar a taxa de deposição?",
+    "The {analysis} gave a thickness of {thickness} nm. The deposition of {date} has no deposition rate yet.":
+        "A medida de {analysis} deu uma espessura de {thickness} nm. A deposição de {date} ainda não tem taxa de deposição.",
+    "The {analysis} gave a thickness of {thickness} nm. The deposition before it has no deposition rate yet.":
+        "A medida de {analysis} deu uma espessura de {thickness} nm. A deposição anterior ainda não tem taxa de deposição.",
+    "It is recorded on {sample}, which this piece was cut from.":
+        "Está registada em {sample}, de onde esta peça foi cortada.",
+    "There are other depositions before it, so the thickness measured is of the whole stack: work out this layer's rate yourself.":
+        "Há outras deposições antes desta, por isso a espessura medida é a de todo o empilhamento: calcule a taxa desta camada.",
+    "The deposition has no duration, so the rate can't be worked out from the thickness.":
+        "A deposição não tem duração, por isso a taxa não pode ser calculada a partir da espessura.",
+    "Counted towards the deposition rate of {sample}: {rate} nm/min, the average of {n} measurement.":
+        "Contada para a taxa de deposição de {sample}: {rate} nm/min, a média de {n} medida.",
+    "Counted towards the deposition rate of {sample}: {rate} nm/min, the average of {n} measurements.":
+        "Contada para a taxa de deposição de {sample}: {rate} nm/min, a média de {n} medidas.",
+    "Add to the deposition": "Adicionar à deposição",
+    "Not now": "Agora não",
+    "The deposition rate must be a number above zero.": "A taxa de deposição tem de ser um número maior que zero.",
+    "Deposition rate of {rate} nm/min added to the deposition of {sample}.":
+        "Taxa de deposição de {rate} nm/min adicionada à deposição de {sample}.",
+    # Measured deposition rate and its history (backend/deposition_rate.py, _rate_plot.html)
+    "Measured deposition rate": "Taxa de deposição medida",
+    "average of {n}": "média de {n}",
+    "from 1 measurement": "de 1 medida",
+    "no duration recorded, so no rate": "sem duração registada, por isso sem taxa",
+    "on": "em",
+    "Rate history with the same conditions": "Histórico da taxa nas mesmas condições",
+    "As a table": "Em tabela",
+    "measured": "medida",
+    "typed": "introduzida",
+    "Deposition rate over time": "Taxa de deposição ao longo do tempo",
+    "Deposition rate over time, by machine, target, gas, gas flow and power":
+        "Taxa de deposição ao longo do tempo, por máquina, alvo, gás, fluxo de gás e potência",
+    "{n} more sets of conditions not drawn: narrow the filters.":
+        "Mais {n} conjuntos de condições não desenhados: restrinja os filtros.",
+    "{n} without a date not drawn.": "{n} sem data não desenhadas.",
+    "A number, or a value such as 20/5 to match it exactly": "Um número, ou um valor como 20/5 para o procurar exatamente",
 }

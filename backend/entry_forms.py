@@ -9,6 +9,7 @@ has its own file field, for its own data.
 """
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -16,14 +17,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
 
+from backend import approvals
 from backend.auth import can_edit, can_edit_entry, can_view
-from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, remember
+from backend.choices import LOCATION_LIST, option_lists, option_locations, option_methods, remember
 from backend.config import settings
+from backend.deposition_rate import DEPOSITION_TYPE_NAME, after_measurement
 from backend.i18n import t
-from backend.lineage import CUT_TYPE_NAME
+from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
-from backend.params import (describe, extra_params, located_lists, params_to_text, parse_date, parse_form,
-                            parse_params, scalar_fields, schema_keys, varied_params)
+from backend.params import (describe, extra_params, located_lists, located_methods, params_to_text, parse_date, parse_form,
+                            parse_params, schema_keys, varied_params, vary_choices)
 from backend.performers import apply_performer, tell_performer, users_for_form
 from backend.templating import templates
 from backend.timeline import place_new
@@ -88,8 +91,9 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
     if kind is STEP:
         # Cuts are made with "Cut into pieces", which also creates the pieces. A
         # Cut stays a Cut when edited, and nothing else becomes one.
-        is_cut = current_type is not None and current_type.name == CUT_TYPE_NAME
-        types = [ty for ty in types if (ty.name == CUT_TYPE_NAME) == is_cut]
+        # The same goes for Devices made.
+        special = current_type.name if current_type is not None and current_type.name in SPECIAL_STEP_TYPES else None
+        types = [ty for ty in types if (ty.name == special if special else ty.name not in SPECIAL_STEP_TYPES)]
     options = await option_lists(db)
     run = await run_entries(db, kind, entry) if entry else []
     attachments = []
@@ -112,19 +116,28 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
                                                   if current_type else None)) if entry else "",
         "options": options,
         "places": await option_locations(db),
+        "methods": await option_methods(db),
         "location_list": LOCATION_LIST,
-        # New entries default to where most work happens
-        "location": entry.location if entry else DEFAULT_LOCATION if DEFAULT_LOCATION in options.get(LOCATION_LIST, []) else None,
+        # A new entry's Where is filled in from the type chosen (its default_location), on the page
+        "location": entry.location if entry else None,
         "users": await users_for_form(db),
         "attachments": attachments,
         "run": run,
+        "devices": sample.devices if kind is ANALYSIS else [],
         # Single-value fields that can differ from sample to sample, per type
         "vary_fields": {ty.id: [{"key": f["key"], "label": t(request, f.get("label") or f["key"]),
                                  "unit": f.get("unit", ""), "options": options.get(f.get("list") or f["key"], [])
-                                 if f.get("type") == "choice" else None}
-                                for f in scalar_fields(ty.parameter_schema)] for ty in types},
+                                 if f.get("type") == "choice" else None, "when": when}
+                                for f, when in vary_choices(ty.parameter_schema)] for ty in types},
         "run_candidates": await _run_candidates(db, user, sample, run),
         "photo_max_px": settings.PHOTO_MAX_PX,
+        # Planned, not done yet: ticked on a new entry from "Plan a step" (?planned=1),
+        # unticked by "Mark as done" (?done=1)
+        "planned": (bool(entry.planned) and not request.query_params.get("done")) if entry
+                   else bool(request.query_params.get("planned")),
+        "marking_done": bool(entry and entry.planned and request.query_params.get("done")),
+        # The duration calculator shows with this type's fields
+        "deposition_type_id": next((ty.id for ty in types if ty.name == DEPOSITION_TYPE_NAME), None),
         "error": error,
     }, status_code=status_code)
 
@@ -145,9 +158,13 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         old_type = await db.get(ProcessStepType, entry.step_type_id) if entry else None
         if entry is None and entry_type.name == CUT_TYPE_NAME:
             return RedirectResponse(f"/samples/{sample.id}/cut", status_code=303)
-        if old_type and (old_type.name == CUT_TYPE_NAME) != (entry_type.name == CUT_TYPE_NAME):
+        if entry is None and entry_type.name in SPECIAL_STEP_TYPES:
             return await form_page(request, db, kind, sample, entry, user,
-                                   t(request, "A Cut can't be changed to another type, or another step to a Cut."),
+                                   t(request, "Choose a type."), status_code=400)
+        if old_type and (old_type.name in SPECIAL_STEP_TYPES or entry_type.name in SPECIAL_STEP_TYPES) \
+                and old_type.name != entry_type.name:
+            return await form_page(request, db, kind, sample, entry, user,
+                                   t(request, "A Cut or a Devices made step can't be changed to another type, or another step to one of them."),
                                    status_code=400)
 
     params, picked = parse_form(form, entry_type.parameter_schema)
@@ -163,7 +180,10 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         "parameters": params or None,
         "notes": form.get("notes", "").strip() or None,
         "location": location,
+        "planned": bool(form.get("planned")),
     }
+    device_id = form.get("device_id", "")
+    device = next((d for d in sample.devices if str(d.id) == device_id), None) if kind is ANALYSIS else None
     performed_at = parse_date(form.get("performed_at", ""))
     performer, performed_by = form.get("performer", ""), form.get("performed_by", "")
 
@@ -176,9 +196,13 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
             if own:
                 target.parameters = (params | own)
                 picked.extend(own_picked)
+        if kind is ANALYSIS and target.sample_id == sample.id:   # copies on other samples have their own devices
+            target.device_id = device.id if device else None
         newly = await apply_performer(db, target, performer, performed_by)
         if performed_at != target.performed_at or target.position is None:
             target.performed_at = performed_at
+            if target.status == "pending":   # not on the timeline until approved
+                return newly
             if performed_at or target.position is None:  # re-dated or new: slot it by date
                 await db.flush()
                 await place_new(db, target)
@@ -196,10 +220,15 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
                      if can_edit(user, s)] if others else []
 
     is_new = entry is None
+    proposing = is_new and not can_edit(user, sample)   # a teammate's entry waits for the owner
+    if proposing:
+        extra_samples = []
     # Samples getting a new copy now (they may have their own values)
     new_sample_ids = {s.id for s in extra_samples} | ({sample.id} if is_new else set())
     if is_new:
         entry = kind.model(sample_id=sample.id)
+        if proposing:
+            entry.status, entry.proposed_by_id, entry.proposed_at = "pending", user.id, datetime.utcnow()
         db.add(entry)
         tell(await apply(entry), sample)   # fills it in, then flushes and slots it into the timeline
         members = [(entry, sample)]
@@ -231,11 +260,26 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         for f in _uploads(form, f"files_for_{member_sample.id}"):
             await save_upload(f, kind.name, member.id, db, uploaded_by=user.username)
 
-    await remember(db, picked, user.id, location, located_lists(entry_type.parameter_schema))
+    await remember(db, picked, user.id, location, located_lists(entry_type.parameter_schema),
+                   located_methods(entry_type.parameter_schema, params))
     await db.commit()
-    for performer_user, samples in newly_told.values():
-        await tell_performer(request, performer_user, user, samples, entry_type.name)
-    return RedirectResponse(f"/samples/{sample.id}#{kind.name}-{entry.id}", status_code=303)
+    if proposing:
+        await approvals.tell_owner_of_proposal(request, sample, user, entry_type.name)
+    else:
+        for performer_user, samples in newly_told.values():
+            await tell_performer(request, performer_user, user, samples, entry_type.name)
+    if kind is ANALYSIS:   # a measured thickness: it counts towards the deposition rate, or ask for it
+        found = await after_measurement(db, sample, entry, entry_type.name, user)
+        if found and found["counted"] and found["rate"] is not None:
+            request.session["flash"] = t(
+                request, "Counted towards the deposition rate of {sample}: {rate} nm/min, the average of {n} measurement."
+                if found["n"] == 1 else
+                "Counted towards the deposition rate of {sample}: {rate} nm/min, the average of {n} measurements.",
+                sample=found["source_title"], rate=f"{found['rate']:g}", n=found["n"])
+        elif found and not found["counted"]:
+            request.session["rate_prompt"] = found
+    anchor = "pending" if entry.status == "pending" else f"{kind.name}-{entry.id}"
+    return RedirectResponse(f"/samples/{sample.id}#{anchor}", status_code=303)
 
 
 # ── Warning before overwriting the other samples of a run ────────────────────

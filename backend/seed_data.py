@@ -49,6 +49,9 @@ PROCESS_STEP_TYPES = [
             num("working_pressure", "Working pressure", "mTorr", placeholder="e.g. 3"),
             num("power", "Power", "W"),
             num("gas_flow", "Gas flow", "sccm", placeholder="e.g. 20, or 20/5 for Ar/O2"),
+            # The form works the duration out from these two (see deposition_rate.last_rate)
+            num("target_thickness", "Target thickness", "nm"),
+            num("rate_used", "Rate used for the time", "nm/min", placeholder="last known rate, or typed"),
             duration("duration", "Duration", placeholder="e.g. 12:30"),
             text("station", "Station"),
             num("deposition_rate", "Deposition rate", "nm/min", placeholder="if known"),
@@ -131,12 +134,42 @@ PROCESS_STEP_TYPES = [
         ],
     },
     {
+        "name": "CMP",
+        "description": "Chemical mechanical polishing",
+        "parameter_schema": [
+            choice("slurry", "Slurry type", "cmp_slurry", default="SF1 Polishing Solutions"),
+            text("dilution", "Dilution", placeholder="e.g. 1:10 with DI water"),
+            num("slurry_flow", "Slurry flow"),   # the machine's setting: no unit
+            choice("pad", "Pad type", "cmp_pad", default="Chemomet"),
+            choice("force_mode", "Force application", "cmp_force_mode", default="Central"),
+            num("force", "Force", "N", default=20),
+            choice("rotation", "Rotation", "cmp_rotation", default="Same direction"),
+            num("carrier_speed", "Head speed", "rpm", default=30),
+            num("platen_speed", "Base speed", "rpm", default=30),
+            duration("duration", "Time", placeholder="e.g. 12:30"),
+            num("thickness_removed", "Thickness removed", "nm", placeholder="if known"),
+            num("removal_rate", "Removal rate", "nm/min", placeholder="if known"),
+        ],
+    },
+    {
+        "name": "Cleaning",
+        "description": "Cleaning the sample",
+        "parameter_schema": [
+            longtext("details", "Details", placeholder="Solvents, rinse, ultrasonic bath, time, …"),
+        ],
+    },
+    {
         "name": "Cut",
         "description": "Cutting the sample into pieces (each piece becomes its own sample)",
         "parameter_schema": [
             choice("method", "Method", "cut_method"),
             num("pieces", "Pieces"),
         ],
+    },
+    {
+        "name": "Devices made",
+        "description": "The process is done and the devices on the sample are ready (each device is listed on the sample)",
+        "parameter_schema": [],
     },
     {
         "name": "Other Process",
@@ -254,6 +287,11 @@ ANALYSIS_TYPES = [
             text("wavelength_range", "Wavelength range", placeholder="e.g. 250–1700 nm"),
             text("angles", "Angles of incidence", placeholder="e.g. 65, 70, 75°"),
             num("thickness", "Thickness", "nm"),
+            longtext("detector_settings", "Detector settings", placeholder="Gain, integration time, slit width, …"),
+            check("reference", "Reference taken", [
+                longtext("reference_details", "Reference details",
+                         placeholder="What was used as reference (air, bare substrate, …) and when it was taken"),
+            ]),
             longtext("model", "Optical model", placeholder="Layers, dispersion models, fitted parameters, MSE, …"),
         ],
     },
@@ -280,19 +318,36 @@ ANALYSIS_TYPES = [
 ]
 
 # Every technique gets an Equipment dropdown tied to the place (Where), unless
-# it has one already (Deposition's Machine, SEM). Cut has its own form.
+# it has one already (Deposition's Machine, SEM). Cut has its own form, and
+# Cleaning only asks where and the details.
 for _type in PROCESS_STEP_TYPES + ANALYSIS_TYPES:
-    if _type["name"] != "Cut":
+    if _type["name"] not in ("Cleaning", "Cut", "Devices made"):
         _type["parameter_schema"] = with_equipment(_type["parameter_schema"], _type["name"])
+
+# Where each type is usually done; a new entry's Where starts there. Types not
+# listed are done at CTN; those mapped to None can't be done at either place,
+# so Where starts empty.
+DEFAULT_LOCATIONS = {
+    "Deposition": "INESC MN", "Etching": "INESC MN", "Lithography": "INESC MN", "CMP": "INESC MN",
+    "Ellipsometry": "INESC MN", "Hall / 4-probe": "INESC MN", "Profilometry": "INESC MN", "SEM": "INESC MN",
+    "AFM": "FCUL",
+    "TEM": None, "XPS": None,
+}
+for _type in PROCESS_STEP_TYPES + ANALYSIS_TYPES:
+    _type["default_location"] = DEFAULT_LOCATIONS.get(_type["name"], "CTN")
 
 # Starting values of the shared dropdowns; people add more as they go.
 # Equipment is given as (name, place).
 CHOICE_OPTIONS = {
-    "location": ["CTN", "INESC MN"],
+    "location": ["CTN", "INESC MN", "FCUL"],
     "machine": [("Alcatel SCM 450", "INESC MN"), ("UHV1", "INESC MN"), ("UHV2", "INESC MN"), ("SentiFet", "INESC MN")],
     "deposition_technique": ["RF magnetron sputtering", "DC magnetron sputtering"],
     "atmosphere": ["Ar", "Ar + O2", "Ar + N2", "N2", "O2", "Air", "Vacuum"],
     "dry_etch_technique": ["RIE", "ICP"],
+    "cmp_slurry": ["SF1 Polishing Solutions"],
+    "cmp_pad": ["Chemomet"],
+    "cmp_force_mode": ["Central"],
+    "cmp_rotation": ["Same direction"],
     "cut_method": ["Diamond-tipped pen", "Dicing"],
     "xrd_mode": ["2θ/ω", "Rocking curve", "Grazing incidence"],
     "xps_source": ["Al Kα", "Mg Kα"],

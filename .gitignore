@@ -7,6 +7,7 @@ uploads/
 
 # Database dumps (see README "Backups")
 backup_*.sql
+/backups/
 
 # Editor / OS files
 .vscode/
@@ -30,3 +31,4 @@ Thumbs.db
 *.synctex.gz
 scripts/start-logbook.log
 scripts/.docker-up.sh
+.pytest_cache/

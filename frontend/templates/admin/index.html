@@ -142,9 +142,18 @@
         <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("To") }}</label>
         <select name="to" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
           <option value="all">{{ _("Everyone") }} ({{ users|selectattr("email")|list|length }})</option>
-          {% for u in users if u.email %}
-          <option value="{{ u.id }}">{{ u.display_name }} — {{ u.email }}</option>
-          {% endfor %}
+          {% if teams %}
+          <optgroup label="{{ _("Teams") }}">
+            {% for team in teams %}
+            <option value="team:{{ team.id }}">{{ team.name }} ({{ team.members|selectattr("user.email")|list|length }})</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+          <optgroup label="{{ _("Users") }}">
+            {% for u in users if u.email %}
+            <option value="{{ u.id }}">{{ u.display_name }} — {{ u.email }}</option>
+            {% endfor %}
+          </optgroup>
         </select>
       </div>
       <div>
@@ -164,9 +173,76 @@
   </details>
 </section>
 
+<!-- ═══ TEAMS ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-10" id="teams">
+  <h2 class="text-base font-semibold text-gray-700 mb-1">{{ _("Teams") }}</h2>
+  <p class="text-xs text-gray-500 mb-3">
+    {{ _("A team is a group inside the lab. Its coordinators can see all of its members' samples; samples set to \"Team\" are visible to everyone in the owner's team.") }}
+  </p>
+
+  {% for team in teams %}
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-3">
+    <div class="px-4 py-3 flex items-center justify-between gap-3 border-b border-gray-100">
+      <form method="post" action="/admin/teams/{{ team.id }}/rename" class="flex items-center gap-2">
+        <input name="name" value="{{ team.name }}" required class="border border-gray-200 rounded px-2 py-1 text-sm font-medium">
+        <button class="text-xs text-blue-600 hover:underline">{{ _("Rename") }}</button>
+      </form>
+      <form method="post" action="/admin/teams/{{ team.id }}/delete"
+            onsubmit='return confirm({{ _("Delete team {name}? Its members stay as users.", name=team.name)|tojson }})'>
+        <button class="text-xs text-red-500 hover:underline">{{ _("Delete") }}</button>
+      </form>
+    </div>
+    <ul class="divide-y divide-gray-100 text-sm">
+      {% for m in team.members|sort(attribute="user.username") %}
+      <li class="px-4 py-2 flex items-center justify-between">
+        <span>{{ m.user.display_name }} <span class="text-gray-400 text-xs">({{ m.user.username }})</span>
+          {% if m.is_coordinator %}<span class="ml-1 bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">{{ _("Coordinator") }}</span>{% endif %}</span>
+        <span class="space-x-3">
+          <form method="post" action="/admin/teams/{{ team.id }}/members/{{ m.user_id }}/coordinator" class="inline">
+            <button class="text-xs text-blue-600 hover:underline">{% if m.is_coordinator %}{{ _("Make member") }}{% else %}{{ _("Make coordinator") }}{% endif %}</button>
+          </form>
+          <form method="post" action="/admin/teams/{{ team.id }}/members/{{ m.user_id }}/remove" class="inline">
+            <button class="text-xs text-red-500 hover:underline">{{ _("Remove") }}</button>
+          </form>
+        </span>
+      </li>
+      {% else %}
+      <li class="px-4 py-2 text-gray-400 text-xs">{{ _("No members yet.") }}</li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="/admin/teams/{{ team.id }}/members" class="px-4 py-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
+      <select name="user_id" required class="border border-gray-200 rounded px-2 py-1 text-sm bg-white">
+        <option value="">{{ _("Add a member…") }}</option>
+        {% set member_ids = team.members|map(attribute="user_id")|list %}
+        {% for u in users if u.id not in member_ids %}
+        <option value="{{ u.id }}">{{ u.display_name }} ({{ u.username }}){% if u.memberships %} — {{ u.memberships[0].team.name }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      <label class="text-xs text-gray-600 flex items-center gap-1"><input type="checkbox" name="coordinator" value="1"> {{ _("Coordinator") }}</label>
+      <button class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">{{ _("Add") }}</button>
+    </form>
+  </div>
+  {% endfor %}
+
+  <form method="post" action="/admin/teams/new" class="flex items-center gap-2">
+    <input name="name" required placeholder="{{ _("New team name") }}" class="border border-gray-300 rounded px-2 py-1.5 text-sm">
+    <button class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">+ {{ _("Create team") }}</button>
+  </form>
+</section>
+
 <!-- ═══ CONFIGURATIONS ═══════════════════════════════════════════════════════ -->
 <h2 class="text-lg font-semibold text-gray-800 mb-1">{{ _("Configurations") }}</h2>
 <p class="text-sm text-gray-500 mb-6">{{ _("Define the process step types and analysis types available in the logbook.") }}</p>
+
+{# Where a type is usually done: a new entry's Where starts there #}
+{% macro place_select(value) %}
+<label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Usually done at") }}</label>
+<select name="default_location" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white">
+  <option value="">— {{ _("nowhere in particular") }}</option>
+  {% for p in places %}<option value="{{ p }}" {% if value == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+  {% if value and value not in places %}<option value="{{ value }}" selected>{{ value }}</option>{% endif %}
+</select>
+{% endmacro %}
 
 {% macro type_panel(title, kind, types, usage, color, example) %}
 <div>
@@ -177,6 +253,7 @@
       <summary class="px-4 py-3 cursor-pointer list-none">
         <div class="flex items-center gap-2">
           <span class="font-medium text-sm flex-1">{{ t.name }}</span>
+          {% if t.default_location %}<span class="text-xs text-gray-500">📍 {{ t.default_location }}</span>{% endif %}
           <span class="text-xs text-gray-400">{{ _("1 entry") if usage.get(t.id, 0) == 1 else _("{count} entries", count=usage.get(t.id, 0)) }}</span>
           <span class="text-xs text-{{ color }}-600 group-open:hidden">{{ _("Edit") }}</span>
         </div>
@@ -200,6 +277,7 @@
               <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Description") }}</label>
               <input name="description" value="{{ t.description or '' }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
             </div>
+            <div>{{ place_select(t.default_location) }}</div>
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Parameter Schema (JSON)") }}</label>
@@ -234,6 +312,7 @@
         <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Description") }}</label>
         <input name="description" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
       </div>
+      <div>{{ place_select(default_location) }}</div>
       <div>
         <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Parameter Schema (JSON)") }}</label>
         <textarea name="parameter_schema_json" rows="5" placeholder='{{ example }}'

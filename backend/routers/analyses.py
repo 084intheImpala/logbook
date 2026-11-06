@@ -9,6 +9,7 @@ from backend.models import Analysis
 from backend.timeline import renumber
 from backend.auth import require_login, load_sample, can_edit_entry
 from backend.entry_forms import ANALYSIS, form_page, save, get_entry, overwrite_check
+from backend.utils import delete_attachments_of
 
 router = APIRouter()
 
@@ -16,14 +17,14 @@ router = APIRouter()
 @router.get("/{sample_id}/analyses/new", response_class=HTMLResponse)
 async def new_form(request: Request, sample_id: int, db: AsyncSession = Depends(get_db),
                    current_user=Depends(require_login)):
-    sample = await load_sample(db, sample_id, current_user, "edit")
+    sample = await load_sample(db, sample_id, current_user, "propose")
     return await form_page(request, db, ANALYSIS, sample, None, current_user)
 
 
 @router.post("/{sample_id}/analyses/new")
 async def create(request: Request, sample_id: int, db: AsyncSession = Depends(get_db),
                  current_user=Depends(require_login)):
-    sample = await load_sample(db, sample_id, current_user, "edit")
+    sample = await load_sample(db, sample_id, current_user, "propose")
     return await save(request, db, ANALYSIS, sample, None, current_user)
 
 
@@ -72,6 +73,7 @@ async def delete_analysis(
     analysis = result.scalar_one_or_none()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
+    await delete_attachments_of(db, analysis_ids=[analysis_id])   # to the trash, unless shared
     await db.delete(analysis)
     await db.flush()
     await renumber(db, sample_id)

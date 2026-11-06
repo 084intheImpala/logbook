@@ -59,6 +59,8 @@ async def require_login(
         raise RequiresLoginException()
     if not user.initials and not request.url.path.startswith(PROFILE_EXEMPT_PATHS):
         raise RequiresProfileException()
+    from backend.approvals import count_to_decide   # imported here: approvals imports this module
+    user.approval_badge = await count_to_decide(db, user)
     user.suggestion_badge = await _suggestion_badge(db, user)
     user.pending_badge = (await db.execute(
         select(func.count()).select_from(Sample)
@@ -84,21 +86,55 @@ async def _suggestion_badge(db: AsyncSession, user: User) -> int:
 # ── Sample permissions ───────────────────────────────────────────────────────
 # Everyone logged in sees a sample's summary (name, materials, tags, which
 # techniques were used). Details — parameters, notes, dates, files — need
-# view access. Samples without an owner (created before logins) stay open.
+# view access: the owner, anyone it is shared with, the coordinators of the
+# owner's team, and whoever the sample's visibility lets in (team: the owner's
+# team, public: everyone). Samples without an owner (created before logins)
+# stay open.
 
 def _share_for(user: User, sample):
     return next((sh for sh in sample.shares if sh.user_id == user.id), None)
 
 
 def is_owner(user: User | None, sample) -> bool:
-    """Owner or admin: may delete the sample and manage its sharing."""
+    """Owner, admin, or coordinator of the owner's team: may change the sample,
+    delete it and manage its sharing."""
     if user is None:
         return False
-    return user.is_admin or sample.owner_id is None or sample.owner_id == user.id
+    return (user.is_admin or sample.owner_id is None or sample.owner_id == user.id
+            or is_coordinator_of(user, sample))
+
+
+def _teams(user: User | None) -> set[int]:
+    return {m.team_id for m in user.memberships} if user else set()
+
+
+def is_coordinator_of(user: User | None, sample) -> bool:
+    """A coordinator of a team the sample's owner is in."""
+    owner = sample.owner
+    if user is None or owner is None or owner.id == user.id:
+        return False
+    mine = {m.team_id for m in user.memberships if m.is_coordinator}
+    return bool(mine & _teams(owner))
+
+
+def coordinates_user(user: User | None, target: User | None) -> bool:
+    """`user` is a coordinator of a team `target` is in."""
+    if user is None or target is None:
+        return False
+    return bool({m.team_id for m in user.memberships if m.is_coordinator} & _teams(target))
+
+
+def in_owners_team(user: User | None, sample) -> bool:
+    return user is not None and sample.owner is not None and bool(_teams(user) & _teams(sample.owner))
 
 
 def can_view(user: User | None, sample) -> bool:
-    return is_owner(user, sample) or (user is not None and _share_for(user, sample) is not None)
+    if is_owner(user, sample) or (user is not None and _share_for(user, sample) is not None):
+        return True
+    if user is None:
+        return False
+    return (sample.visibility == "public"
+            or (sample.visibility == "team" and in_owners_team(user, sample)))
 
 
 def can_edit(user: User | None, sample) -> bool:
@@ -109,6 +145,23 @@ def can_edit(user: User | None, sample) -> bool:
     return bool(share and share.can_edit)
 
 
+def can_propose(user: User | None, sample) -> bool:
+    """Someone in the owner's team, without edit access, may propose an entry for the owner to approve."""
+    return (user is not None and sample.owner_id is not None and not can_edit(user, sample)
+            and in_owners_team(user, sample))
+
+
+def is_proposer(user: User | None, entry) -> bool:
+    """The author of an entry still waiting for approval can see and change it."""
+    return user is not None and entry.status == "pending" and entry.proposed_by_id == user.id
+
+
+def can_decide(user: User | None, sample) -> bool:
+    """Approve or decline a proposed entry or access request on this sample:
+    its owner, a coordinator of the owner's team, or an admin."""
+    return user is not None and sample.owner_id is not None and is_owner(user, sample)
+
+
 def is_performer(user: User | None, entry) -> bool:
     """Whoever is recorded as having performed a step or analysis can see and
     edit that entry (and its files), even without access to the sample."""
@@ -116,10 +169,11 @@ def is_performer(user: User | None, entry) -> bool:
 
 
 def can_edit_entry(user: User | None, sample, entry) -> bool:
-    return can_edit(user, sample) or is_performer(user, entry)
+    return can_edit(user, sample) or is_performer(user, entry) or is_proposer(user, entry)
 
 
-_CHECKS = {"summary": lambda u, s: True, "view": can_view, "edit": can_edit, "owner": is_owner}
+_CHECKS = {"summary": lambda u, s: True, "view": can_view, "edit": can_edit, "owner": is_owner,
+           "propose": lambda u, s: can_edit(u, s) or can_propose(u, s)}
 
 
 async def load_sample(db: AsyncSession, sample_id: int, user: User | None, need: str = "view"):

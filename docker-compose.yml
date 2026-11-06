@@ -30,5 +30,24 @@ services:
     # Hot-reload in development — comment out for production
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
+  # Daily snapshots of the database and uploads/, kept 7 days / 4 weeks / 12
+  # months (README, "Automatic backups"). BACKUP_DIR in .env says where; it
+  # defaults to ./backups next to this file. Point it at another disk when
+  # there is one.
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PGHOST: db
+      PGUSER: logbook
+      PGPASSWORD: logbook
+      PGDATABASE: logbook
+      TZ: Europe/Lisbon
+    volumes:
+      - ./uploads:/uploads:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+
 volumes:
   pgdata:
