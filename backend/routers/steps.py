@@ -5,10 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from backend.database import get_db
-from backend.models import Sample, ProcessStep
+from backend.models import Sample, ProcessStep, ProcessStepType
 from backend.timeline import renumber
 from backend.auth import require_login, load_sample, can_edit_entry
-from backend.entry_forms import STEP, form_page, save, get_entry, overwrite_check
+from backend.entry_forms import STEP, form_page, save, get_entry, overwrite_check, run_entries
+from backend.deposition_rate import DEPOSITION_TYPE_NAME, set_rate
+from backend.params import parse_form
 from backend.i18n import t
 from backend.models import Device
 from backend.routers.devices import remove_devices
@@ -59,6 +61,32 @@ async def check_overwrite(request: Request, sample_id: int, step_id: int, db: As
     """Asked by the form before saving changes to a whole run (see overwrite_check)."""
     sample, entry = await _editable(db, sample_id, step_id, current_user)
     return await overwrite_check(request, db, STEP, sample, entry, current_user)
+
+
+@router.post("/{sample_id}/steps/{step_id}/deposition-rate")
+async def add_deposition_rate(request: Request, sample_id: int, step_id: int, db: AsyncSession = Depends(get_db),
+                              current_user=Depends(require_login)):
+    """Fill in the rate offered after a thickness measurement (see backend/deposition_rate.py)
+    on this deposition and its copies in the same run, then go back to `back` (the measured sample)."""
+    sample, entry = await _editable(db, sample_id, step_id, current_user)
+    form = await request.form()
+    back = form.get("back", "")
+    back_url = f"/samples/{back}" if back.isdigit() else f"/samples/{sample_id}"
+    step_type = await db.get(ProcessStepType, entry.step_type_id)
+    if step_type.name != DEPOSITION_TYPE_NAME:
+        raise HTTPException(status_code=400, detail="Not a deposition.")
+    params, _ = parse_form({"p::rate": form.get("rate", "")}, [{"key": "rate", "type": "number"}])
+    rate = params.get("rate")
+    if not isinstance(rate, (int, float)) or rate <= 0:
+        request.session["flash_error"] = t(request, "The deposition rate must be a number above zero.")
+        return RedirectResponse(back_url, status_code=303)
+    others = [o for o, s in await run_entries(db, STEP, entry) if can_edit_entry(current_user, s, o)]
+    filled = set_rate([entry] + others, rate)
+    await db.commit()
+    if filled:
+        request.session["flash"] = t(request, "Deposition rate of {rate} nm/min added to the deposition of {sample}.",
+                                      rate=f"{rate:g}", sample=sample.title)
+    return RedirectResponse(back_url, status_code=303)
 
 
 @router.post("/{sample_id}/steps/{step_id}/delete")

@@ -21,6 +21,7 @@ from backend import approvals
 from backend.auth import can_edit, can_edit_entry, can_view
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, option_methods, remember
 from backend.config import settings
+from backend.deposition_rate import after_measurement
 from backend.i18n import t
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
@@ -259,6 +260,16 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
     else:
         for performer_user, samples in newly_told.values():
             await tell_performer(request, performer_user, user, samples, entry_type.name)
+    if kind is ANALYSIS:   # a measured thickness: it counts towards the deposition rate, or ask for it
+        found = await after_measurement(db, sample, entry, entry_type.name, user)
+        if found and found["counted"] and found["rate"] is not None:
+            request.session["flash"] = t(
+                request, "Counted towards the deposition rate of {sample}: {rate} nm/min, the average of {n} measurement."
+                if found["n"] == 1 else
+                "Counted towards the deposition rate of {sample}: {rate} nm/min, the average of {n} measurements.",
+                sample=found["source_title"], rate=f"{found['rate']:g}", n=found["n"])
+        elif found and not found["counted"]:
+            request.session["rate_prompt"] = found
     anchor = "pending" if entry.status == "pending" else f"{kind.name}-{entry.id}"
     return RedirectResponse(f"/samples/{sample.id}#{anchor}", status_code=303)
 

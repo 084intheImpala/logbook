@@ -558,6 +558,33 @@ material, technique and tag, and groups results by researcher, year, type,
 material, technique or tag. **Export results
 (CSV)** downloads the matching samples, with details left blank for
 samples you can't view. Free-text search only matches details you can see.
+Filtering by a technique also lists that technique's entries on the matching
+samples above them, newest first (undated ones last): date, sample, one
+column per parameter (with units), where, performed by and notes. Entries
+on samples you can't view are left out, unless you performed them; an entry a
+piece inherits is listed once, under the sample it is recorded on.
+
+The search form then also shows **<technique> parameters**, one filter per
+field of that technique (long texts aside): dropdowns and methods (e.g.
+Target, Machine, Annealing's Furnace/RTA) pick one of the values in use,
+numbers take a min–max range (ends included; entries without a number there
+drop out), and text fields match what they contain. Only entries matching all
+of them are listed, and only samples with such an entry are left, in the list
+and in the CSV export (query parameters `pf.<key>`, `min.<key>`, `max.<key>`).
+E.g. Thin film + Deposition + Target Ga2O3 lists every Ga2O3 deposition,
+newest first, with its power, gas flow and rate. A number field's min box
+also takes a value that isn't a number, e.g. a gas flow of `20/5`, and then
+matches it exactly. For Deposition, the rate column (and its filter) is the
+measured rate, marked *measured*/*average of n*, or the typed one, marked
+*typed*; a plot above the table shows the rates of the entries listed over
+time, one line per set of machine, target, gas, gas flow and power (the eight
+with most depositions; narrow the filters for the rest). Each set keeps its
+colour when filters change. Hovering a point shows the sample and rate;
+clicking opens it.
+
+**Columns** above the table picks which parameter columns are shown (and
+where, performed by, notes). The choice is remembered per technique in each
+person's browser (`localStorage`), so everyone keeps their own.
 Admins can download the whole database from the admin page. The CSV has one row per step/analysis, with a
 `param:<key>` column per parameter.
 
@@ -597,7 +624,7 @@ Each step or analysis type has its own fields, filled in on the form:
 
 The step types are Deposition (machine: Alcatel SCM 450, UHV1, UHV2, SentiFet;
 technique, target, atmosphere, base and working pressure, power, gas flow,
-duration, station, the deposition rate and thickness when known, and a
+duration, station, the deposition rate (nm/min) and thickness when known, and a
 calibration sample tick box with details), Annealing, Ion
 Implantation, Lithography (optical or e-beam), Etching (dry or wet), CMP (slurry
 type, dilution, slurry flow (the machine's setting, no unit), pad type, force application, force, rotation, head and base
@@ -614,6 +641,29 @@ Ellipsometry
 Analysis. On the sample page parameters are shown with their labels and
 units, and the CSV has one `param:` column per parameter (modes as
 `param:modes/Rocking curve/range`).
+
+**Deposition rate, measured.** An Ellipsometry or Profilometry analysis with a
+thickness measures the Deposition before it on the timeline, if that is the
+only deposition so far (otherwise the thickness is the whole stack's) and
+only a Cut or Cleaning came in between (an etch, CMP, anneal, … changes the
+thickness, so the measurement doesn't count). Measurements on pieces count for
+the parent's deposition, and the copies of a deposition in a run pool theirs.
+Each gives thickness ÷ the deposition's duration in nm/min; the deposition
+card lists them (technique, date, sample, thickness → rate) under **Measured
+deposition rate**, their average. Nothing is stored: it's worked out from the
+analyses, so editing or deleting one updates it. Saving such an analysis says
+what the average now is. Only measurements on samples you can view count, for
+you. Where a rate can't be worked out (a stack, or no duration), saving the
+measurement asks for the rate by hand, filling the Deposition rate field (and
+its run copies that have none); **Not now** closes the prompt. Search and plots
+use the measured rate when there is one, else the typed one.
+
+**Rate history.** Each deposition card also plots the rates of every
+deposition you can see with the same machine, target, gas (atmosphere), gas
+flow and power (case aside), over time, with this one ringed, and a table
+view. Undated depositions aren't drawn. `backend/deposition_rate.py` (the
+conditions are `CONDITION_KEYS`, the steps that keep the thickness
+`THICKNESS_KEEPING_STEPS`), `backend/rate_plot.py`, `_rate_plot.html`.
 
 ### One step or analysis on several samples
 

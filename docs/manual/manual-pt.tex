@@ -378,6 +378,24 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \end{tabularx}
 \end{center}
 
+\textbf{Taxa de deposição medida.} Uma Ellipsometry ou Profilometry com
+espessura mede a deposição anterior na cronologia, se for a única deposição
+até aí (senão a espessura é a de todo o empilhamento) e se entretanto só houve
+um corte ou uma limpeza (uma corrosão, CMP, recozimento, \ldots{} mudam a
+espessura e a medida deixa de contar). As medidas nos pedaços contam para a
+deposição da amostra-mãe, e as cópias de uma deposição no mesmo ensaio juntam
+as suas. Cada medida dá espessura a dividir pela duração, em nm/min; o cartão
+da deposição lista-as em \ui{Taxa de deposição medida}, com a média. Nada fica
+gravado: a média é recalculada a partir das análises. Ao guardar a medida, a
+página diz qual é agora a média. Se a taxa não puder ser calculada (várias
+camadas, ou sem duração), a página pergunta-a: escreva-a e carregue em
+\ui{Adicionar à deposição} (fica também nas cópias do mesmo ensaio sem taxa), ou
+\ui{Agora não}.
+
+O cartão da deposição mostra ainda um pequeno gráfico com a taxa, ao longo do
+tempo, de todas as deposições com a mesma máquina, alvo, gás, fluxo de gás e
+potência (esta assinalada com um círculo), e \ui{Em tabela} com os valores.
+
 Num passo CMP novo, o formulário já vem preenchido com a receita habitual
 (SF1 Polishing Solutions, Chemomet, força central de 20~N, mesmo sentido,
 cabeça e base a 30~rpm); altere o que for diferente.
@@ -642,6 +660,34 @@ amostra, material, técnica e etiqueta, e agrupa os resultados (por
 investigador, ano, tipo, material, técnica, etiqueta ou projeto). O texto
 livre procura em IDs, rótulos, descrições, notas, parâmetros e nomes de
 projetos, mas só nas amostras cujos detalhes pode ver.
+
+Ao filtrar por uma técnica, aparece também, por cima das amostras, a lista
+das entradas dessa técnica nas amostras encontradas, das mais recentes para
+as mais antigas (as sem data no fim): data, amostra, uma coluna por
+parâmetro (com unidades), local, quem fez e notas. Uma entrada herdada por
+pedaços aparece uma só vez, na amostra onde está registada.
+
+O formulário passa também a ter \ui{Parâmetros de \ldots}, um filtro por
+campo dessa técnica: nas listas (alvo, máquina, método, \ldots) escolhe um
+dos valores usados; nos números indica um intervalo mín.--máx. (os extremos
+contam; entradas sem número nesse campo ficam de fora); nos textos, o que o
+campo contém. Só aparecem as entradas que cumprem todos os filtros, e só as
+amostras que têm uma dessas entradas (também na exportação). Por exemplo,
+\ui{Filme fino} + Deposition + alvo Ga2O3 mostra todas as deposições de
+Ga2O3, das mais recentes para as mais antigas, com a potência, o fluxo de
+gás e a taxa de deposição. No mínimo de um campo numérico também pode
+escrever um valor que não é número, como um fluxo de gás de 20/5, para o
+procurar exatamente.
+
+Nas deposições, a coluna da taxa (e o seu filtro) usa a taxa medida (média
+das medidas de espessura) quando a há, senão a introduzida, e por cima da
+tabela aparece um gráfico da taxa ao longo do tempo, com uma linha por
+conjunto de máquina, alvo, gás, fluxo de gás e potência. Passe o rato por um
+ponto para ver a amostra e a taxa; clique para a abrir.
+
+Em \ui{Colunas}, por cima da tabela, escolha que colunas quer ver. A escolha
+fica guardada para cada técnica no seu navegador, por isso cada pessoa vê as
+suas.
 
 \ui{Exportar resultados (CSV)} descarrega as amostras encontradas, com uma
 linha por passo ou análise e uma coluna \texttt{param:\ldots} por

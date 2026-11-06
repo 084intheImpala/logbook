@@ -1,0 +1,80 @@
+{#- Deposition rate over time (geometry from backend/rate_plot.py).
+    Colours: the categorical palette, light and dark steps; text never wears a series colour. -#}
+{% macro rate_plot(plot, title=None) %}
+{% if plot %}
+<style>
+  .viz-root { --viz-surface: #ffffff; --viz-grid: #e5e7eb; --viz-axis: #6b7280; --viz-ink: #111827;
+    --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+    --series-5: #e87ba4; --series-6: #008300; --series-7: #6250d6; --series-8: #e34948; }
+  html.dark .viz-root { --viz-surface: #1a212c; --viz-grid: #2f3846; --viz-axis: #a3acb9; --viz-ink: #f3f4f6;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767; }
+  .viz-root .viz-hit { fill: transparent; cursor: pointer; }
+  .viz-tip { pointer-events: none; }
+</style>
+<figure class="viz-root relative" data-rate-plot>
+  {% if title %}<figcaption class="text-xs font-semibold text-gray-600 mb-1">{{ title }}</figcaption>{% endif %}
+  <svg viewBox="0 0 {{ plot.width }} {{ plot.height }}" class="w-full h-auto" role="img"
+       aria-label="{{ _("Deposition rate over time") }}">
+    {% for t in plot.y_ticks %}
+    <line x1="{{ plot.left }}" x2="{{ plot.right }}" y1="{{ t.y }}" y2="{{ t.y }}" stroke="var(--viz-grid)" stroke-width="1"/>
+    <text x="{{ plot.left - 6 }}" y="{{ t.y }}" dy="0.32em" text-anchor="end" font-size="11" fill="var(--viz-axis)">{{ t.label }}</text>
+    {% endfor %}
+    <text x="{{ plot.left - 6 }}" y="9" dy="0.32em" text-anchor="end" font-size="11" fill="var(--viz-axis)">nm/min</text>
+    {% for t in plot.x_ticks %}
+    <text x="{{ t.x }}" y="{{ plot.bottom + 18 }}" text-anchor="{{ 'start' if loop.first else 'end' if loop.last else 'middle' }}"
+          font-size="11" fill="var(--viz-axis)">{{ t.label }}</text>
+    {% endfor %}
+    {% for s in plot.series %}
+    {% if s.points|length > 1 %}
+    <path d="{{ s.path }}" fill="none" stroke="var(--series-{{ s.slot }})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    {% endif %}
+    {% endfor %}
+    {% for s in plot.series %}{% for p in s.points %}
+    {% if p.highlight %}<circle cx="{{ p.x }}" cy="{{ p.y }}" r="8" fill="none" stroke="var(--viz-ink)" stroke-width="1.5"/>{% endif %}
+    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ 5 if p.highlight else 4 }}" fill="var(--series-{{ s.slot }})" stroke="var(--viz-surface)" stroke-width="2"/>
+    {% endfor %}{% endfor %}
+    {% for s in plot.series %}{% for p in s.points %}
+    <a href="/samples/{{ p.sample.id }}#step-{{ p.step_id }}">
+      <circle class="viz-hit" cx="{{ p.x }}" cy="{{ p.y }}" r="11"
+              data-tip="{{ p.date.isoformat() }} · {{ p.sample.title }}&#10;{{ '%g'|format(p.rate) }} nm/min{% if p.n > 1 %} ({{ _('average of {n}', n=p.n) }}){% elif p.n == 0 %} ({{ _('typed') }}){% endif %}{% if plot.series|length > 1 %}&#10;{{ s.label }}{% endif %}">
+        <title>{{ p.date.isoformat() }} · {{ p.sample.title }}: {{ '%g'|format(p.rate) }} nm/min</title>
+      </circle>
+    </a>
+    {% endfor %}{% endfor %}
+  </svg>
+  <div class="viz-tip hidden absolute z-10 bg-white border border-gray-200 shadow-md rounded-md px-2 py-1 text-xs text-gray-800 whitespace-pre-line"></div>
+  {% if plot.series|length > 1 %}
+  <ul class="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-600">
+    {% for s in plot.series %}
+    <li class="flex items-center gap-1.5"><svg width="14" height="8" aria-hidden="true"><line x1="0" x2="14" y1="4" y2="4" stroke="var(--series-{{ s.slot }})" stroke-width="2"/><circle cx="7" cy="4" r="3" fill="var(--series-{{ s.slot }})"/></svg>{{ s.label }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if plot.hidden or plot.undated %}
+  <p class="text-xs text-gray-400 mt-1">
+    {% if plot.hidden %}{{ _("{n} more sets of conditions not drawn: narrow the filters.", n=plot.hidden) }}{% endif %}
+    {% if plot.undated %}{{ _("{n} without a date not drawn.", n=plot.undated) }}{% endif %}
+  </p>
+  {% endif %}
+</figure>
+<script>
+  // Tooltip on hover (and focus) of each point
+  document.querySelectorAll('[data-rate-plot]:not([data-ready])').forEach(fig => {
+    fig.dataset.ready = '1';
+    const tip = fig.querySelector('.viz-tip');
+    fig.querySelectorAll('.viz-hit').forEach(hit => {
+      hit.addEventListener('mouseenter', () => {
+        const box = fig.getBoundingClientRect(), dot = hit.getBoundingClientRect();
+        tip.textContent = hit.dataset.tip;
+        tip.classList.remove('hidden');
+        const left = Math.min(dot.left - box.left + dot.width / 2 + 8, box.width - tip.offsetWidth);
+        tip.style.left = Math.max(0, left) + 'px';
+        tip.style.top = Math.max(0, dot.top - box.top - tip.offsetHeight - 4) + 'px';
+      });
+      hit.addEventListener('mouseleave', () => tip.classList.add('hidden'));
+    });
+  });
+</script>
+{% endif %}
+{% endmacro %}
