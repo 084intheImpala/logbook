@@ -74,6 +74,7 @@ SAMPLE_TYPE_HELP = {
 # team; public: everyone logged in. Coordinators of the owner's team see all of
 # their members' samples whatever the setting.
 VISIBILITY = {"personal": "Personal", "team": "Team", "public": "Public"}
+DEFAULT_VISIBILITY = "team"   # what a new sample starts at
 POLISHING = {"single": "Single side", "double": "Double side", "none": "Unpolished"}
 
 
@@ -149,7 +150,7 @@ class Sample(Base):
     cut_step_id: Mapped[int | None] = mapped_column(
         ForeignKey("process_steps.id", use_alter=True, name="fk_samples_cut_step_id"), index=True)
     is_reference: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
-    visibility: Mapped[str] = mapped_column(String(10), default="personal", server_default="personal", nullable=False)
+    visibility: Mapped[str] = mapped_column(String(10), default=DEFAULT_VISIBILITY, server_default=DEFAULT_VISIBILITY, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     owner: Mapped["User | None"] = relationship(

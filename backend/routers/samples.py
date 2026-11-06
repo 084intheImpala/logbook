@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
-from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
+from backend.models import (DEFAULT_VISIBILITY, Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
                             Substrate, Project, User, Suggestion, SAMPLE_TYPES, SAMPLE_TYPE_HELP, VISIBILITY, AccessRequest)
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
@@ -201,7 +201,7 @@ async def new_sample_form(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
-    sample = Sample(sample_type="thin_film")
+    sample = Sample(sample_type="thin_film", visibility=DEFAULT_VISIBILITY)
     return templates.TemplateResponse(
         "samples/form.html", await _form_context(db, request, current_user, sample, editing=False))
 
@@ -220,7 +220,7 @@ async def create_sample(
     description: str = Form(""),
     tags: str = Form(""),
     owner_id: str = Form(""),
-    visibility: str = Form("personal"),
+    visibility: str = Form(DEFAULT_VISIBILITY),
     files: list[UploadFile | str] = File([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
@@ -245,7 +245,7 @@ async def create_sample(
         sample = Sample()
         _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                                          external_id, supplier, description, tags))
-        sample.visibility = visibility if visibility in VISIBILITY else "personal"
+        sample.visibility = visibility if visibility in VISIBILITY else DEFAULT_VISIBILITY
         if user_id:
             pending = _hand_over(sample, user_id, by_id, by_admin)
         return sample

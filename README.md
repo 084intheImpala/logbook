@@ -428,8 +428,9 @@ longer has stay as they were. Example, trimmed:
 ## Devices on a sample
 
 When several devices come out of one sample, finish the process that makes
-them, then click **Make devices** next to *Add Process Step*, *Add Analysis* and
-*Cut into pieces* on the sample's page (the dialog explains it too, and lists
+them, then click **⚡ Make devices** next to *Cut into pieces*, on the right
+of the sample page's buttons (*Add Process Step*, *Plan a step* and *Add
+Analysis* are on the left) (the dialog explains it too, and lists
 the existing devices so you can remove one): give the labels (D1, D2, …, or just how many) and the date. This puts
 a **Devices made** step on the timeline, listing the devices; everything
 before it is their shared history. Steps added afterwards, such as annealing,
@@ -491,8 +492,8 @@ parameters, notes, dates and files) are visible to:
 - anyone the sample's **visibility** lets in.
 
 **Visibility** is set per sample, when it is created and at any time later,
-either on the sample's *Edit* page or under *Sharing* (owner or admin): **Personal** (the default: only the people above),
-**Team** (also everyone in the owner's team) or **Public** (everyone logged
+either on the sample's *Edit* page or under *Sharing* (owner or admin): **Personal** (only the people above),
+**Team** (the default: also everyone in the owner's team) or **Public** (everyone logged
 in). A piece cut from a sample starts with its parent's visibility. Visibility
 only decides who can *see* details; changing a sample still needs an explicit
 **Edit** share (or being the owner or an admin).
