@@ -8,7 +8,7 @@
   changes also go in the README's data model / `sample.json` table (bump `FORMAT` in `backend/sample_backup.py`).
 - Every user-visible string is translated: English in the code/templates, Portuguese in `backend/translations/`.
   In templates, don't put `"` inside a `_("...")` string.
-- Schema changes are Alembic migrations in `backend/migrations/versions` (next number, `0010`, …).
+- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0017`).
 - Add tests in `tests/` for new behaviour. They run on a throwaway SQLite DB; never touch the real DB or `uploads/`.
   This machine isn't the DB host: say what needs running there (e.g. migrations).
 - Commit directly (no feature branches); currently on `restructure`. Only commit when asked.
@@ -43,5 +43,9 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
 - **Activity log** of management actions for admins/coordinators (`activity.py`).
 - **Add files** tab (`routers/attach.py`): find entries across samples (type, dates, done by me) and attach the
   same photos/files to all ticked ones; stored once and shared (`copy_attachment`).
+- **Planned entries** (`planned` on steps and analyses): "Plan a step" on the sample page; shown dashed on the
+  timeline, left out of search, exports, rates and inheritance (`lineage.own_items(planned=False)` by default) until
+  "Mark as done". The Deposition form works the duration out from Target thickness ÷ Rate used for the time, with
+  "Use the last known rate" (`deposition_rate.last_rate`, `/samples/{id}/steps/last-rate`).
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).

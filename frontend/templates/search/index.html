@@ -23,7 +23,7 @@
      class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Export results (CSV)") }}</a>
 </div>
 
-<form method="get" action="/search" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 space-y-3">
+<form method="get" action="/search{% if entry_view %}#technique-entries{% endif %}" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 space-y-3">
   <input name="q" type="search" value="{{ filters.q }}" autofocus
          placeholder="{{ _("Search IDs, labels, external IDs, descriptions, notes, parameters…") }}"
          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -56,31 +56,32 @@
     <summary class="text-xs font-semibold text-gray-600 cursor-pointer select-none">
       {{ _("{technique} parameters", technique=filters.technique) }}{% if entry_view.active %} · {{ _("{n} filter on", n=entry_view.active) if entry_view.active == 1 else _("{n} filters on", n=entry_view.active) }}{% endif %}
     </summary>
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mt-3">
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-x-3 gap-y-2 mt-3">
       {% for f in entry_view.fields %}
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">{{ f.label }}{% if f.unit %} <span class="font-normal text-gray-400">({{ f.unit }})</span>{% endif %}</label>
+      <div class="min-w-0">
+        <label class="block text-xs font-medium text-gray-600 mb-0.5 truncate" title="{{ f.label }}{% if f.unit %} ({{ f.unit }}){% endif %}">{{ f.label }}{% if f.unit %} <span class="font-normal text-gray-400">({{ f.unit }})</span>{% endif %}</label>
         {% if f.type == "choice" %}
-        <select name="pf.{{ f.key }}" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
+        <select name="pf.{{ f.key }}" class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white">
           <option value="">{{ _("Any") }}</option>
           {% for v in f.choices %}<option value="{{ v }}" {% if (entry_view.query.get('pf.' ~ f.key) or '')|lower == v|lower %}selected{% endif %}>{{ v }}</option>{% endfor %}
         </select>
         {% elif f.type == "number" %}
         <div class="flex items-center gap-1">
           <input name="min.{{ f.key }}" placeholder="{{ _("min") }}" title="{{ _("A number, or a value such as 20/5 to match it exactly") }}" value="{{ entry_view.query.get('min.' ~ f.key, '') }}"
-                 class="w-full min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+                 class="w-full min-w-0 border border-gray-300 rounded-lg px-2 py-1 text-sm">
           <span class="text-gray-400 text-xs">–</span>
           <input name="max.{{ f.key }}" inputmode="decimal" placeholder="{{ _("max") }}" value="{{ entry_view.query.get('max.' ~ f.key, '') }}"
-                 class="w-full min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+                 class="w-full min-w-0 border border-gray-300 rounded-lg px-2 py-1 text-sm">
         </div>
         {% else %}
         <input name="pf.{{ f.key }}" placeholder="{{ _("contains") }}" value="{{ entry_view.query.get('pf.' ~ f.key, '') }}"
-               class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+               class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm">
         {% endif %}
       </div>
       {% endfor %}
     </div>
-    <p class="text-xs text-gray-400 mt-2">{{ _("Only entries matching all of these are listed, and only samples with such an entry. Ranges include their ends.") }}</p>
+    <p class="text-xs text-gray-400 mt-2">{{ _("Only entries matching all of these are listed, and only samples with such an entry. Ranges include their ends.") }}
+      {{ _("Parameters no entry has are left out.") }}</p>
   </details>
   {% endif %}
   <div class="flex gap-3">

@@ -211,6 +211,10 @@ def technique_view(request: Request, family: Family, results, user, technique: s
     choices = {f["key"]: sorted({str(r["entry"].parameters[f["key"]]) for r in rows
                                  if (r["entry"].parameters or {}).get(f["key"]) not in (None, "")}, key=str.lower)
                for f in fields if f.get("type") == "choice"}
+    # Only offer filters for parameters some entry has (and those in use), so
+    # the form stays short enough to see the plot and the table below it
+    used = {k for r in rows for k, v in r["params"].items() if v not in (None, "")} | set(filters)
+    fields = [f for f in fields if f["key"] in used]
     if filters:
         rows = [r for r in rows if entry_matches(r["params"], filters)]
         matched = {(r["kind"], r["entry"].id) for r in rows}

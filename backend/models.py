@@ -267,6 +267,9 @@ class ProcessStep(Base):
     status: Mapped[str] = mapped_column(String(10), default="approved", server_default="approved", nullable=False)
     proposed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     proposed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Planned, not done yet: shown on the sample's timeline, left out of search,
+    # exports, deposition rates and what pieces inherit until marked done.
+    planned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps", foreign_keys=[sample_id])
@@ -317,6 +320,9 @@ class Analysis(Base):
     status: Mapped[str] = mapped_column(String(10), default="approved", server_default="approved", nullable=False)
     proposed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     proposed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Planned, not done yet: shown on the sample's timeline, left out of search,
+    # exports, deposition rates and what pieces inherit until marked done.
+    planned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="analyses")

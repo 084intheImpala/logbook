@@ -133,10 +133,10 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 Substrate         (shared library: material, orientation, thickness, polishing, spec files)
 Project           (collaboration or commercial supplier: name, institution or company, code used in its samples' IDs, contact)
 Sample            (generated ID, type, optional label and tags)
- ├── ProcessStep  (can repeat types, e.g. two annealings)
+ ├── ProcessStep  (can repeat types, e.g. two annealings; planned or done)
  │    └── Attachment (uploaded files)
  ├── Device       (D1, D2, …; made by a "Devices made" step)
- └── Analysis     (XRD, RBS, SEM, …; optionally on one Device)
+ └── Analysis     (XRD, RBS, SEM, …; optionally on one Device; planned or done)
       └── Attachment (data files, images)
 ```
 
@@ -236,6 +236,30 @@ Steps and analyses share one timeline per sample, ordered by an explicit
   or to override the dates altogether.
 - **Sort by date** puts the dated entries back in date order, keeping the
   order you chose within a day; undated entries keep their places.
+
+**Planned entries.** **Plan a step** on the sample page opens the step form
+with **Planned, not done yet** ticked (the box is on every step and analysis
+form). A planned entry sits on the timeline like the others, with a dashed
+amber border, a *Planned* badge and its date shown as "for <date>". Until it
+is done it is left out of search (the entries table, the filters and the
+technique dropdown), the CSV exports, deposition rates and plots, and what a
+piece inherits. **Mark as done** on its card opens the edit form with the box
+unticked: check the values, the date included, fill in what was only known on
+the day (for a deposition, the base and working pressure) and save. The flag is
+the `planned` column on `process_steps` and `analyses` (migration `0016`).
+
+**Deposition duration calculator.** The Deposition form has **Target
+thickness** (nm) and **Rate used for the time** (nm/min) before the Duration:
+filling both in works the duration out (thickness ÷ rate, as min:s), on a
+planned deposition or any other. **Use the last known rate** under the rate
+fills it in with the rate of the latest deposition you can see whose machine,
+target, gas, gas flow and power match those filled in on the form (empty ones
+match anything), measured if it was measured, and says which deposition that
+is. Both values are kept on the entry, so a planned deposition records the
+rate its time came from. They're separate from the Deposition rate field (the
+rate actually achieved), so they don't count as rates in search and plots.
+Migration `0016` adds the two fields to an existing Deposition type, before its
+Duration, keeping any changes an admin made to it.
 
 ### Photos and files
 
@@ -354,7 +378,7 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 4: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`). |
+| `format` | Version of this layout (currently 5: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
 | `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk` or `project`; `visibility` is `personal`, `team` or `public`. |
@@ -371,7 +395,8 @@ technique, e.g. `Annealing`), `position`, `performed_at` (a date), `location`,
 `performed_by` (`{username, name, initials}` for a user, `{name}` for someone
 without an account, or `null`), `notes`, `run_id` (entries added to several
 samples at once share it), `status` (`approved`, or `pending` for an entry a
-teammate proposed that the owner hasn't approved), `proposed_by`, `created_at`,
+teammate proposed that the owner hasn't approved), `proposed_by`, `planned`
+(`true` for an entry planned and not done yet), `created_at`,
 `files` (`file` is the path under `uploads/`, plus `original_name`, `size`,
 `mime_type`, `uploaded_by`, `uploaded_at`) and **`parameters`**. An analysis
 also has `device`: the label of the device it was measured on, or `null`.
@@ -601,7 +626,9 @@ on samples you can't view are left out, unless you performed them; an entry a
 piece inherits is listed once, under the sample it is recorded on.
 
 The search form then also shows **<technique> parameters**, one filter per
-field of that technique (long texts aside): dropdowns and methods (e.g.
+field of that technique that some listed entry has (long texts aside, and
+fields no entry fills in left out, so the form stays short enough to see the
+plot and table; a filter in use stays): dropdowns and methods (e.g.
 Target, Machine, Annealing's Furnace/RTA) pick one of the values in use,
 numbers take a min–max range (ends included; entries without a number there
 drop out), and text fields match what they contain. Only entries matching all
@@ -616,7 +643,8 @@ measured rate, marked *measured*/*average of n*, or the typed one, marked
 time, one line per set of machine, target, gas, gas flow and power (the eight
 with most depositions; narrow the filters for the rest). Each set keeps its
 colour when filters change. Hovering a point shows the sample and rate;
-clicking opens it.
+clicking opens it. Searching with a technique chosen jumps down to its
+entries table.
 
 **Columns** above the table picks which parameter columns are shown (and
 where, performed by, notes). The choice is remembered per technique in each
@@ -665,7 +693,8 @@ Each step or analysis type has its own fields, filled in on the form:
 
 The step types are Deposition (machine: Alcatel SCM 450, UHV1, UHV2, SentiFet;
 technique, target, atmosphere, base and working pressure, power, gas flow,
-duration, station, the deposition rate (nm/min) and thickness when known, and a
+target thickness and the rate used for the time (see the duration calculator
+under [Timeline](#timeline)), duration, station, the deposition rate (nm/min) and thickness when known, and a
 calibration sample tick box with details), Annealing, Ion
 Implantation, Lithography (optical or e-beam), Etching (dry or wet), CMP (slurry
 type, dilution, slurry flow (the machine's setting, no unit), pad type, force application, force, rotation, head and base

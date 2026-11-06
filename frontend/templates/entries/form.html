@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% set is_step = kind == "step" %}
 {% set ring = "focus:ring-blue-500" if is_step else "focus:ring-emerald-500" %}
-{% set heading = (_("Edit Process Step") if entry else _("Add Process Step")) if is_step else (_("Edit Analysis") if entry else _("Add Analysis")) %}
+{% set heading = (_("Edit Process Step") if entry else _("Plan a Process Step") if planned else _("Add Process Step")) if is_step
+                 else (_("Edit Analysis") if entry else _("Plan an Analysis") if planned else _("Add Analysis")) %}
 {% block title %}{{ heading }} — {{ sample.title }}{% endblock %}
 {% block content %}
 {% from "_performer.html" import performer_field, date_field with context %}
@@ -23,6 +24,11 @@
     {% endif %}
   </div>
 
+  {% if marking_done %}
+  <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
+    {{ _("Marking a planned entry as done: check the values, the date included, and fill in what was only known on the day (for a deposition, the base and working pressure).") }}
+  </div>
+  {% endif %}
   {% if error %}
   <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ error }}</div>
   {% endif %}
@@ -65,6 +71,13 @@
         <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Where") }}</label>
         {{ choice_input("location", options.get(location_list), location, ring) }}
       </div>
+    </div>
+    <div>
+      <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+        <input type="checkbox" name="planned" value="1" {% if planned %}checked{% endif %}>
+        {{ _("Planned, not done yet") }}
+      </label>
+      <p class="text-xs text-gray-400 mt-1">{{ _("Shown on the sample's timeline as planned, with the date it's planned for; left out of search, exports and deposition rates until it's marked done.") }}</p>
     </div>
 
     <!-- Parameters of the chosen type -->
@@ -410,6 +423,58 @@
     form.dataset.confirmed = '1';
     form.submit();
   });
+  {% endif %}
+
+  {% if deposition_type_id %}
+  // Deposition: the duration is worked out from the target thickness and a
+  // rate, typed or the last known one for the conditions filled in (machine,
+  // target, gas, gas flow, power).
+  (function () {
+    const block = form.querySelector('.type-fields[data-type="{{ deposition_type_id }}"]');
+    const field = key => block && block.querySelector(`[name="p::${key}"]`);
+    const thickness = field('target_thickness'), rate = field('rate_used'), duration = field('duration');
+    if (!thickness || !rate || !duration) return;   // an admin removed the fields
+    const number = el => parseFloat((el.value || '').replace(',', '.'));
+    const button = Object.assign(document.createElement('button'), {
+      type: 'button', className: 'mt-1 text-xs text-blue-600 hover:underline',
+      textContent: {{ _("Use the last known rate")|tojson }}});
+    const note = Object.assign(document.createElement('p'), {className: 'text-xs text-gray-500 mt-1'});
+    const hint = Object.assign(document.createElement('p'), {className: 'text-xs text-gray-400 mt-1'});
+    rate.after(button, note);
+    duration.after(hint);
+    hint.textContent = {{ _("Fill in the target thickness and the rate to work it out.")|tojson }};
+    function workOut() {
+      const nm = number(thickness), perMin = number(rate);
+      if (!(nm > 0 && perMin > 0)) return;
+      const seconds = Math.round(nm / perMin * 60);
+      duration.value = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+      hint.textContent = {{ _("Worked out: {nm} nm ÷ {rate} nm/min.")|tojson }}
+        .replace('{nm}', nm).replace('{rate}', perMin);
+    }
+    thickness.addEventListener('input', workOut);
+    rate.addEventListener('input', workOut);
+    button.addEventListener('click', async () => {
+      const query = new URLSearchParams();
+      ['machine', 'target', 'atmosphere', 'gas_flow', 'power'].forEach(key => {
+        const el = field(key);
+        if (el && el.value && el.value !== '__new__') query.append('p::' + key, el.value);
+      });
+      note.textContent = '…';
+      try {
+        const data = await (await fetch(`/samples/{{ sample.id }}/steps/last-rate?${query}`)).json();
+        note.replaceChildren(data.message);
+        if (data.url) {
+          const link = Object.assign(document.createElement('a'), {
+            href: data.url, target: '_blank', className: 'ml-1 text-blue-600 hover:underline',
+            textContent: {{ _("see it")|tojson }}});
+          note.append(link);
+        }
+        if (data.rate != null) { rate.value = data.rate; workOut(); }
+      } catch (err) {
+        note.textContent = {{ _("Couldn't get the last rate.")|tojson }};
+      }
+    });
+  })();
   {% endif %}
 
   sync();

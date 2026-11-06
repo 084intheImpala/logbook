@@ -1,6 +1,6 @@
 """Adding, editing and deleting process steps (the form itself is in backend/entry_forms.py)."""
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -9,7 +9,8 @@ from backend.models import Sample, ProcessStep, ProcessStepType
 from backend.timeline import renumber
 from backend.auth import require_login, load_sample, can_edit_entry
 from backend.entry_forms import STEP, form_page, save, get_entry, overwrite_check, run_entries
-from backend.deposition_rate import DEPOSITION_TYPE_NAME, set_rate
+from backend import rate_plot
+from backend.deposition_rate import CONDITION_KEYS, DEPOSITION_TYPE_NAME, all_samples, last_rate, set_rate
 from backend.params import parse_form
 from backend.i18n import t
 from backend.models import Device
@@ -31,6 +32,31 @@ async def create(request: Request, sample_id: int, db: AsyncSession = Depends(ge
                  current_user=Depends(require_login)):
     sample = await load_sample(db, sample_id, current_user, "propose")
     return await save(request, db, STEP, sample, None, current_user)
+
+
+@router.get("/{sample_id}/steps/last-rate")
+async def last_known_rate(request: Request, sample_id: int, db: AsyncSession = Depends(get_db),
+                          current_user=Depends(require_login)):
+    """For the Deposition form's duration calculator: the rate of the latest
+    deposition with the conditions filled in on the form (sent as p::<key>)."""
+    await load_sample(db, sample_id, current_user, "propose")
+    step_type = (await db.execute(select(ProcessStepType).where(ProcessStepType.name == DEPOSITION_TYPE_NAME))).scalar_one()
+    params, _ = parse_form(request.query_params, step_type.parameter_schema)
+    if not any(params.get(k) not in (None, "") for k in CONDITION_KEYS):
+        return JSONResponse({"rate": None, "message": t(request, "Choose the machine, target, gas, gas flow or power first.")})
+    point = last_rate(current_user, await all_samples(db), params)
+    if point is None:
+        return JSONResponse({"rate": None, "message": t(request, "No deposition with these conditions has a rate yet.")})
+    how = (t(request, "average of {n}", n=point.n) if point.n > 1 else t(request, "measured") if point.n
+           else t(request, "typed"))
+    return JSONResponse({
+        "rate": point.rate,
+        "message": t(request, "{rate} nm/min ({how}), from {sample} on {date}: {conditions}",
+                     rate=f"{point.rate:g}", how=how, sample=point.sample.title,
+                     date=point.step.performed_at.isoformat() if point.step.performed_at else "—",
+                     conditions=rate_plot.condition_label(point.step)),
+        "url": f"/samples/{point.sample.id}#step-{point.step.id}",
+    })
 
 
 async def _editable(db, sample_id: int, entry_id: int, user):

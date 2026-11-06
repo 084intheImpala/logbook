@@ -328,7 +328,7 @@ async def sample_detail(
         raise HTTPException(status_code=404, detail="Sample not found")
     viewable = can_view(current_user, sample)
     fam = await load_family(db, sample)
-    items = fam["family"].timeline(sample)
+    items = fam["family"].timeline(sample, planned=True)
 
     # Viewing a piece includes its inherited history; inherited entries are
     # also visible to whoever can view the sample they're recorded on.
@@ -369,6 +369,7 @@ async def sample_detail(
             "pieces": fam["pieces_by_cut"].get(e.id, []) if not inherited else [],
             "photos": [a for a in attachments.get(e.id, []) if _is_image(a)],
             "files": [a for a in attachments.get(e.id, []) if not _is_image(a)],
+            "planned": e.planned,
             "edit_url": f"/samples/{sample_id}/{path}/{e.id}/edit",
             "delete_url": f"/samples/{sample_id}/{path}/{e.id}/delete",
         })

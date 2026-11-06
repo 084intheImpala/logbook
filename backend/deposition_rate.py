@@ -17,6 +17,7 @@ search and plots is the measured one if there is one, else the typed one.
 """
 from dataclasses import dataclass
 from datetime import date
+from types import SimpleNamespace
 
 from sqlalchemy import select
 
@@ -151,7 +152,7 @@ async def after_measurement(db, sample, analysis, type_name: str, user) -> dict 
     rate; {"counted": False, ...} to ask for the rate by hand (a stack, or no
     duration), if the deposition has none yet and the user may edit it."""
     thickness = _number((analysis.parameters or {}).get("thickness"))
-    if type_name not in THICKNESS_ANALYSES or thickness is None or analysis.status != "approved":
+    if type_name not in THICKNESS_ANALYSES or thickness is None or analysis.status != "approved" or analysis.planned:
         return None
     samples = await all_samples(db)
     family = Family(samples)
@@ -193,7 +194,7 @@ class RatePoint:
 
 
 def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePoint]:
-    """Deposition step id → RatePoint, for every approved deposition on
+    """Deposition step id → RatePoint, for every approved deposition (not planned) on
     `samples` that `user` can see (all samples should be given, so that
     measurements on pieces and run copies are found)."""
     family = family or Family(samples)
@@ -206,7 +207,7 @@ def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePo
     points = {}
     for sample in samples:
         for step in sample.process_steps:
-            if step.status != "approved" or step.step_type.name != DEPOSITION_TYPE_NAME:
+            if step.status != "approved" or step.planned or step.step_type.name != DEPOSITION_TYPE_NAME:
                 continue
             if not (can_view(user, sample) or is_performer(user, step)):
                 continue
@@ -215,3 +216,16 @@ def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePo
             rate, n = effective_rate(step, found)
             points[step.id] = RatePoint(step, sample, rate, n, found)
     return points
+
+
+def last_rate(user, samples, params: dict) -> RatePoint | None:
+    """The latest deposition with a rate whose conditions match those filled
+    in `params` (machine, target, gas, gas flow, power; empty ones match
+    anything), among those `user` can see: what a new deposition's duration
+    can be worked out from. Undated depositions count as the oldest."""
+    wanted = {i: v for i, v in enumerate(conditions(SimpleNamespace(parameters=params))) if v is not None}
+    if not wanted:
+        return None
+    found = [p for p in rate_points(user, samples).values()
+             if p.rate is not None and all(conditions(p.step)[i] == v for i, v in wanted.items())]
+    return max(found, key=lambda p: (p.step.performed_at or date.min, p.step.id), default=None)

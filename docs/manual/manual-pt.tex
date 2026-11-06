@@ -371,6 +371,7 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \end{itemize}
 
 \subsection{Tipos disponíveis}
+\label{sec:types}
 
 \begin{center}
 \begin{tabularx}{\linewidth}{@{}lX@{}}
@@ -402,6 +403,17 @@ camadas, ou sem duração), a página pergunta-a: escreva-a e carregue em
 O cartão da deposição mostra ainda um pequeno gráfico com a taxa, ao longo do
 tempo, de todas as deposições com a mesma máquina, alvo, gás, fluxo de gás e
 potência (esta assinalada com um círculo), e \ui{Em tabela} com os valores.
+
+\textbf{Calcular a duração de uma deposição.} O formulário da Deposition tem,
+antes da duração, \ui{Espessura pretendida} (nm) e \ui{Taxa usada para o
+tempo} (nm/min): preenchidas as duas, a duração é calculada (espessura a
+dividir pela taxa, em min:s). \ui{Usar a última taxa conhecida}, por baixo da
+taxa, vai buscar a taxa da deposição mais recente (das que pode ver) com a
+mesma máquina, alvo, gás, fluxo de gás e potência que preencheu (os campos
+vazios aceitam qualquer valor), a medida se a houver, e diz de que deposição
+é. Os dois valores ficam guardados na entrada, separados da \ui{Taxa de
+deposição} (a taxa realmente obtida), e não contam como taxas na pesquisa nem
+nos gráficos. Serve para qualquer deposição, planeada ou não.
 
 Num passo CMP novo, o formulário já vem preenchido com a receita habitual
 (SF1 Polishing Solutions, Chemomet, força central de 20~N, mesmo sentido,
@@ -508,6 +520,23 @@ data vai para o fim.
         cronológica, mantendo a sua ordem dentro de cada dia. As entradas
         sem data ficam onde estão.
 \end{itemize}
+
+\subsection{Passos planeados}
+\label{sec:planned}
+
+\ui{Planear um passo}, na página da amostra, abre o formulário do passo com
+\ui{Planeado, ainda não feito} assinalado (a caixa está em todos os
+formulários de passos e análises). Ponha a data para que está planeado e o
+que já sabe; numa deposição, por exemplo, a máquina, o alvo, o gás, o fluxo,
+a potência, a espessura pretendida e a taxa, e a duração é calculada
+(Secção~\ref{sec:types}).
+
+Uma entrada planeada aparece na cronologia com um contorno tracejado, a
+etiqueta \ui{Planeado} e a data como ``para \ldots''. Enquanto não for feita
+fica fora da pesquisa, das exportações, das taxas de deposição e do que os
+pedaços herdam. No dia, carregue em \ui{Marcar como feito} no cartão: abre-se
+o formulário com a caixa desassinalada; confirme os valores (e a data) e
+preencha o que só se soube no dia, como a pressão de base e a de trabalho.
 
 %=====================================================================
 \section{Vários dispositivos numa amostra}
@@ -695,7 +724,9 @@ amostras que têm uma dessas entradas (também na exportação). Por exemplo,
 Ga2O3, das mais recentes para as mais antigas, com a potência, o fluxo de
 gás e a taxa de deposição. No mínimo de um campo numérico também pode
 escrever um valor que não é número, como um fluxo de gás de 20/5, para o
-procurar exatamente.
+procurar exatamente. Só aparecem filtros para os parâmetros que alguma das
+entradas tem, para o formulário não ficar demasiado comprido; ao pesquisar,
+a página salta para a tabela das entradas.
 
 Nas deposições, a coluna da taxa (e o seu filtro) usa a taxa medida (média
 das medidas de espessura) quando a há, senão a introduzida, e por cima da
@@ -895,7 +926,7 @@ cópia da base de dados continua a ser a cópia de segurança principal.
 \subsubsection*{Estrutura do \texttt{sample.json}}
 
 O ficheiro é JSON simples (UTF-8), legível sem a aplicação. No topo:
-\texttt{format} (versão do formato, atualmente 3), \texttt{written\_at},
+\texttt{format} (versão do formato, atualmente 5), \texttt{written\_at},
 \texttt{code} (o ID) e \texttt{previous\_codes} (IDs anteriores), os dados da
 amostra (\texttt{label}, \texttt{sample\_type}, \texttt{visibility},
 \texttt{tags}, \texttt{description}, \texttt{film\_material}, \ldots),
@@ -912,7 +943,8 @@ Cada entrada de \texttt{timeline} tem \texttt{kind} (\texttt{step} ou
 \texttt{performed\_at}, \texttt{location}, \texttt{performed\_by},
 \texttt{notes}, nas análises \texttt{device} (o nome do dispositivo, ou
 \texttt{null}), \texttt{status} (\texttt{approved}, ou \texttt{pending} se foi
-proposta por um colega e ainda não aprovada), \texttt{files} (o caminho em
+proposta por um colega e ainda não aprovada), \texttt{planned}
+(\texttt{true} se está planeada e ainda não foi feita), \texttt{files} (o caminho em
 \texttt{uploads/}, o nome original, etc.) e \texttt{parameters}: um objeto com
 uma chave por campo do tipo de entrada, com números como números e texto como
 texto. Num campo de escolha entre variantes (por exemplo Forno/RTA em

@@ -347,6 +347,11 @@
     </svg>
     {{ _("Add Process Step") }}
   </a>
+  <a href="/samples/{{ sample.id }}/steps/new?planned=1"
+     title="{{ _("A step to do later, e.g. a deposition with its duration worked out from the target thickness") }}"
+     class="inline-flex items-center gap-1.5 text-sm border-2 border-dashed border-amber-400 text-amber-800 px-4 py-1.5 rounded-lg hover:bg-amber-50">
+    {{ _("Plan a step") }}
+  </a>
   <a href="/samples/{{ sample.id }}/analyses/new"
      class="inline-flex items-center gap-1.5 text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 shadow-sm">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,7 +457,7 @@
       <!-- Card -->
       <div id="{{ 'step' if is_process else 'analysis' }}-{{ entry.id }}"
            class="{% if entry.editable %}drop-card {% endif %}bg-white rounded-xl border shadow-sm overflow-hidden
-                  {% if is_process %}border-blue-100{% else %}border-emerald-100{% endif %}">
+                  {% if entry.planned %}border-2 border-dashed border-amber-300{% elif is_process %}border-blue-100{% else %}border-emerald-100{% endif %}">
 
         <!-- Card header -->
         <div class="flex items-center gap-3 px-5 py-3
@@ -462,6 +467,10 @@
                        {% if is_process %}bg-blue-100 text-blue-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">
             {{ _("Process") if is_process else _("Analysis") }}
           </span>
+          {% if entry.planned %}
+          <span class="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-amber-100 text-amber-800"
+                title="{{ _("Not done yet: left out of search, exports and deposition rates until it's marked done") }}">{{ _("Planned") }}</span>
+          {% endif %}
           <span class="font-semibold text-gray-900 flex-1">{{ entry.type_name }}
             {% if entry.inherited %}
             <a href="/samples/{{ entry.source.id }}" class="ml-2 text-xs font-normal text-gray-500 hover:underline"
@@ -472,7 +481,7 @@
           </span>
           <div class="flex items-center gap-3 text-xs text-gray-400 shrink-0">
             {% if entry.visible and entry.performed_at %}
-              <span>{{ entry.performed_at.strftime('%Y-%m-%d') }}</span>
+              <span>{% if entry.planned %}{{ _("for {date}", date=entry.performed_at.strftime('%Y-%m-%d')) }}{% else %}{{ entry.performed_at.strftime('%Y-%m-%d') }}{% endif %}</span>
             {% endif %}
             {% if entry.visible and entry.performed_by %}
               <span>{{ _("by {name}", name=entry.performed_by) }}</span>
@@ -480,6 +489,10 @@
           </div>
           {% if entry.editable %}
           <div class="flex items-center gap-1 shrink-0 ml-2">
+            {% if entry.planned %}
+            <a href="{{ entry.edit_url }}?done=1"
+               class="text-xs bg-amber-500 text-white px-2.5 py-1 rounded-lg hover:bg-amber-600 mr-1">{{ _("Mark as done") }}</a>
+            {% endif %}
             {% if can_edit %}
             {% for dir, arrow, show in [("up", "↑", not entry.first_own), ("down", "↓", not entry.last_own)] %}
             <form method="post" action="/samples/{{ sample.id }}/timeline/move" class="inline">
@@ -676,6 +689,10 @@
     <a href="/samples/{{ sample.id }}/steps/new"
        class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
       {{ _("Add Process Step") }}
+    </a>
+    <a href="/samples/{{ sample.id }}/steps/new?planned=1"
+       class="text-sm border-2 border-dashed border-amber-400 text-amber-800 px-4 py-1.5 rounded-lg hover:bg-amber-50">
+      {{ _("Plan a step") }}
     </a>
     <a href="/samples/{{ sample.id }}/analyses/new"
        class="text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">

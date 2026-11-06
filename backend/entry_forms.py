@@ -21,7 +21,7 @@ from backend import approvals
 from backend.auth import can_edit, can_edit_entry, can_view
 from backend.choices import LOCATION_LIST, option_lists, option_locations, option_methods, remember
 from backend.config import settings
-from backend.deposition_rate import after_measurement
+from backend.deposition_rate import DEPOSITION_TYPE_NAME, after_measurement
 from backend.i18n import t
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
@@ -131,6 +131,13 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
                                 for f, when in vary_choices(ty.parameter_schema)] for ty in types},
         "run_candidates": await _run_candidates(db, user, sample, run),
         "photo_max_px": settings.PHOTO_MAX_PX,
+        # Planned, not done yet: ticked on a new entry from "Plan a step" (?planned=1),
+        # unticked by "Mark as done" (?done=1)
+        "planned": (bool(entry.planned) and not request.query_params.get("done")) if entry
+                   else bool(request.query_params.get("planned")),
+        "marking_done": bool(entry and entry.planned and request.query_params.get("done")),
+        # The duration calculator shows with this type's fields
+        "deposition_type_id": next((ty.id for ty in types if ty.name == DEPOSITION_TYPE_NAME), None),
         "error": error,
     }, status_code=status_code)
 
@@ -173,6 +180,7 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         "parameters": params or None,
         "notes": form.get("notes", "").strip() or None,
         "location": location,
+        "planned": bool(form.get("planned")),
     }
     device_id = form.get("device_id", "")
     device = next((d for d in sample.devices if str(d.id) == device_id), None) if kind is ANALYSIS else None

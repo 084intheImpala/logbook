@@ -49,6 +49,9 @@ PROCESS_STEP_TYPES = [
             num("working_pressure", "Working pressure", "mTorr", placeholder="e.g. 3"),
             num("power", "Power", "W"),
             num("gas_flow", "Gas flow", "sccm", placeholder="e.g. 20, or 20/5 for Ar/O2"),
+            # The form works the duration out from these two (see deposition_rate.last_rate)
+            num("target_thickness", "Target thickness", "nm"),
+            num("rate_used", "Rate used for the time", "nm/min", placeholder="last known rate, or typed"),
             duration("duration", "Duration", placeholder="e.g. 12:30"),
             text("station", "Station"),
             num("deposition_rate", "Deposition rate", "nm/min", placeholder="if known"),

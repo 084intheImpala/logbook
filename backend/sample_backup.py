@@ -30,7 +30,7 @@ from backend.utils import _safe
 log = logging.getLogger("uvicorn.error")
 
 FILE_NAME = "sample.json"
-FORMAT = 4   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"
+FORMAT = 5   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries
 
 # What changed since the last write: ("sample" | "step" | "analysis", id), or
 # ("gone", folder) for a deleted sample. Filled as the database is changed.
@@ -80,6 +80,7 @@ def _entry(kind: str, entry, type_name: str, attachments: dict) -> dict:
         "parameters": entry.parameters, "notes": entry.notes, "run_id": entry.run_id,
         # "pending" entries were proposed by a teammate and aren't approved yet
         "status": entry.status, "proposed_by": _person(entry.proposer),
+        "planned": entry.planned,   # planned, not done yet
         "created_at": entry.created_at,
         "files": [_attachment(a) for a in attachments.get((kind, entry.id), [])],
     }

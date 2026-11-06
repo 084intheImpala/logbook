@@ -36,11 +36,18 @@ def _pos(entry) -> int:
     return entry.position if entry.position is not None else _LAST
 
 
-def own_items(sample: Sample) -> list[Item]:
-    """The sample's own steps and analyses (types must be loaded), in timeline order."""
-    # Proposed entries waiting for approval aren't part of the timeline yet
-    items = [Item("process", s.step_type.name, s, sample) for s in sample.process_steps if s.status == "approved"]
-    items += [Item("analysis", a.analysis_type.name, a, sample) for a in sample.analyses if a.status == "approved"]
+def _counts(entry, planned: bool) -> bool:
+    # Proposed entries waiting for approval aren't part of the timeline yet;
+    # planned ones only where asked for (the sample page), not in search,
+    # exports, rates or what pieces inherit.
+    return entry.status == "approved" and (planned or not entry.planned)
+
+
+def own_items(sample: Sample, planned: bool = False) -> list[Item]:
+    """The sample's own steps and analyses (types must be loaded), in timeline
+    order; with `planned`, the planned ones too."""
+    items = [Item("process", s.step_type.name, s, sample) for s in sample.process_steps if _counts(s, planned)]
+    items += [Item("analysis", a.analysis_type.name, a, sample) for a in sample.analyses if _counts(a, planned)]
     return sorted(items, key=lambda i: (_pos(i.entry), i.entry.id))
 
 
@@ -65,8 +72,9 @@ class Family:
         before_cut = [i for i in own_items(parent) if _pos(i.entry) < _pos(cut)]
         return self.inherited(parent, seen) + before_cut
 
-    def timeline(self, sample: Sample) -> list[Item]:
-        return self.inherited(sample) + own_items(sample)
+    def timeline(self, sample: Sample, planned: bool = False) -> list[Item]:
+        """Inherited entries, then the sample's own (its planned ones too, with `planned`)."""
+        return self.inherited(sample) + own_items(sample, planned)
 
 
 def _full_options():
