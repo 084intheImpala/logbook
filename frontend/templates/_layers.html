@@ -1,0 +1,87 @@
+{#- The film stack of a thin-film sample (geometry from backend/layers.py): the
+    substrate, one rectangle per deposition, and beside each layer how thick it
+    is, how that's known and the process steps it went through since.
+    Colours: the categorical palette by material, as in _rate_plot.html. -#}
+{% macro layer_stack(d, sample) %}
+{% if d %}
+<style>
+  .layers-root { --viz-surface: #ffffff; --viz-axis: #6b7280; --viz-ink: #111827; --viz-muted: #4b5563;
+    --substrate: #d1d5db;
+    --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+    --series-5: #e87ba4; --series-6: #008300; --series-7: #6250d6; --series-8: #e34948; }
+  html.dark .layers-root { --viz-surface: #1a212c; --viz-axis: #a3acb9; --viz-ink: #f3f4f6; --viz-muted: #c4cad3;
+    --substrate: #4b5563;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767; }
+  .layers-root a:hover rect { stroke: var(--viz-ink); stroke-width: 1.5; }
+</style>
+{% set sources = {
+  "measured": _("measured"),
+  "entered": _("thickness entered on the step"),
+  "rate": _("from the deposition rate × duration"),
+  "target": _("target thickness"),
+} %}
+<section id="layers" class="layers-root mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+  <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+    <h2 class="text-sm font-semibold text-gray-900">{{ _("Layers") }}</h2>
+    <p class="text-xs text-gray-500">
+      {%- if d.total %}{{ _("Total") }} {{ '%g'|format(d.total) }} nm{% if not d.all_known %} {{ _("(not counting the layers of unknown thickness)") }}{% endif %} · {% endif -%}
+      {{ _("Films to scale, the substrate not") }}{% if d.clamped %}; {{ _("very thin films drawn thicker") }}{% endif %}
+    </p>
+  </div>
+  <div class="overflow-x-auto">{# on a phone, scroll rather than shrink the text #}
+  <svg viewBox="0 0 {{ d.width }} {{ d.height }}" class="w-full h-auto max-w-3xl min-w-[540px]" role="img"
+       aria-label="{{ _("Layers on the substrate") }}" font-family="ui-sans-serif, system-ui, sans-serif">
+    <defs>
+      <pattern id="substrate-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect width="8" height="8" fill="var(--substrate)"/>
+        <line x1="0" y1="0" x2="0" y2="8" stroke="var(--viz-surface)" stroke-width="2" opacity="0.5"/>
+      </pattern>
+    </defs>
+
+    {# Substrate #}
+    <rect x="{{ d.x }}" y="{{ d.substrate_y }}" width="{{ d.w }}" height="{{ d.substrate_h }}" fill="url(#substrate-hatch)"/>
+    <line x1="{{ d.x + d.w }}" y1="{{ d.substrate_y + d.substrate_h / 2 }}" x2="{{ d.label_x - 6 }}" y2="{{ d.substrate_label_y + 7 }}"
+          stroke="var(--viz-axis)" stroke-width="1"/>
+    <text x="{{ d.label_x }}" y="{{ d.substrate_label_y + 11 }}" font-size="12" font-weight="600" fill="var(--viz-ink)">
+      {%- if sample.substrate %}{{ sample.substrate.material }}{% if sample.substrate.orientation %} ({{ sample.substrate.orientation }}){% endif %}{% else %}{{ _("Substrate") }}{% endif %}</text>
+    <text x="{{ d.label_x }}" y="{{ d.substrate_label_y + 25 }}" font-size="11" fill="var(--viz-axis)">
+      {%- if sample.substrate %}{{ _("Substrate") }}: {{ sample.substrate.name }}{% if sample.substrate.thickness_um %}, {{ '%g'|format(sample.substrate.thickness_um) }} µm{% endif %}{% else %}{{ _("not set") }}{% endif %}</text>
+
+    {# Films, top first #}
+    {% for l in d.layers %}
+    {% set g = l.geometry %}
+    <a href="#step-{{ l.step.id }}">
+      <rect x="{{ d.x }}" y="{{ g.y }}" width="{{ d.w }}" height="{{ g.h }}"
+            fill="var(--series-{{ l.slot }})" fill-opacity="{{ 0.25 if l.planned else 0.85 }}"
+            stroke="{{ 'var(--series-' ~ l.slot ~ ')' if l.planned else 'var(--viz-surface)' }}" stroke-width="1"
+            {% if l.planned %}stroke-dasharray="4 3"{% endif %}>
+        <title>{{ l.material or _("Unknown material") }}{% if l.thickness %} · {{ '%g'|format(l.thickness) }} nm{% endif %}</title>
+      </rect>
+    </a>
+    <line x1="{{ d.x + d.w }}" y1="{{ g.mid }}" x2="{{ d.label_x - 6 }}" y2="{{ g.lead_y }}" stroke="var(--viz-axis)" stroke-width="1"/>
+    <a href="#step-{{ l.step.id }}">
+      <text x="{{ d.label_x }}" y="{{ g.label_y + 11 }}" font-size="12" font-weight="600" fill="var(--viz-ink)">
+        {{- l.material or _("Unknown material") }} · {% if l.thickness %}{{ '%g'|format(l.thickness) }} nm{% else %}? nm{% endif %}
+        {%- if l.planned %} ({{ _("planned deposition") }}){% endif %}</text>
+    </a>
+    <text x="{{ d.label_x }}" y="{{ g.label_y + 25 }}" font-size="11" fill="var(--viz-axis)">
+      {{- sources[l.source] if l.source else _("thickness unknown") }}
+      {%- if l.source == "measured" and l.n > 1 %} ({{ _("average of {n}", n=l.n) }}){% endif %}
+      {%- if l.removed %} · {{ _("{nm} nm removed by CMP", nm='%g'|format(l.removed)) }}{% endif %}
+      {%- if l.step.performed_at %} · {{ l.step.performed_at.isoformat() }}{% endif %}
+      {%- if l.sample.id != sample.id %} · {{ _("from {sample}", sample=l.sample.title) }}{% endif %}</text>
+    {% for p in l.processes %}
+    <a href="#step-{{ p.step.id }}">
+      <text x="{{ d.label_x + 10 }}" y="{{ g.label_y + 39 + loop.index0 * 14 }}" font-size="11"
+            fill="var(--viz-muted)"{% if p.planned %} font-style="italic"{% endif %}>
+        {{- "↳ " }}{{ p.name }}{% if p.summary %} · {{ p.summary }}{% endif %}
+        {%- if p.planned %} ({{ _("planned") }}){% elif p.step.performed_at %} · {{ p.step.performed_at.isoformat() }}{% endif %}</text>
+    </a>
+    {% endfor %}
+    {% endfor %}
+  </svg>
+  </div>
+</section>
+{% endif %}
+{% endmacro %}

@@ -116,14 +116,12 @@ PT = {
     "The deposition rate must be a number above zero.": "A taxa de deposição tem de ser um número maior que zero.",
     "Deposition rate of {rate} nm/min added to the deposition of {sample}.":
         "Taxa de deposição de {rate} nm/min adicionada à deposição de {sample}.",
-    # Measured deposition rate and its history (backend/deposition_rate.py, _rate_plot.html)
+    # Measured deposition rate (backend/deposition_rate.py) and the rate plot (_rate_plot.html, search page)
     "Measured deposition rate": "Taxa de deposição medida",
     "average of {n}": "média de {n}",
     "from 1 measurement": "de 1 medida",
     "no duration recorded, so no rate": "sem duração registada, por isso sem taxa",
     "on": "em",
-    "Rate history with the same conditions": "Histórico da taxa nas mesmas condições",
-    "As a table": "Em tabela",
     "measured": "medida",
     "typed": "introduzida",
     "Deposition rate over time": "Taxa de deposição ao longo do tempo",

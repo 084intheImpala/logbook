@@ -313,7 +313,8 @@ pode:
   \item \ui{Adicionar passo de processo} e \ui{Adicionar análise};
   \item \ui{Dividir em pedaços} (Secção~\ref{sec:cut});
   \item criar \ui{Dispositivos} (Secção~\ref{sec:devices});
-  \item reordenar a cronologia (Secção~\ref{sec:timeline}).
+  \item reordenar a cronologia (Secção~\ref{sec:timeline});
+  \item ver as camadas de um filme fino, por cima da cronologia.
 \end{itemize}
 
 %=====================================================================
@@ -400,9 +401,26 @@ camadas, ou sem duração), a página pergunta-a: escreva-a e carregue em
 \ui{Adicionar à deposição} (fica também nas cópias do mesmo ensaio sem taxa), ou
 \ui{Agora não}.
 
-O cartão da deposição mostra ainda um pequeno gráfico com a taxa, ao longo do
-tempo, de todas as deposições com a mesma máquina, alvo, gás, fluxo de gás e
-potência (esta assinalada com um círculo), e \ui{Em tabela} com os valores.
+O gráfico da taxa ao longo do tempo está na pesquisa (Secção~\ref{sec:search}),
+não no cartão da deposição.
+
+\textbf{Camadas.} Numa amostra de filme fino, por cima da cronologia aparece o
+empilhamento: o substrato (tracejado, fora de escala) e um retângulo por
+deposição, de baixo para cima, incluindo as herdadas da amostra-mãe. As
+deposições planeadas aparecem a tracejado. Os filmes estão à escala entre si
+(os muito finos são desenhados um pouco mais grossos, e a legenda avisa).
+O material é o alvo da deposição (ou o material do filme da amostra), com uma
+cor por material. A espessura é, por esta ordem: a média das medidas de
+espessura, a espessura escrita no passo, a taxa de deposição × a duração, ou
+a espessura pretendida; a legenda diz de onde vem. Um CMP com espessura
+removida tira essa espessura às camadas de cima.
+
+Ao lado de cada camada aparecem os passos de processo por que passou depois
+de depositada (recozimentos, implantação, CMP, \ldots), com os primeiros
+parâmetros e a data. Por exemplo, depositar 100~nm, recozer a 1000~°C,
+depositar 200~nm e recozer a 400~°C: a camada de baixo mostra os dois
+recozimentos e a de cima só o de 400~°C. Clique numa camada ou num passo para
+ir para ele na cronologia.
 
 \textbf{Calcular a duração de uma deposição.} O formulário da Deposition tem,
 antes da duração, \ui{Espessura pretendida} (nm) e \ui{Taxa usada para o
@@ -699,7 +717,7 @@ usa. Uma instituição pode ter vários projetos; escolha-a entre as
 sugestões, para ficar sempre escrita da mesma maneira.
 
 %=====================================================================
-\section{Pesquisa e exportação}
+\section{Pesquisa e exportação}\label{sec:search}
 %=====================================================================
 
 A \menu{Pesquisa} filtra as amostras por texto livre, investigador, tipo de

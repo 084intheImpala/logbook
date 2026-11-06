@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_rate_plot.html" import rate_plot with context %}
+{% from "_layers.html" import layer_stack with context %}
 {% block title %}{{ sample.title }} — Logbook{% endblock %}
 {% block content %}
 {% macro param_rows(rows) %}
@@ -423,6 +423,9 @@
 </dialog>
 {% endif %}
 
+<!-- Layers: the film stack, thin films only (backend/layers.py) -->
+{{ layer_stack(layers, sample) }}
+
 <!-- ═══ UNIFIED TIMELINE ══════════════════════════════════════════════════ -->
 {% if timeline %}
 <div class="relative">
@@ -545,8 +548,8 @@
         </div>
         {% endif %}
 
-        <!-- Deposition: thickness measurements, measured rate, rate history (backend/deposition_rate.py) -->
-        {% if entry.rate and (entry.rate.measured or entry.rate.plot) %}
+        <!-- Deposition: thickness measurements and the measured rate (backend/deposition_rate.py); the rate history plot is on the search page -->
+        {% if entry.rate and entry.rate.measured %}
         <div class="px-5 pb-3 pt-2 border-t border-gray-50 space-y-2">
           {% if entry.rate.measured %}
           <div class="text-sm">
@@ -566,27 +569,6 @@
               {{ '%g'|format(m.thickness) }} nm{% if m.rate is not none %} → {{ '%g'|format(m.rate) }} nm/min{% endif %}</li>
             {% endfor %}
           </ul>
-          {% endif %}
-          {% if entry.rate.plot %}
-          <details class="text-sm" open>
-            <summary class="text-xs text-gray-500 cursor-pointer select-none">{{ _("Rate history with the same conditions") }} <span class="text-gray-400">({{ entry.rate.conditions }})</span></summary>
-            <div class="mt-2 max-w-2xl">
-              {{ rate_plot(entry.rate.plot) }}
-              <details class="mt-1">
-                <summary class="text-xs text-gray-400 cursor-pointer select-none">{{ _("As a table") }}</summary>
-                <table class="text-xs mt-1">
-                  {% for p in entry.rate.history %}
-                  <tr class="{% if p.step.id == entry.id %}font-semibold{% endif %}">
-                    <td class="pr-3 text-gray-500">{{ p.step.performed_at.isoformat() if p.step.performed_at else '—' }}</td>
-                    <td class="pr-3"><a href="/samples/{{ p.sample.id }}#step-{{ p.step.id }}" class="font-mono text-blue-600 hover:underline">{{ p.sample.title }}</a></td>
-                    <td class="pr-3 text-gray-700">{{ '%g'|format(p.rate) }} nm/min</td>
-                    <td class="text-gray-400">{{ _("average of {n}", n=p.n) if p.n > 1 else _("measured") if p.n else _("typed") }}</td>
-                  </tr>
-                  {% endfor %}
-                </table>
-              </details>
-            </div>
-          </details>
           {% endif %}
         </div>
         {% endif %}

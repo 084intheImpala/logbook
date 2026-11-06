@@ -47,5 +47,8 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   timeline, left out of search, exports, rates and inheritance (`lineage.own_items(planned=False)` by default) until
   "Mark as done". The Deposition form works the duration out from Target thickness ÷ Rate used for the time, with
   "Use the last known rate" (`deposition_rate.last_rate`, `/samples/{id}/steps/last-rate`).
+- **Layers** (`layers.py`, `_layers.html`): a thin-film sample's page draws its film stack (one layer per
+  Deposition, thickness from measurements / typed / rate × duration / target, CMP takes off the top) with the
+  process steps each layer went through since. The rate-over-time plot is on the search page only.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).

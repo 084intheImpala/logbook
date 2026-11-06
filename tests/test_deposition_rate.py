@@ -1,5 +1,5 @@
 """Deposition rates measured from thickness measurements (on the sample, its
-pieces and its run), the prompt for a rate by hand, and the rate plots."""
+pieces and its run), the prompt for a rate by hand, and the rate plots (search page)."""
 import re
 from datetime import date
 from types import SimpleNamespace
@@ -216,28 +216,19 @@ def test_bad_rates_and_strangers_are_refused(world):
                          data={"rate": "1"}).status_code == 403
 
 
-def test_the_sample_page_plots_depositions_with_the_same_conditions(world):
+def test_the_sample_page_shows_the_measured_rate_but_no_rate_plot(world):
+    """The rate history plot is on the search page only (Search by technique: Deposition)."""
     owner = world.user("rate-history")
     client = world.client(owner)
     target = f"T-{owner.username}"   # conditions no other test uses
-    a, b, c = world.sample(owner), world.sample(owner), world.sample(owner)
-    _deposit(client, a, "2026-01-05", machine="UHV1", target=target, atmosphere="Ar", gas_flow="20", power="100",
-             deposition_rate="10")
-    _deposit(client, b, "2026-02-05", machine="UHV1", target=target, atmosphere="Ar", gas_flow="20", power="100",
-             duration="10")
+    a, b = world.sample(owner), world.sample(owner)
+    _deposit(client, a, "2026-01-05", machine="UHV1", target=target, deposition_rate="10")
+    _deposit(client, b, "2026-02-05", machine="UHV1", target=target, duration="10")
     _measure(client, b, thickness="120")
-    _deposit(client, c, "2026-03-05", machine="UHV1", target=target, atmosphere="Ar", gas_flow="20", power="150",
-             deposition_rate="15")
 
     html = client.get(f"/samples/{b.id}").text
-    assert "Histórico da taxa nas mesmas condições" in html and "data-rate-plot" in html
-    assert html.count('class="viz-hit"') == 2        # a and b; c had another power
-    assert f"UHV1 · {target} · Ar · 20 sccm · 100 W" in html
-    table = html[html.index("Em tabela"):]
-    assert a.code in table and b.code in table and c.code not in table
-    assert "12 nm/min" in table and "introduzida" in table
-    # c alone with its conditions: no plot
-    assert "data-rate-plot" not in client.get(f"/samples/{c.id}").text
+    assert "12 nm/min" in html and "data-rate-plot" not in html
+    assert "Histórico da taxa nas mesmas condições" not in html
 
 
 def test_search_uses_the_measured_rate_and_plots_it(world):
