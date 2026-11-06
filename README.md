@@ -275,7 +275,7 @@ use the **Add files** tab (`/attach`, `routers/attach.py`). Filter by type
 **Today** and **Yesterday** shortcuts), sample or notes, and **Done by me**
 (on by default: entries you performed). Only entries you can edit are listed,
 newest first, up to 300. Tick them (or tick all), choose photos and/or files
-and press **Add to the ticked entries**: each file is stored once, in the
+in the fields above the list and press **Add to the ticked entries**: each file is stored once, in the
 first ticked entry's folder, and shared by the others, as for a run.
 
 - **Photos** larger than 2560 px or 2 MB are rotated upright, downscaled and
