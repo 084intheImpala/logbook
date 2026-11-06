@@ -1,23 +1,37 @@
-"""Asking for the deposition rate once a film's thickness is measured.
+"""Deposition rates, measured from the thickness of the film.
 
-After an Ellipsometry or Profilometry analysis with a thickness is saved on a
-thin film, the sample page offers to fill in the Deposition rate (nm/min) of the
-Deposition step before it on the timeline (inherited ones included, e.g. a
-piece's parent's), if that step has no rate yet. The suggested rate is the
-thickness over the deposition's duration, offered only when that deposition
-is the only one before the measurement (otherwise the thickness is of the
-whole stack, and the field is left for the user to fill in).
+An Ellipsometry or Profilometry analysis with a thickness measures the
+Deposition before it on the timeline, when that is the only deposition so far
+(otherwise the thickness is of the whole stack) and nothing that changes the
+thickness (etching, CMP, annealing, …: anything outside THICKNESS_KEEPING_STEPS)
+was done in between. Pieces count: a piece inherits its parent's timeline, so a
+measurement on a piece measures the parent's deposition. Copies of one
+deposition on several samples (a run) were deposited together, so their
+measurements are pooled.
+
+Each such measurement gives a rate, thickness ÷ the deposition's duration, in
+nm/min. The deposition's *measured rate* is their average. Where there is none
+(a stack, no duration), the rate can still be typed in the Deposition rate
+field; after such a measurement the sample page asks for it. The rate used for
+search and plots is the measured one if there is one, else the typed one.
 """
+from dataclasses import dataclass
+from datetime import date
+
 from sqlalchemy import select
 
-from backend.auth import can_edit_entry
-from backend.lineage import _full_options, load_family
+from backend.auth import can_edit_entry, can_view, is_performer
+from backend.lineage import Family, Item, _full_options
 from backend.models import Sample
 
 DEPOSITION_TYPE_NAME = "Deposition"
 RATE_KEY = "deposition_rate"
 # Analyses whose "thickness" is the film's thickness
 THICKNESS_ANALYSES = {"Ellipsometry", "Profilometry"}
+# Steps between a deposition and a measurement that leave the film's thickness as it was
+THICKNESS_KEEPING_STEPS = {"Cut", "Cleaning"}
+# What the rate depends on: depositions are compared (plots) when these all match
+CONDITION_KEYS = ("machine", "target", "atmosphere", "gas_flow", "power")
 
 
 def duration_seconds(value) -> int | None:
@@ -34,40 +48,127 @@ def _number(value) -> float | None:
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0 else None
 
 
-async def rate_prompt(db, sample, analysis, type_name: str, user) -> dict | None:
-    """What to ask after `analysis` was saved on `sample`, or None."""
+@dataclass
+class Measurement:
+    item: Item                 # the analysis, and the sample it is recorded on
+    deposition: Item           # the deposition it measures
+    thickness: float           # nm
+    rate: float | None         # nm/min; None when the deposition has no duration
+
+    @property
+    def sample(self) -> Sample:
+        return self.item.source
+
+
+@dataclass
+class Context:
+    """Where a thickness analysis sits on a timeline."""
+    deposition: Item | None    # the last deposition before it
+    depositions: int           # how many depositions before it
+    changed: bool              # a thickness-changing step since the last deposition
+
+
+def _walk(family: Family, sample: Sample):
+    """(analysis item, Context) for each thickness analysis on the sample's timeline."""
+    last, count, changed = None, 0, False
+    for item in family.timeline(sample):
+        if item.kind == "process":
+            if item.technique == DEPOSITION_TYPE_NAME:
+                last, count, changed = item, count + 1, False
+            elif item.technique not in THICKNESS_KEEPING_STEPS:
+                changed = True
+        elif item.technique in THICKNESS_ANALYSES:
+            yield item, Context(last, count, changed)
+
+
+def measurements(family: Family, samples) -> dict[int, list[Measurement]]:
+    """Deposition step id → the thickness measurements of it, found on the
+    timelines of `samples` (they and their ancestors must be in `family`)."""
+    found: dict[int, list[Measurement]] = {}
+    seen = set()
+    for sample in samples:
+        for item, ctx in _walk(family, sample):
+            thickness = _number((item.entry.parameters or {}).get("thickness"))
+            if item.entry.id in seen or thickness is None:
+                continue
+            seen.add(item.entry.id)   # a piece also lists its parent's analyses
+            if ctx.deposition is None or ctx.depositions != 1 or ctx.changed:
+                continue
+            seconds = duration_seconds((ctx.deposition.entry.parameters or {}).get("duration"))
+            rate = float(f"{thickness / seconds * 60:.4g}") if seconds else None
+            found.setdefault(ctx.deposition.entry.id, []).append(Measurement(item, ctx.deposition, thickness, rate))
+    return found
+
+
+def run_copies(samples, step) -> list:
+    """The other copies of `step` in its run."""
+    if not step.run_id:
+        return []
+    return [s for sample in samples for s in sample.process_steps if s.run_id == step.run_id and s.id != step.id]
+
+
+def pooled(by_step: dict[int, list[Measurement]], step, copies=()) -> list[Measurement]:
+    """The measurements of `step` and of its run `copies`, oldest first."""
+    found = [m for s in [step, *copies] for m in by_step.get(s.id, [])]
+    return sorted(found, key=lambda m: (m.item.entry.performed_at or date.max, m.item.entry.id))
+
+
+def visible(user, found: list[Measurement]) -> list[Measurement]:
+    return [m for m in found if can_view(user, m.sample) or is_performer(user, m.item.entry)]
+
+
+def average(found: list[Measurement]) -> float | None:
+    rates = [m.rate for m in found if m.rate is not None]
+    return float(f"{sum(rates) / len(rates):.4g}") if rates else None
+
+
+def effective_rate(step, found: list[Measurement]) -> tuple[float | None, int]:
+    """The rate to use for `step`: (the average of its measurements, how many),
+    or (the typed Deposition rate, 0)."""
+    measured = [m for m in found if m.rate is not None]
+    if measured:
+        return average(measured), len(measured)
+    return _number((step.parameters or {}).get(RATE_KEY)), 0
+
+
+def conditions(step) -> tuple:
+    """The deposition's machine, target, gas, gas flow and power, for matching (case and spacing ignored)."""
+    params = step.parameters or {}
+    return tuple(str(params.get(k)).strip().lower() if params.get(k) not in (None, "") else None
+                 for k in CONDITION_KEYS)
+
+
+async def all_samples(db) -> list[Sample]:
+    """Every sample with its entries, freshly loaded (the session may hold
+    entries from before a save)."""
+    return list((await db.execute(select(Sample).options(*_full_options()).order_by(Sample.id)
+                                  .execution_options(populate_existing=True))).scalars())
+
+
+async def after_measurement(db, sample, analysis, type_name: str, user) -> dict | None:
+    """What to tell or ask after `analysis` was saved on `sample`, or None:
+    {"counted": True, ...} when it counts towards the deposition's measured
+    rate; {"counted": False, ...} to ask for the rate by hand (a stack, or no
+    duration), if the deposition has none yet and the user may edit it."""
     thickness = _number((analysis.parameters or {}).get("thickness"))
-    if (type_name not in THICKNESS_ANALYSES or thickness is None or sample.sample_type != "thin_film"
-            or analysis.status != "approved"):
+    if type_name not in THICKNESS_ANALYSES or thickness is None or analysis.status != "approved":
         return None
-    # Reloaded: the session may hold the sample's entries from before the save
-    full = (await db.execute(select(Sample).options(*_full_options()).where(Sample.id == sample.id)
-                             .execution_options(populate_existing=True))).scalar_one()
-    items = (await load_family(db, full))["family"].timeline(full)
-    index = next((i for i, item in enumerate(items) if item.kind == "analysis" and item.entry.id == analysis.id), None)
-    if index is None:
+    samples = await all_samples(db)
+    family = Family(samples)
+    me = next(s for s in samples if s.id == sample.id)
+    ctx = next((c for item, c in _walk(family, me) if item.entry.id == analysis.id), None)
+    if ctx is None or ctx.deposition is None or ctx.changed:
         return None
-    depositions = [item for item in items[:index] if item.kind == "process" and item.technique == DEPOSITION_TYPE_NAME]
-    if not depositions:
+    step, source = ctx.deposition.entry, ctx.deposition.source
+    info = {"sample_id": source.id, "step_id": step.id, "source_title": source.title,
+            "step_date": step.performed_at.isoformat() if step.performed_at else None,
+            "inherited": source.id != sample.id, "analysis": type_name, "thickness": thickness}
+    if ctx.depositions == 1 and duration_seconds((step.parameters or {}).get("duration")):
+        found = visible(user, pooled(measurements(family, samples), step, run_copies(samples, step)))
+        return info | {"counted": True, "rate": average(found), "n": sum(m.rate is not None for m in found)}
+    if (step.parameters or {}).get(RATE_KEY) not in (None, "") or not can_edit_entry(user, source, step):
         return None
-    last = depositions[-1]
-    step = last.entry
-    if (step.parameters or {}).get(RATE_KEY) not in (None, "") or not can_edit_entry(user, last.source, step):
-        return None
-    seconds = duration_seconds((step.parameters or {}).get("duration"))
-    suggested = float(f"{thickness / seconds * 60:.3g}") if seconds and len(depositions) == 1 else None
-    return {
-        "sample_id": last.source.id,
-        "step_id": step.id,
-        "step_date": step.performed_at.isoformat() if step.performed_at else None,
-        "inherited": last.source.id != sample.id,
-        "source_title": last.source.title,
-        "analysis": type_name,
-        "thickness": thickness,
-        "duration": (step.parameters or {}).get("duration") if seconds else None,
-        "suggested": suggested,
-        "stack": len(depositions) > 1,
-    }
+    return info | {"counted": False, "stack": ctx.depositions > 1}
 
 
 def set_rate(entries, rate: float) -> int:
@@ -80,3 +181,37 @@ def set_rate(entries, rate: float) -> int:
             entry.parameters = params | {RATE_KEY: rate}   # a new dict, so the JSON change is saved
             filled += 1
     return filled
+
+
+@dataclass
+class RatePoint:
+    step: object               # the Deposition step
+    sample: Sample             # the sample it is recorded on
+    rate: float | None         # effective_rate
+    n: int                     # measurements averaged (0: the typed rate)
+    found: list                # its visible measurements (run copies' included)
+
+
+def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePoint]:
+    """Deposition step id → RatePoint, for every approved deposition on
+    `samples` that `user` can see (all samples should be given, so that
+    measurements on pieces and run copies are found)."""
+    family = family or Family(samples)
+    by_step = measurements(family, samples)
+    runs: dict[str, list] = {}
+    for sample in samples:
+        for step in sample.process_steps:
+            if step.run_id:
+                runs.setdefault(step.run_id, []).append(step)
+    points = {}
+    for sample in samples:
+        for step in sample.process_steps:
+            if step.status != "approved" or step.step_type.name != DEPOSITION_TYPE_NAME:
+                continue
+            if not (can_view(user, sample) or is_performer(user, step)):
+                continue
+            copies = [s for s in runs.get(step.run_id, []) if s.id != step.id] if step.run_id else []
+            found = visible(user, pooled(by_step, step, copies))
+            rate, n = effective_rate(step, found)
+            points[step.id] = RatePoint(step, sample, rate, n, found)
+    return points

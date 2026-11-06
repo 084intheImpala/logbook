@@ -13,6 +13,8 @@ from backend.export import samples_csv
 from backend.lineage import Family, load_samples_full
 from backend.params import describe, flatten, scalar_fields
 from backend.i18n import t
+from backend import rate_plot
+from backend.deposition_rate import DEPOSITION_TYPE_NAME, RATE_KEY, rate_points
 
 router = APIRouter(tags=["search"])
 from backend.templating import templates
@@ -156,8 +158,11 @@ def read_param_filters(query, fields: list[dict]) -> dict:
     for f in fields:
         key = f["key"]
         if f.get("type") == "number":
-            low, high = _number(query.get(f"min.{key}")), _number(query.get(f"max.{key}"))
-            if low is not None or high is not None:
+            raw_low = (query.get(f"min.{key}") or "").strip()
+            low, high = _number(raw_low), _number(query.get(f"max.{key}"))
+            if raw_low and low is None:   # not a number, e.g. a gas flow of 20/5: that value exactly
+                found[key] = ("eq", raw_low)
+            elif low is not None or high is not None:
                 found[key] = ("range", low, high)
         elif (value := (query.get(f"pf.{key}") or "").strip()):
             found[key] = ("eq" if f.get("type") == "choice" else "has", value)
@@ -188,11 +193,26 @@ def technique_view(request: Request, family: Family, results, user, technique: s
     columns, rows, schema = technique_entries(family, results, user, technique, lambda text: t(request, text))
     fields = filter_fields(schema)
     filters = read_param_filters(request.query_params, fields)
+    for r in rows:
+        r["params"] = r["entry"].parameters or {}
+    points = {}
+    if technique.strip().lower() == DEPOSITION_TYPE_NAME.lower():
+        # The rate shown, filtered by and plotted is the measured one (average) when there is one
+        points = rate_points(user, list(family.samples.values()), family)
+        if not any(c["id"] == RATE_KEY for c in columns):
+            columns.append({"id": RATE_KEY, "label": t(request, "Deposition rate")})
+        for r in rows:
+            point = points.get(r["entry"].id) if r["kind"] == "process" else None
+            if point and point.rate is not None:
+                r["params"] = r["params"] | {RATE_KEY: point.rate}
+                note = (t(request, "average of {n}", n=point.n) if point.n > 1 else t(request, "measured") if point.n
+                        else t(request, "typed"))
+                r["values"][RATE_KEY] = f"{point.rate:g} nm/min ({note})"
     choices = {f["key"]: sorted({str(r["entry"].parameters[f["key"]]) for r in rows
                                  if (r["entry"].parameters or {}).get(f["key"]) not in (None, "")}, key=str.lower)
                for f in fields if f.get("type") == "choice"}
     if filters:
-        rows = [r for r in rows if entry_matches(r["entry"].parameters, filters)]
+        rows = [r for r in rows if entry_matches(r["params"], filters)]
         matched = {(r["kind"], r["entry"].id) for r in rows}
         results = [s for s in results if any((i.kind, i.entry.id) in matched for i in family.timeline(s))]
     view = {
@@ -201,6 +221,8 @@ def technique_view(request: Request, family: Family, results, user, technique: s
         "fields": [{"key": f["key"], "label": t(request, f.get("label") or f["key"]), "type": f.get("type", "text"),
                     "unit": f.get("unit", ""), "choices": choices.get(f["key"], [])} for f in fields],
         "active": len(filters),
+        "plot": rate_plot.build([points[r["entry"].id] for r in rows if r["entry"].id in points and r["kind"] == "process"],
+                                rate_plot.ranks(points.values())) if points else None,
         "query": request.query_params,
     }
     return results, view

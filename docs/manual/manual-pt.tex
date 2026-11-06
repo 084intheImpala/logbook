@@ -378,15 +378,23 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \end{tabularx}
 \end{center}
 
-Ao guardar uma
-Ellipsometry ou uma Profilometry com espessura numa amostra de filme fino, a
-página da amostra pergunta se quer acrescentar a taxa de deposição à
-deposição anterior na cronologia (mesmo herdada, por exemplo a da amostra-mãe
-de um pedaço), se ainda não a tiver. Se for a única deposição antes da medida
-e tiver duração, a taxa vem sugerida (espessura a dividir pela duração, em
-nm/min); com várias camadas, ou sem duração, preencha-a à mão. \ui{Adicionar à
-deposição} grava-a também nas cópias da deposição do mesmo ensaio que não a
-tenham; \ui{Agora não} fecha a pergunta.
+\textbf{Taxa de deposição medida.} Uma Ellipsometry ou Profilometry com
+espessura mede a deposição anterior na cronologia, se for a única deposição
+até aí (senão a espessura é a de todo o empilhamento) e se entretanto só houve
+um corte ou uma limpeza (uma corrosão, CMP, recozimento, \ldots{} mudam a
+espessura e a medida deixa de contar). As medidas nos pedaços contam para a
+deposição da amostra-mãe, e as cópias de uma deposição no mesmo ensaio juntam
+as suas. Cada medida dá espessura a dividir pela duração, em nm/min; o cartão
+da deposição lista-as em \ui{Taxa de deposição medida}, com a média. Nada fica
+gravado: a média é recalculada a partir das análises. Ao guardar a medida, a
+página diz qual é agora a média. Se a taxa não puder ser calculada (várias
+camadas, ou sem duração), a página pergunta-a: escreva-a e carregue em
+\ui{Adicionar à deposição} (fica também nas cópias do mesmo ensaio sem taxa), ou
+\ui{Agora não}.
+
+O cartão da deposição mostra ainda um pequeno gráfico com a taxa, ao longo do
+tempo, de todas as deposições com a mesma máquina, alvo, gás, fluxo de gás e
+potência (esta assinalada com um círculo), e \ui{Em tabela} com os valores.
 
 Num passo CMP novo, o formulário já vem preenchido com a receita habitual
 (SF1 Polishing Solutions, Chemomet, força central de 20~N, mesmo sentido,
@@ -667,7 +675,15 @@ campo contém. Só aparecem as entradas que cumprem todos os filtros, e só as
 amostras que têm uma dessas entradas (também na exportação). Por exemplo,
 \ui{Filme fino} + Deposition + alvo Ga2O3 mostra todas as deposições de
 Ga2O3, das mais recentes para as mais antigas, com a potência, o fluxo de
-gás e a taxa de deposição.
+gás e a taxa de deposição. No mínimo de um campo numérico também pode
+escrever um valor que não é número, como um fluxo de gás de 20/5, para o
+procurar exatamente.
+
+Nas deposições, a coluna da taxa (e o seu filtro) usa a taxa medida (média
+das medidas de espessura) quando a há, senão a introduzida, e por cima da
+tabela aparece um gráfico da taxa ao longo do tempo, com uma linha por
+conjunto de máquina, alvo, gás, fluxo de gás e potência. Passe o rato por um
+ponto para ver a amostra e a taxa; clique para a abrir.
 
 Em \ui{Colunas}, por cima da tabela, escolha que colunas quer ver. A escolha
 fica guardada para cada técnica no seu navegador, por isso cada pessoa vê as

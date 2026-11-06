@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_rate_plot.html" import rate_plot with context %}
 {% block title %}{{ sample.title }} — Logbook{% endblock %}
 {% block content %}
 {% macro param_rows(rows) %}
@@ -174,16 +175,14 @@
       {% else %}{{ _("The {analysis} gave a thickness of {thickness} nm. The deposition before it has no deposition rate yet.", analysis=_(rate_prompt.analysis), thickness="%g"|format(rate_prompt.thickness)) }}{% endif %}
       {% if rate_prompt.inherited %}{{ _("It is recorded on {sample}, which this piece was cut from.", sample=rate_prompt.source_title) }}{% endif %}
     </p>
-    {% if rate_prompt.suggested %}
-    <p class="text-sm text-gray-600">{{ _("Suggested: {thickness} nm in {duration} (min:s) is {rate} nm/min.", thickness="%g"|format(rate_prompt.thickness), duration=rate_prompt.duration, rate="%g"|format(rate_prompt.suggested)) }}</p>
-    {% elif rate_prompt.stack %}
+    {% if rate_prompt.stack %}
     <p class="text-sm text-gray-600">{{ _("There are other depositions before it, so the thickness measured is of the whole stack: work out this layer's rate yourself.") }}</p>
     {% else %}
-    <p class="text-sm text-gray-600">{{ _("The deposition has no duration, so no rate can be suggested.") }}</p>
+    <p class="text-sm text-gray-600">{{ _("The deposition has no duration, so the rate can't be worked out from the thickness.") }}</p>
     {% endif %}
     <label class="block text-sm font-medium text-gray-700">{{ _("Deposition rate") }}
       <span class="flex items-center gap-2 mt-1">
-        <input name="rate" inputmode="decimal" required value="{{ '%g'|format(rate_prompt.suggested) if rate_prompt.suggested else '' }}"
+        <input name="rate" inputmode="decimal" required
                class="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm">
         <span class="text-sm text-gray-500">nm/min</span>
       </span>
@@ -530,6 +529,52 @@
             {{ param_rows(group.rows) }}
           </div>
           {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Deposition: thickness measurements, measured rate, rate history (backend/deposition_rate.py) -->
+        {% if entry.rate and (entry.rate.measured or entry.rate.plot) %}
+        <div class="px-5 pb-3 pt-2 border-t border-gray-50 space-y-2">
+          {% if entry.rate.measured %}
+          <div class="text-sm">
+            <span class="text-xs text-gray-400">{{ _("Measured deposition rate") }}</span>
+            {% if entry.rate.average is not none %}
+            <span class="font-medium text-gray-800 ml-1">{{ '%g'|format(entry.rate.average) }} nm/min</span>
+            <span class="text-xs text-gray-500">{{ _("average of {n}", n=entry.rate.n) if entry.rate.n > 1 else _("from 1 measurement") }}</span>
+            {% else %}
+            <span class="text-xs text-gray-500 ml-1">{{ _("no duration recorded, so no rate") }}</span>
+            {% endif %}
+          </div>
+          <ul class="text-xs text-gray-600 space-y-0.5">
+            {% for m in entry.rate.measured %}
+            <li>{{ m.item.technique }}
+              {% if m.item.entry.performed_at %}{{ m.item.entry.performed_at.isoformat() }}{% endif %}
+              {{ _("on") }} <a href="/samples/{{ m.sample.id }}#analysis-{{ m.item.entry.id }}" class="font-mono text-blue-600 hover:underline">{{ m.sample.title }}</a>:
+              {{ '%g'|format(m.thickness) }} nm{% if m.rate is not none %} → {{ '%g'|format(m.rate) }} nm/min{% endif %}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          {% if entry.rate.plot %}
+          <details class="text-sm" open>
+            <summary class="text-xs text-gray-500 cursor-pointer select-none">{{ _("Rate history with the same conditions") }} <span class="text-gray-400">({{ entry.rate.conditions }})</span></summary>
+            <div class="mt-2 max-w-2xl">
+              {{ rate_plot(entry.rate.plot) }}
+              <details class="mt-1">
+                <summary class="text-xs text-gray-400 cursor-pointer select-none">{{ _("As a table") }}</summary>
+                <table class="text-xs mt-1">
+                  {% for p in entry.rate.history %}
+                  <tr class="{% if p.step.id == entry.id %}font-semibold{% endif %}">
+                    <td class="pr-3 text-gray-500">{{ p.step.performed_at.isoformat() if p.step.performed_at else '—' }}</td>
+                    <td class="pr-3"><a href="/samples/{{ p.sample.id }}#step-{{ p.step.id }}" class="font-mono text-blue-600 hover:underline">{{ p.sample.title }}</a></td>
+                    <td class="pr-3 text-gray-700">{{ '%g'|format(p.rate) }} nm/min</td>
+                    <td class="text-gray-400">{{ _("average of {n}", n=p.n) if p.n > 1 else _("measured") if p.n else _("typed") }}</td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              </details>
+            </div>
+          </details>
+          {% endif %}
         </div>
         {% endif %}
 

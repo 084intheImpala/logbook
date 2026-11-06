@@ -16,7 +16,9 @@ from backend.utils import save_upload, chosen_files
 from backend.auth import (require_login, load_sample, can_view, can_edit, can_edit_entry, can_propose, can_decide,
                           coordinates_user, is_coordinator_of, is_owner, is_performer, is_proposer)
 from backend import timeline as tl
-from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_family, pieces_of
+from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_samples_full, load_family, pieces_of
+from backend import rate_plot
+from backend.deposition_rate import DEPOSITION_TYPE_NAME, average, conditions, rate_points
 from backend.params import parse_date, describe
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, remember
 from backend.seed import PROCESS_STEP_TYPES
@@ -367,6 +369,7 @@ async def sample_detail(
             "delete_url": f"/samples/{sample_id}/{path}/{e.id}/delete",
         })
         own_index += not inherited
+    await _add_deposition_rates(db, current_user, timeline)
 
     owner = is_owner(current_user, sample)
     pending = []
@@ -408,6 +411,32 @@ async def sample_detail(
         "flash_error": request.session.pop("flash_error", None),
         "rate_prompt": request.session.pop("rate_prompt", None),
     })
+
+
+async def _add_deposition_rates(db: AsyncSession, user, timeline: list[dict]):
+    """For each deposition on the timeline: its thickness measurements (on
+    this sample, its pieces and its run), their average, and a plot of the
+    rates of depositions with the same conditions (backend/deposition_rate.py)."""
+    shown = [e for e in timeline if e["kind"] == "process" and e["type_name"] == DEPOSITION_TYPE_NAME and e["visible"]]
+    if not shown:
+        return
+    points = rate_points(user, await load_samples_full(db))
+    slot_ranks = rate_plot.ranks(points.values())
+    for e in shown:
+        point = points.get(e["id"])
+        if point is None:
+            continue
+        same = [p for p in points.values() if conditions(p.step) == conditions(point.step)]
+        plot = rate_plot.build(same, slot_ranks, highlight=e["id"])
+        e["rate"] = {
+            "measured": [m for m in point.found],
+            "average": average(point.found),
+            "n": sum(m.rate is not None for m in point.found),
+            "history": sorted((p for p in same if p.rate is not None),
+                              key=lambda p: (p.step.performed_at or date.min, p.step.id), reverse=True),
+            "plot": plot if plot and sum(len(s["points"]) for s in plot["series"]) > 1 else None,
+            "conditions": rate_plot.condition_label(point.step),
+        }
 
 
 async def _run_samples(db: AsyncSession, entries, sample_id: int) -> dict[str, list[Sample]]:

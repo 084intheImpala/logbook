@@ -58,7 +58,7 @@ def test_entries_are_listed_newest_first_with_their_parameters(world):
     html = client.get("/search", params={"technique": "Deposition"}).text
     section = _entries(html)
     assert "Taxa de deposição" in section and "Potência" in section
-    assert section.index(">7.5 nm/min<") < section.index(">5 nm/min<")
+    assert section.index(">7.5 nm/min (introduzida)<") < section.index(">5 nm/min (introduzida)<")
     assert ">100 W<" in section and "99 nm/min" not in section
     assert "Secret" not in html   # not offered as a filter value either
     assert 'class="col-box" value="deposition_rate"' in section and 'data-col="power"' in section
@@ -78,13 +78,13 @@ def test_parameter_filters_narrow_entries_and_samples(world):
 
     html = client.get("/search", params={"technique": "Deposition", "pf.target": "ga2o3"}).text
     section, samples = _entries(html), _samples_list(html)
-    assert ">6 nm/min<" in section and ">2 nm/min<" in section and "9 nm/min" not in section
+    assert ">6 nm/min (introduzida)<" in section and ">2 nm/min (introduzida)<" in section and "9 nm/min" not in section
     assert ga.code in samples and ga_low.code in samples and other.code not in samples
     assert "1 filtro ativo" in html
 
     html = client.get("/search", params={"technique": "Deposition", "pf.target": "Ga2O3", "min.power": "100"}).text
     section = _entries(html)
-    assert ">6 nm/min<" in section and "2 nm/min" not in section
+    assert ">6 nm/min (introduzida)<" in section and "2 nm/min" not in section
     assert ">20 sccm<" in section   # gas flow shown on the row
 
     html = client.get("/search", params={"technique": "Deposition", "pf.target": "Ga2O3", "max.power": "10"}).text
@@ -102,7 +102,7 @@ def test_a_sample_with_only_some_matching_entries_shows_only_those(world):
     _deposit(client, stack, target="Ga2O3", deposition_rate="6")
     _deposit(client, stack, target="ZnO", deposition_rate="9")
     section = _entries(client.get("/search", params={"technique": "Deposition", "pf.target": "Ga2O3"}).text)
-    assert ">6 nm/min<" in section and "9 nm/min" not in section
+    assert ">6 nm/min (introduzida)<" in section and "9 nm/min" not in section
 
 
 async def _owner(sample):

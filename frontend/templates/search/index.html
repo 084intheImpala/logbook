@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_rate_plot.html" import rate_plot with context %}
 {% block title %}{{ _("Search") }} — Logbook{% endblock %}
 {% block content %}
 {% macro select(name, label, values) %}
@@ -66,7 +67,7 @@
         </select>
         {% elif f.type == "number" %}
         <div class="flex items-center gap-1">
-          <input name="min.{{ f.key }}" inputmode="decimal" placeholder="{{ _("min") }}" value="{{ entry_view.query.get('min.' ~ f.key, '') }}"
+          <input name="min.{{ f.key }}" placeholder="{{ _("min") }}" title="{{ _("A number, or a value such as 20/5 to match it exactly") }}" value="{{ entry_view.query.get('min.' ~ f.key, '') }}"
                  class="w-full min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
           <span class="text-gray-400 text-xs">–</span>
           <input name="max.{{ f.key }}" inputmode="decimal" placeholder="{{ _("max") }}" value="{{ entry_view.query.get('max.' ~ f.key, '') }}"
@@ -114,6 +115,11 @@
     </details>
     {% endif %}
   </div>
+  {% if entry_view.plot %}
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-3">
+    <div class="max-w-3xl">{{ rate_plot(entry_view.plot, _("Deposition rate over time, by machine, target, gas, gas flow and power")) }}</div>
+  </div>
+  {% endif %}
   {% if entry_view.rows %}
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
     <table class="w-full text-sm">

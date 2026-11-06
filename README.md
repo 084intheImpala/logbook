@@ -572,7 +572,15 @@ drop out), and text fields match what they contain. Only entries matching all
 of them are listed, and only samples with such an entry are left, in the list
 and in the CSV export (query parameters `pf.<key>`, `min.<key>`, `max.<key>`).
 E.g. Thin film + Deposition + Target Ga2O3 lists every Ga2O3 deposition,
-newest first, with its power, gas flow and rate.
+newest first, with its power, gas flow and rate. A number field's min box
+also takes a value that isn't a number, e.g. a gas flow of `20/5`, and then
+matches it exactly. For Deposition, the rate column (and its filter) is the
+measured rate, marked *measured*/*average of n*, or the typed one, marked
+*typed*; a plot above the table shows the rates of the entries listed over
+time, one line per set of machine, target, gas, gas flow and power (the eight
+with most depositions; narrow the filters for the rest). Each set keeps its
+colour when filters change. Hovering a point shows the sample and rate;
+clicking opens it.
 
 **Columns** above the table picks which parameter columns are shown (and
 where, performed by, notes). The choice is remembered per technique in each
@@ -634,16 +642,28 @@ Analysis. On the sample page parameters are shown with their labels and
 units, and the CSV has one `param:` column per parameter (modes as
 `param:modes/Rocking curve/range`).
 
-**Deposition rate from a thickness measurement.** Saving an Ellipsometry or
-Profilometry analysis with a thickness on a thin film opens a prompt on the
-sample page: add the deposition rate to the Deposition step before it on the
-timeline (an inherited one too, e.g. the parent's for a piece), if that step
-has none yet and you can edit it. The rate is suggested as thickness ÷ the
-deposition's duration, in nm/min, when that is the only deposition before the
-measurement; with several (a stack) or no duration, the box is left empty for
-you to fill in. **Add to the deposition** also fills it in on the copies of
-that step in the same run that have no rate; **Not now** just closes the
-prompt (`backend/deposition_rate.py`).
+**Deposition rate, measured.** An Ellipsometry or Profilometry analysis with a
+thickness measures the Deposition before it on the timeline, if that is the
+only deposition so far (otherwise the thickness is the whole stack's) and
+only a Cut or Cleaning came in between (an etch, CMP, anneal, … changes the
+thickness, so the measurement doesn't count). Measurements on pieces count for
+the parent's deposition, and the copies of a deposition in a run pool theirs.
+Each gives thickness ÷ the deposition's duration in nm/min; the deposition
+card lists them (technique, date, sample, thickness → rate) under **Measured
+deposition rate**, their average. Nothing is stored: it's worked out from the
+analyses, so editing or deleting one updates it. Saving such an analysis says
+what the average now is. Only measurements on samples you can view count, for
+you. Where a rate can't be worked out (a stack, or no duration), saving the
+measurement asks for the rate by hand, filling the Deposition rate field (and
+its run copies that have none); **Not now** closes the prompt. Search and plots
+use the measured rate when there is one, else the typed one.
+
+**Rate history.** Each deposition card also plots the rates of every
+deposition you can see with the same machine, target, gas (atmosphere), gas
+flow and power (case aside), over time, with this one ringed, and a table
+view. Undated depositions aren't drawn. `backend/deposition_rate.py` (the
+conditions are `CONDITION_KEYS`, the steps that keep the thickness
+`THICKNESS_KEEPING_STEPS`), `backend/rate_plot.py`, `_rate_plot.html`.
 
 ### One step or analysis on several samples
 
