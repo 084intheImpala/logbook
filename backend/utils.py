@@ -1,4 +1,5 @@
 """Shared utilities."""
+import hashlib
 import re
 import mimetypes
 import unicodedata
@@ -7,11 +8,12 @@ from pathlib import Path
 from fastapi import UploadFile
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import select, func
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend import images
 from backend.models import Attachment, Analysis, AnalysisType, ProcessStep, ProcessStepType, Sample, Substrate
 from backend.config import settings
+from backend.trash import move_to_trash
 
 
 def chosen_files(files: list) -> list[UploadFile]:
@@ -35,6 +37,9 @@ async def save_upload(
     Files keep their original names, in one folder per sample and one
     subfolder per entry (see upload_folder), e.g.
     ASS-2026-001/2026-10-22_XRD-HRXRD/scan 01.raw.
+    A file identical to one already stored isn't stored again: the new
+    attachment points at the stored file, as copy_attachment does. The same
+    file added twice to the same entry gives back the attachment it has.
     Returns the Attachment (not yet committed) or None if no file provided."""
     if not file or not file.filename:
         return None
@@ -48,20 +53,50 @@ async def save_upload(
         if processed:
             content, filename, mime = processed
 
-    folder = await upload_folder(db, entity_type, entity_id, date.today())
-    stored_name = write_new_file(folder, clean_filename(filename), content)
+    digest = hashlib.sha256(content).hexdigest()
+    stored = await stored_copy(db, digest)
+    if stored:
+        same_entry = (await db.execute(select(Attachment).where(
+            Attachment.stored_filename == stored.stored_filename, Attachment.entity_type == entity_type,
+            Attachment.entity_id == entity_id))).scalars().first()
+        if same_entry:
+            return same_entry
+        stored_name, thumbnail = stored.stored_filename, stored.thumbnail_filename
+    else:
+        folder = await upload_folder(db, entity_type, entity_id, date.today())
+        stored_name = write_new_file(folder, clean_filename(filename), content)
+        thumbnail = await _write_thumbnail(content, stored_name)
     attachment = Attachment(
         entity_type=entity_type,
         entity_id=entity_id,
         stored_filename=stored_name,
         original_filename=filename,
         file_size=len(content),
+        sha256=digest,
         mime_type=mime,
         uploaded_by=uploaded_by,
-        thumbnail_filename=await _write_thumbnail(content, stored_name),
+        thumbnail_filename=thumbnail,
     )
     db.add(attachment)
     return attachment
+
+
+async def stored_copy(db: AsyncSession, digest: str) -> Attachment | None:
+    """The oldest attachment whose stored file has this content and is still on disk."""
+    for attachment in (await db.execute(
+            select(Attachment).where(Attachment.sha256 == digest).order_by(Attachment.id))).scalars():
+        if (settings.UPLOAD_DIR / attachment.stored_filename).is_file():
+            return attachment
+    return None
+
+
+def file_sha256(path: Path) -> str:
+    """SHA-256 of a file on disk, read in chunks (files can be large)."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _safe(text: str) -> str:
@@ -164,7 +199,7 @@ def copy_attachment(attachment: Attachment, entity_type: str, entity_id: int, db
     copy = Attachment(
         entity_type=entity_type, entity_id=entity_id,
         stored_filename=attachment.stored_filename, original_filename=attachment.original_filename,
-        file_size=attachment.file_size, mime_type=attachment.mime_type,
+        file_size=attachment.file_size, sha256=attachment.sha256, mime_type=attachment.mime_type,
         uploaded_by=attachment.uploaded_by, thumbnail_filename=attachment.thumbnail_filename,
     )
     db.add(copy)
@@ -172,12 +207,25 @@ def copy_attachment(attachment: Attachment, entity_type: str, entity_id: int, db
 
 
 async def delete_attachment(attachment: Attachment, db: AsyncSession):
-    """Remove an attachment's record from the session, and its files from disk
-    unless another attachment shares them (see copy_attachment)."""
+    """Remove an attachment's record from the session, and move its files to
+    the trash (see trash.py) unless another attachment shares them (see
+    copy_attachment)."""
     shared = (await db.execute(select(func.count()).select_from(Attachment).where(
         Attachment.stored_filename == attachment.stored_filename, Attachment.id != attachment.id))).scalar()
     if not shared:
         for name in (attachment.stored_filename, attachment.thumbnail_filename):
-            if name and (settings.UPLOAD_DIR / name).exists():
-                (settings.UPLOAD_DIR / name).unlink()
+            if name:
+                move_to_trash(name)
     await db.delete(attachment)
+    await db.flush()   # so the next check doesn't count this one as sharing
+
+
+async def delete_attachments_of(db: AsyncSession, sample_ids=(), step_ids=(), analysis_ids=()):
+    """Delete the attachments of these samples, steps and analyses (before
+    the rows themselves go: attachments aren't linked by a foreign key)."""
+    conditions = [(Attachment.entity_type == kind) & Attachment.entity_id.in_(list(ids))
+                  for kind, ids in (("sample", sample_ids), ("step", step_ids), ("analysis", analysis_ids)) if ids]
+    if not conditions:
+        return
+    for attachment in (await db.execute(select(Attachment).where(or_(*conditions)))).scalars().all():
+        await delete_attachment(attachment, db)

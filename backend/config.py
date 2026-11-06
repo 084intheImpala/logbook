@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://logbook:logbook@localhost:5432/logbook"
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
     MAX_UPLOAD_SIZE_MB: int = 100
+    TRASH_DAYS: int = 30   # deleted files are kept this long in uploads/.trash (see backend/trash.py)
     # Photos larger than this (long edge in pixels, or file size) are downscaled
     # and re-encoded as JPEG; see backend/images.py
     PHOTO_MAX_PX: int = 2560

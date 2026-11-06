@@ -12,7 +12,7 @@ from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, A
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
 from backend.activity import log as log_activity
-from backend.utils import save_upload, chosen_files
+from backend.utils import save_upload, chosen_files, delete_attachments_of
 from backend.auth import (require_login, load_sample, can_view, can_edit, can_edit_entry, can_propose, can_decide,
                           coordinates_user, is_coordinator_of, is_owner, is_performer, is_proposer)
 from backend import timeline as tl
@@ -642,6 +642,11 @@ async def delete_sample(
                        "Delete the pieces first.", n=len(pieces)))
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
     log_activity(db, current_user, "sample_deleted", sample.title, sample.owner_id)
+    # Its files (and its entries') go to the trash, unless another sample's entry shares them
+    await delete_attachments_of(
+        db, sample_ids=[sample_id],
+        step_ids=(await db.execute(select(ProcessStep.id).where(ProcessStep.sample_id == sample_id))).scalars().all(),
+        analysis_ids=(await db.execute(select(Analysis.id).where(Analysis.sample_id == sample_id))).scalars().all())
     await db.delete(sample)
     await db.commit()
     return RedirectResponse("/samples/", status_code=303)

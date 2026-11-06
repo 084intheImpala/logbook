@@ -376,6 +376,9 @@ class Attachment(Base):
     stored_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_size: Mapped[int | None] = mapped_column(BigInteger)
+    # Of the stored file's content: an upload identical to a stored file
+    # points at that file instead of storing it again (see save_upload)
+    sha256: Mapped[str | None] = mapped_column(String(64), index=True)
     mime_type: Mapped[str | None] = mapped_column(String(100))
     # Small JPEG preview for images (created on upload, or on first view)
     thumbnail_filename: Mapped[str | None] = mapped_column(String(255))

@@ -14,6 +14,7 @@ from backend.params import parse_form
 from backend.i18n import t
 from backend.models import Device
 from backend.routers.devices import remove_devices
+from backend.utils import delete_attachments_of
 
 router = APIRouter()
 
@@ -116,6 +117,7 @@ async def delete_step(
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
     await remove_devices(db, Device.made_step_id == step_id)   # deleting "Devices made" takes its devices
+    await delete_attachments_of(db, step_ids=[step_id])   # to the trash, unless shared
     await db.delete(step)
     await db.flush()
     await renumber(db, sample_id)

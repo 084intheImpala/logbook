@@ -7,6 +7,7 @@ uploads/
 
 # Database dumps (see README "Backups")
 backup_*.sql
+/backups/
 
 # Editor / OS files
 .vscode/

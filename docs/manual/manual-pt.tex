@@ -466,6 +466,17 @@ assim que os ficheiros são escolhidos.
 As imagens têm uma miniatura na cronologia; clique nela para abrir o
 ficheiro completo.
 
+Cada ficheiro é guardado uma só vez. Se enviar um ficheiro igual a um que já
+está no logbook, mesmo com outro nome ou noutra amostra, a entrada passa a
+apontar para o ficheiro já guardado, sem ocupar mais espaço. O mesmo
+ficheiro enviado duas vezes para a mesma entrada só fica anexado uma vez.
+
+Ao apagar um ficheiro, ou o passo, análise ou amostra onde está, o ficheiro
+não desaparece logo: vai para o lixo, em
+\nolinkurl{uploads/.trash/<dia em que foi apagado>/}, onde fica 30 dias com o
+mesmo caminho que tinha. Para o recuperar, peça a quem gere o servidor. Um
+ficheiro que outra entrada ainda usa fica onde está.
+
 Para juntar as mesmas fotografias ou ficheiros a várias entradas de uma
 vez, mesmo em amostras diferentes, use o separador \menu{Adicionar
 ficheiros}. Filtre por tipo (um tipo de passo ou análise, ou qualquer passo
@@ -802,6 +813,37 @@ docker compose exec app python -m backend.create_admin
 \end{verbatim}
 \end{tcolorbox}
 
+\subsection{Cópias de segurança automáticas}
+
+O serviço \texttt{backup} do \texttt{docker-compose.yml} faz uma vez por dia
+uma cópia da base de dados e da pasta \texttt{uploads/}, na pasta
+\nolinkurl{backups/<dia>/} (\texttt{logbook.dump} e \texttt{uploads/}). Verifica
+de hora a hora, por isso, se o PC esteve desligado à noite, a cópia do dia é
+feita pouco depois de ser ligado.
+
+Ficam guardadas a cópia mais recente de cada um dos últimos 7 dias, 4 semanas
+e 12 meses em que houve cópia (no máximo cerca de 23). Os ficheiros que não
+mudaram desde a cópia anterior não são copiados outra vez (são ligações
+físicas, \emph{hard links}), por isso todas juntas ocupam pouco mais do que a
+pasta \texttt{uploads/} uma vez. Isto exige um disco formatado em ext4 ou NTFS
+(não FAT32 nem exFAT).
+
+Por omissão as cópias ficam em \texttt{backups/}, no mesmo disco que o
+logbook: protegem contra enganos, mas não contra uma avaria do disco. Para as
+guardar noutro disco, ponha o caminho em \texttt{.env}
+(\texttt{BACKUP\_DIR=/mnt/discoexterno/logbook}) e reinicie.
+
+\begin{tcolorbox}[colback=gray!5,colframe=gray!40,boxrule=0.4pt,arc=1pt]
+\footnotesize
+\begin{verbatim}
+docker compose logs backup                            # ver se correu bem
+docker compose exec backup python3 /backup.py --now   # fazer uma agora
+\end{verbatim}
+\end{tcolorbox}
+
+Para restaurar uma cópia, ou só um ficheiro, veja a secção ``Automatic
+backups'' do README.
+
 \subsection{O que guardar nas cópias de segurança}
 
 \begin{center}
@@ -833,6 +875,12 @@ Essa pasta tem uma subpasta por ID de amostra e, dentro dela, uma por
 passo ou análise, com os ficheiros com os nomes originais (por exemplo
 \nolinkurl{ASS-2026-001/2026-10-22_XRD-HRXRD/scan01.raw}), mas é a base de
 dados que liga cada ficheiro à sua entrada.
+
+Os ficheiros apagados ficam 30 dias em \nolinkurl{uploads/.trash/} (ver
+secção~\ref{sec:files}). Para juntar os ficheiros repetidos guardados antes
+de o logbook os detetar, execute uma vez no servidor
+\texttt{docker compose exec app python -m backend.dedupe\_files} (só mostra o
+que faria) e depois o mesmo com \texttt{-{}-apply}.
 
 Cada pasta de amostra tem também um ficheiro \texttt{sample.json}: uma
 cópia de tudo o que a base de dados sabe sobre essa amostra (dados,

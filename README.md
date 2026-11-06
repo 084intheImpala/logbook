@@ -297,6 +297,37 @@ run) is stored once, in the folder of the sample it was uploaded on. The
 database still links every file to its entry, so keep `uploads/` and the
 database together (see Backups).
 
+**A file is stored only once.** Each attachment keeps a SHA-256 hash of its
+file. Uploading a file identical to one already stored, under any name and on
+any entry, doesn't store it again: the new attachment points at the stored
+file, as with a run, so it can live in another sample's folder. The same file
+added twice to the same entry is only attached once. Photos are compared after
+downscaling, so the same phone photo matches itself.
+
+**Deleted files wait 30 days in the trash.** Deleting a file, or the step,
+analysis or sample it's on, moves the file to
+`uploads/.trash/<day deleted>/`, under the same path it had
+(`uploads/.trash/2026-11-06/ASS-2026-001/…/scan.raw`). A file another entry
+still uses stays where it is. Day folders older than `TRASH_DAYS` (30) are
+deleted when the app starts and once a day after. To get a file back, copy it
+out of the trash and attach it again. (Before this, deleting an entry or
+sample left its files on disk and their records in the database.)
+
+**Duplicates and leftovers from before.** Files stored before migration `0015`
+have no hash yet. On the DB host, after updating, run
+
+```bash
+docker compose exec app python -m backend.dedupe_files           # report only
+docker compose exec app python -m backend.dedupe_files --apply   # do it
+```
+
+It hashes every stored file; points all attachments with the same content at
+the oldest copy and moves the other copies to the trash; drops the same file
+attached twice to one entry; and drops the records of files whose entry or
+sample was deleted, moving those files to the trash too, unless something else
+uses them. Without `--apply` it only lists what it would do. Files missing
+from disk are listed and left alone.
+
 Each sample folder also has a `sample.json`: a copy of everything the
 database holds about that sample (details, owner, sharing, substrate,
 project, its own timeline with parameters, notes, who did what and when, and
@@ -782,7 +813,7 @@ this (tables, but no `alembic_version` table) and marks it as the baseline
 revision `0001`, which is exactly the schema it already has. Nothing in your
 data is changed. On the machine that hosts the database:
 
-1. **Back up first** (see [Backing up](#backing-up)), and keep a copy of `uploads/`.
+1. **Back up first**: `docker compose exec backup python3 /backup.py --now` (see [Automatic backups](#automatic-backups)), or by hand (see [Backing up by hand](#backing-up-by-hand)).
 2. Pull the new code and rebuild: `git pull`, then `docker compose build app`
    (this installs the new `alembic` dependency).
 3. Start it: `docker compose up -d`.
@@ -850,7 +881,71 @@ Everything the logbook holds is in three places:
 > `docker compose down -v` also **deletes the database**. Only use `-v` when
 > you mean to start from scratch.
 
-### Backing up
+### Automatic backups
+
+The `backup` service in `docker-compose.yml` (`backup/backup.py`) makes a
+snapshot of the database and `uploads/` once a day. It checks every hour, so
+if the PC was off at night the day's snapshot is made soon after it's
+switched on. It starts with the rest: `docker compose up -d --build`.
+
+```
+backups/
+  2026-11-06/
+    logbook.dump        ← the whole database (pg_dump -Fc)
+    uploads/            ← uploads/ as it was that day, without .trash
+  2026-11-05/
+  …
+```
+
+**Kept:** the newest snapshot of each of the last 7 days, 4 weeks and 12
+months that have one, so at most about 23 snapshots. Days the PC was off
+don't count, so a long gap never deletes everything old. Change the numbers
+with `KEEP_DAILY`, `KEEP_WEEKLY` and `KEEP_MONTHLY` in the service's
+`environment`.
+
+**Space:** a file that didn't change since the previous snapshot is a hard
+link to it, not a copy. Each snapshot looks complete, but together they take
+about the size of `uploads/` once, plus each day's new files, plus a few MB of
+database dump each. Hard links need a disk formatted ext4 or NTFS (not FAT32
+or exFAT). If they don't work where the backups are, every snapshot is a full
+copy and the log says so.
+
+**Where:** `./backups` next to `docker-compose.yml`. That's on the same disk
+as the logbook, so it protects against mistakes (a deleted sample, a bad
+update) but not against the disk failing. To use another disk, e.g. an
+external drive, put its path in `.env` and restart:
+
+```bash
+BACKUP_DIR=/mnt/backupdrive/logbook
+```
+
+The folder must exist and stay mounted. A drive that's sometimes unplugged
+gets the snapshots written to the empty mount point instead.
+
+**Checking it works:**
+
+```bash
+docker compose logs backup               # "Snapshot 2026-11-06 done …", or the error
+ls backups/                              # one folder per day
+docker compose exec backup python3 /backup.py --now   # make one now
+```
+
+**Restoring from a snapshot:** as in [Restoring](#restoring), but load the
+dump with `pg_restore`, and copy the snapshot's `uploads/` back:
+
+```bash
+docker compose down -v
+docker compose up -d db
+docker compose exec -T db pg_restore -U logbook -d logbook --no-owner < backups/2026-11-06/logbook.dump
+cp -a backups/2026-11-06/uploads/. uploads/
+docker compose up -d
+```
+
+To get back a single file, copy it out of a snapshot's `uploads/`. Files
+deleted in the last 30 days are also in `uploads/.trash/` (see
+[Photos and files](#photos-and-files)).
+
+### Backing up by hand
 
 From the project folder, with the logbook running:
 
@@ -859,7 +954,7 @@ docker compose exec -T db pg_dump -U logbook logbook > backup_$(date +%Y%m%d).sq
 ```
 
 Keep that file together with a copy of `uploads/` (and `.env`, somewhere
-safe: it holds passwords). Do this regularly, e.g. weekly, and before
+safe: it holds passwords). The automatic backups above do this daily; by hand is for an extra copy, e.g. before
 updating the code.
 
 **Check the backup before relying on it.** The output goes straight into the
