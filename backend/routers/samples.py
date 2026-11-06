@@ -406,6 +406,7 @@ async def sample_detail(
         "owner_user": (await db.get(User, sample.owner_id)) if sample.owner_id else None,
         "flash": request.session.pop("flash", None),
         "flash_error": request.session.pop("flash_error", None),
+        "rate_prompt": request.session.pop("rate_prompt", None),
     })
 
 

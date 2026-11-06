@@ -378,6 +378,16 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 \end{tabularx}
 \end{center}
 
+Ao guardar uma
+Ellipsometry ou uma Profilometry com espessura numa amostra de filme fino, a
+página da amostra pergunta se quer acrescentar a taxa de deposição à
+deposição anterior na cronologia (mesmo herdada, por exemplo a da amostra-mãe
+de um pedaço), se ainda não a tiver. Se for a única deposição antes da medida
+e tiver duração, a taxa vem sugerida (espessura a dividir pela duração, em
+nm/min); com várias camadas, ou sem duração, preencha-a à mão. \ui{Adicionar à
+deposição} grava-a também nas cópias da deposição do mesmo ensaio que não a
+tenham; \ui{Agora não} fecha a pergunta.
+
 Num passo CMP novo, o formulário já vem preenchido com a receita habitual
 (SF1 Polishing Solutions, Chemomet, força central de 20~N, mesmo sentido,
 cabeça e base a 30~rpm); altere o que for diferente.
@@ -642,6 +652,26 @@ amostra, material, técnica e etiqueta, e agrupa os resultados (por
 investigador, ano, tipo, material, técnica, etiqueta ou projeto). O texto
 livre procura em IDs, rótulos, descrições, notas, parâmetros e nomes de
 projetos, mas só nas amostras cujos detalhes pode ver.
+
+Ao filtrar por uma técnica, aparece também, por cima das amostras, a lista
+das entradas dessa técnica nas amostras encontradas, das mais recentes para
+as mais antigas (as sem data no fim): data, amostra, uma coluna por
+parâmetro (com unidades), local, quem fez e notas. Uma entrada herdada por
+pedaços aparece uma só vez, na amostra onde está registada.
+
+O formulário passa também a ter \ui{Parâmetros de \ldots}, um filtro por
+campo dessa técnica: nas listas (alvo, máquina, método, \ldots) escolhe um
+dos valores usados; nos números indica um intervalo mín.--máx. (os extremos
+contam; entradas sem número nesse campo ficam de fora); nos textos, o que o
+campo contém. Só aparecem as entradas que cumprem todos os filtros, e só as
+amostras que têm uma dessas entradas (também na exportação). Por exemplo,
+\ui{Filme fino} + Deposition + alvo Ga2O3 mostra todas as deposições de
+Ga2O3, das mais recentes para as mais antigas, com a potência, o fluxo de
+gás e a taxa de deposição.
+
+Em \ui{Colunas}, por cima da tabela, escolha que colunas quer ver. A escolha
+fica guardada para cada técnica no seu navegador, por isso cada pessoa vê as
+suas.
 
 \ui{Exportar resultados (CSV)} descarrega as amostras encontradas, com uma
 linha por passo ou análise e uma coluna \texttt{param:\ldots} por

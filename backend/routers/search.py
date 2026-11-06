@@ -8,10 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.models import User, SAMPLE_TYPES
-from backend.auth import require_login, can_view, is_owner
+from backend.auth import require_login, can_view, is_owner, is_performer
 from backend.export import samples_csv
 from backend.lineage import Family, load_samples_full
-from backend.params import flatten
+from backend.params import describe, flatten, scalar_fields
+from backend.i18n import t
 
 router = APIRouter(tags=["search"])
 from backend.templating import templates
@@ -91,6 +92,120 @@ def _matches(family: Family, sample, user, q: str, investigator: str, sample_typ
     return True
 
 
+def technique_entries(family: Family, samples, user, technique: str,
+                      tr=lambda text: text) -> tuple[list[dict], list[dict], list[dict] | None]:
+    """Every entry of `technique` on the given samples' timelines, newest
+    first, with its parameters as columns: (columns [{id, label}], rows,
+    the technique's schema). An entry inherited by pieces is listed once,
+    under the sample it is recorded on; one shared by a run, once per sample.
+    Entries the user can't see are left out. `tr` translates labels."""
+    seen, rows, columns, schema = set(), [], {}, None
+    wanted = technique.strip().lower()
+    for sample in samples:
+        for item in family.timeline(sample):
+            e, source = item.entry, item.source
+            if item.technique.lower() != wanted or (item.kind, e.id) in seen:
+                continue
+            seen.add((item.kind, e.id))
+            if not (can_view(user, source) or is_performer(user, e)):
+                continue
+            entry_type = e.step_type if item.kind == "process" else e.analysis_type
+            schema = entry_type.parameter_schema
+            values = {}
+            for row in describe(e.parameters, schema):
+                if "rows" in row:   # a mode, e.g. XRD's rocking curve
+                    prefix = f"{tr(row['group'])}: {row['label']}" if row["group"] else row["label"]
+                    for sub in row["rows"]:
+                        values[f"{row['key']}/{sub['key']}"] = (f"{prefix} / {tr(sub['label'])}", sub["value"])
+                else:
+                    values[row["key"]] = (tr(row["label"]), row["value"])
+            for key, (label, _) in values.items():
+                columns.setdefault(key, label)
+            rows.append({"sample": source, "entry": e, "kind": item.kind,
+                         "values": {key: value for key, (_, value) in values.items()}})
+    rows.sort(key=lambda r: (r["entry"].performed_at is not None, r["entry"].performed_at or date.min,
+                             r["entry"].id), reverse=True)
+    return [{"id": key, "label": label} for key, label in columns.items()], rows, schema
+
+
+# ── Filtering a technique's entries by their parameters ──────────────────────
+# Query parameters: pf.<key> (a dropdown value, or text the value contains),
+# min.<key> / max.<key> (a range, for numbers).
+
+FILTERABLE = ("choice", "number", "text", "duration")
+
+
+def filter_fields(schema: list[dict] | None) -> list[dict]:
+    """The fields a technique's entries can be filtered by: the method
+    (variant) choices and the single-value fields, long texts left out."""
+    fields = [{"key": f["key"], "label": f.get("label") or f["key"], "type": "choice"}
+              for f in schema or [] if f.get("type") == "variant"]
+    return fields + [f for f in scalar_fields(schema) if f.get("type", "text") in FILTERABLE]
+
+
+def _number(raw) -> float | None:
+    try:
+        return float(str(raw or "").strip().replace(",", "."))
+    except ValueError:
+        return None
+
+
+def read_param_filters(query, fields: list[dict]) -> dict:
+    """key → ("range", min, max) | ("eq", value) | ("has", text), for the filters filled in."""
+    found = {}
+    for f in fields:
+        key = f["key"]
+        if f.get("type") == "number":
+            low, high = _number(query.get(f"min.{key}")), _number(query.get(f"max.{key}"))
+            if low is not None or high is not None:
+                found[key] = ("range", low, high)
+        elif (value := (query.get(f"pf.{key}") or "").strip()):
+            found[key] = ("eq" if f.get("type") == "choice" else "has", value)
+    return found
+
+
+def entry_matches(params: dict | None, filters: dict) -> bool:
+    params = params or {}
+    for key, (op, *args) in filters.items():
+        value = params.get(key)
+        if op == "range":
+            low, high = args
+            if not isinstance(value, (int, float)) or isinstance(value, bool) \
+                    or (low is not None and value < low) or (high is not None and value > high):
+                return False
+        elif op == "eq":
+            if str(value if value is not None else "").strip().lower() != args[0].lower():
+                return False
+        elif args[0].lower() not in str(value if value is not None else "").lower():
+            return False
+    return True
+
+
+def technique_view(request: Request, family: Family, results, user, technique: str):
+    """The entries table for the technique filtered by, with its parameter
+    filters applied: (the samples left, the view for the template). With
+    parameter filters, only samples with a matching entry are left."""
+    columns, rows, schema = technique_entries(family, results, user, technique, lambda text: t(request, text))
+    fields = filter_fields(schema)
+    filters = read_param_filters(request.query_params, fields)
+    choices = {f["key"]: sorted({str(r["entry"].parameters[f["key"]]) for r in rows
+                                 if (r["entry"].parameters or {}).get(f["key"]) not in (None, "")}, key=str.lower)
+               for f in fields if f.get("type") == "choice"}
+    if filters:
+        rows = [r for r in rows if entry_matches(r["entry"].parameters, filters)]
+        matched = {(r["kind"], r["entry"].id) for r in rows}
+        results = [s for s in results if any((i.kind, i.entry.id) in matched for i in family.timeline(s))]
+    view = {
+        "columns": columns,
+        "rows": rows,
+        "fields": [{"key": f["key"], "label": t(request, f.get("label") or f["key"]), "type": f.get("type", "text"),
+                    "unit": f.get("unit", ""), "choices": choices.get(f["key"], [])} for f in fields],
+        "active": len(filters),
+        "query": request.query_params,
+    }
+    return results, view
+
+
 async def _search(db: AsyncSession, user, q, investigator, sample_type, material, technique, tag):
     samples = await load_samples_full(db)
     family = Family(samples)
@@ -118,6 +233,9 @@ async def search_page(
     current_user: User = Depends(require_login),
 ):
     results, options, family = await _search(db, current_user, q, investigator, sample_type, material, technique, tag)
+    entry_view = None
+    if technique:
+        results, entry_view = technique_view(request, family, results, current_user, technique)
     if group_by not in GROUP_BY:
         group_by = ""
 
@@ -152,14 +270,19 @@ async def search_page(
         "share_users": (await db.execute(
             select(User).where(User.is_admin.is_(False), User.id != current_user.id).order_by(User.username)
         )).scalars().all(),
+        # Filtering by a technique also lists its entries with their parameters
+        "entry_view": entry_view,
         "flash": request.session.pop("flash", None),
         "current_url": str(request.url.path) + (f"?{request.url.query}" if request.url.query else ""),
-        "export_url": "/search/export.csv?" + urlencode({k: v for k, v in filters.items() if v}),
+        # Everything filtered by, parameter filters included
+        "export_url": "/search/export.csv?" + urlencode([(k, v) for k, v in request.query_params.multi_items()
+                                                         if v and k != "group_by"]),
     })
 
 
 @router.get("/search/export.csv")
 async def search_export(
+    request: Request,
     q: str = "",
     investigator: str = "",
     sample_type: str = "",
@@ -170,5 +293,7 @@ async def search_export(
     current_user: User = Depends(require_login),
 ):
     results, _, family = await _search(db, current_user, q, investigator, sample_type, material, technique, tag)
+    if technique:   # parameter filters leave only samples with a matching entry
+        results, _ = technique_view(request, family, results, current_user, technique)
     return await samples_csv(db, results, family, f"logbook_search_{date.today():%Y%m%d}.csv",
                              show_details=lambda s: can_view(current_user, s))

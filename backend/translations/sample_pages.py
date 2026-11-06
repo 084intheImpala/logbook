@@ -95,4 +95,23 @@ PT = {
     "No steps or analyses recorded yet.": "Ainda não há passos nem análises registados.",
     "Uploading {n} file…": "A carregar {n} ficheiro…",
     "Uploading {n} files…": "A carregar {n} ficheiros…",
+    # Deposition rate asked after a thickness measurement (backend/deposition_rate.py)
+    "Add the deposition rate?": "Adicionar a taxa de deposição?",
+    "The {analysis} gave a thickness of {thickness} nm. The deposition of {date} has no deposition rate yet.":
+        "A medida de {analysis} deu uma espessura de {thickness} nm. A deposição de {date} ainda não tem taxa de deposição.",
+    "The {analysis} gave a thickness of {thickness} nm. The deposition before it has no deposition rate yet.":
+        "A medida de {analysis} deu uma espessura de {thickness} nm. A deposição anterior ainda não tem taxa de deposição.",
+    "It is recorded on {sample}, which this piece was cut from.":
+        "Está registada em {sample}, de onde esta peça foi cortada.",
+    "Suggested: {thickness} nm in {duration} (min:s) is {rate} nm/min.":
+        "Sugestão: {thickness} nm em {duration} (min:s) dá {rate} nm/min.",
+    "There are other depositions before it, so the thickness measured is of the whole stack: work out this layer's rate yourself.":
+        "Há outras deposições antes desta, por isso a espessura medida é a de todo o empilhamento: calcule a taxa desta camada.",
+    "The deposition has no duration, so no rate can be suggested.":
+        "A deposição não tem duração, por isso não é possível sugerir uma taxa.",
+    "Add to the deposition": "Adicionar à deposição",
+    "Not now": "Agora não",
+    "The deposition rate must be a number above zero.": "A taxa de deposição tem de ser um número maior que zero.",
+    "Deposition rate of {rate} nm/min added to the deposition of {sample}.":
+        "Taxa de deposição de {rate} nm/min adicionada à deposição de {sample}.",
 }

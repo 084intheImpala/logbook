@@ -163,6 +163,40 @@
 <script>document.getElementById('code-prompt').showModal();</script>
 {% endif %}
 
+{% if rate_prompt %}
+<!-- Asked after a thickness was measured (Ellipsometry, Profilometry): see backend/deposition_rate.py -->
+<dialog id="rate-prompt" class="rounded-xl shadow-xl p-0 max-w-md w-full backdrop:bg-black/40">
+  <form method="post" action="/samples/{{ rate_prompt.sample_id }}/steps/{{ rate_prompt.step_id }}/deposition-rate" class="p-6 space-y-3">
+    <input type="hidden" name="back" value="{{ sample.id }}">
+    <h2 class="text-lg font-semibold text-gray-900">{{ _("Add the deposition rate?") }}</h2>
+    <p class="text-sm text-gray-600">
+      {% if rate_prompt.step_date %}{{ _("The {analysis} gave a thickness of {thickness} nm. The deposition of {date} has no deposition rate yet.", analysis=_(rate_prompt.analysis), thickness="%g"|format(rate_prompt.thickness), date=rate_prompt.step_date) }}
+      {% else %}{{ _("The {analysis} gave a thickness of {thickness} nm. The deposition before it has no deposition rate yet.", analysis=_(rate_prompt.analysis), thickness="%g"|format(rate_prompt.thickness)) }}{% endif %}
+      {% if rate_prompt.inherited %}{{ _("It is recorded on {sample}, which this piece was cut from.", sample=rate_prompt.source_title) }}{% endif %}
+    </p>
+    {% if rate_prompt.suggested %}
+    <p class="text-sm text-gray-600">{{ _("Suggested: {thickness} nm in {duration} (min:s) is {rate} nm/min.", thickness="%g"|format(rate_prompt.thickness), duration=rate_prompt.duration, rate="%g"|format(rate_prompt.suggested)) }}</p>
+    {% elif rate_prompt.stack %}
+    <p class="text-sm text-gray-600">{{ _("There are other depositions before it, so the thickness measured is of the whole stack: work out this layer's rate yourself.") }}</p>
+    {% else %}
+    <p class="text-sm text-gray-600">{{ _("The deposition has no duration, so no rate can be suggested.") }}</p>
+    {% endif %}
+    <label class="block text-sm font-medium text-gray-700">{{ _("Deposition rate") }}
+      <span class="flex items-center gap-2 mt-1">
+        <input name="rate" inputmode="decimal" required value="{{ '%g'|format(rate_prompt.suggested) if rate_prompt.suggested else '' }}"
+               class="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <span class="text-sm text-gray-500">nm/min</span>
+      </span>
+    </label>
+    <div class="flex flex-wrap gap-2 pt-2">
+      <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add to the deposition") }}</button>
+      <button type="button" onclick="this.closest('dialog').close()" class="text-sm text-gray-600 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">{{ _("Not now") }}</button>
+    </div>
+  </form>
+</dialog>
+<script>document.getElementById('rate-prompt').showModal();</script>
+{% endif %}
+
 {% if sample.requested_by_id %}
 <div class="mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg flex items-center gap-3">
   {% if sample.owner_id == current_user.id %}

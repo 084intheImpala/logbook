@@ -21,6 +21,7 @@ from backend import approvals
 from backend.auth import can_edit, can_edit_entry, can_view
 from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, option_methods, remember
 from backend.config import settings
+from backend.deposition_rate import rate_prompt
 from backend.i18n import t
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
@@ -259,6 +260,10 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
     else:
         for performer_user, samples in newly_told.values():
             await tell_performer(request, performer_user, user, samples, entry_type.name)
+    if kind is ANALYSIS:   # a measured thickness: offer to fill in the deposition rate
+        prompt = await rate_prompt(db, sample, entry, entry_type.name, user)
+        if prompt:
+            request.session["rate_prompt"] = prompt
     anchor = "pending" if entry.status == "pending" else f"{kind.name}-{entry.id}"
     return RedirectResponse(f"/samples/{sample.id}#{anchor}", status_code=303)
 
