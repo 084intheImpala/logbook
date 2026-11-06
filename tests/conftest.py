@@ -59,7 +59,9 @@ class World:
 
         async def make():
             async with AsyncSessionLocal() as db:
-                s = Sample(code=f"TST-2026-{n:03d}", owner_id=owner.id if owner else None, **extra)
+                # Personal unless asked: the tests were written when that was the default (now Team)
+                s = Sample(code=f"TST-2026-{n:03d}", owner_id=owner.id if owner else None,
+                           **{"visibility": "personal"} | extra)
                 s.shares = ([SampleShare(user_id=u.id, can_edit=False) for u in shared_view]
                             + [SampleShare(user_id=u.id, can_edit=True) for u in shared_edit])
                 db.add(s)

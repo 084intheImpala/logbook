@@ -349,7 +349,7 @@
   </a>
   <a href="/samples/{{ sample.id }}/steps/new?planned=1"
      title="{{ _("A step to do later, e.g. a deposition with its duration worked out from the target thickness") }}"
-     class="inline-flex items-center gap-1.5 text-sm border-2 border-dashed border-amber-400 text-amber-800 px-4 py-1.5 rounded-lg hover:bg-amber-50">
+     class="inline-flex items-center gap-1.5 text-sm border-2 border-dashed border-blue-500 text-blue-700 px-4 py-1.5 rounded-lg hover:bg-blue-50">
     {{ _("Plan a step") }}
   </a>
   <a href="/samples/{{ sample.id }}/analyses/new"
@@ -359,17 +359,18 @@
     </svg>
     {{ _("Add Analysis") }}
   </a>
+  {# Recording on the left; what's done to the sample itself (cut, devices) on the right #}
   <a href="/samples/{{ sample.id }}/cut"
-     class="inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 shadow-sm">
+     class="sm:ml-auto inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 shadow-sm">
     ✂ {{ _("Cut into pieces") }}
   </a>
   <button type="button" onclick="document.getElementById('devices-dialog').showModal()"
           title="{{ _("Process done: make devices") }}"
           class="inline-flex items-center gap-1.5 text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 shadow-sm">
-    {{ _("Make devices") }}
+    ⚡ {{ _("Make devices") }}
   </button>
   {% if can_edit and timeline|length > 1 %}
-  <form method="post" action="/samples/{{ sample.id }}/timeline/sort-by-date" class="ml-auto"
+  <form method="post" action="/samples/{{ sample.id }}/timeline/sort-by-date"
         onsubmit='return confirm({{ _("Reorder dated entries chronologically? Entries without a date keep their place.")|tojson }})'>
     <button class="text-sm border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50">{{ _("Sort by date") }}</button>
   </form>
