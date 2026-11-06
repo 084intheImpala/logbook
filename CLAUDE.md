@@ -8,7 +8,7 @@
   changes also go in the README's data model / `sample.json` table (bump `FORMAT` in `backend/sample_backup.py`).
 - Every user-visible string is translated: English in the code/templates, Portuguese in `backend/translations/`.
   In templates, don't put `"` inside a `_("...")` string.
-- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0017`).
+- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0018`).
 - Add tests in `tests/` for new behaviour. They run on a throwaway SQLite DB; never touch the real DB or `uploads/`.
   This machine isn't the DB host: say what needs running there (e.g. migrations).
 - Each new feature gets its own branch, always branched from `main`; commit on that branch. Only commit when asked.
@@ -47,5 +47,8 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   timeline, left out of search, exports, rates and inheritance (`lineage.own_items(planned=False)` by default) until
   "Mark as done". The Deposition form works the duration out from Target thickness ÷ Rate used for the time, with
   "Use the last known rate" (`deposition_rate.last_rate`, `/samples/{id}/steps/last-rate`).
+- **Layers** (`layers.py`, `_layers.html`): a thin-film sample's page draws its film stack (one layer per
+  Deposition, thickness from measurements / typed / rate × duration / target, CMP takes off the top) with the
+  process steps each layer went through since. The rate-over-time plot is on the search page only.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).

@@ -428,8 +428,9 @@ longer has stay as they were. Example, trimmed:
 ## Devices on a sample
 
 When several devices come out of one sample, finish the process that makes
-them, then click **Make devices** next to *Add Process Step*, *Add Analysis* and
-*Cut into pieces* on the sample's page (the dialog explains it too, and lists
+them, then click **⚡ Make devices** next to *Cut into pieces*, on the right
+of the sample page's buttons (*Add Process Step*, *Plan a step* and *Add
+Analysis* are on the left) (the dialog explains it too, and lists
 the existing devices so you can remove one): give the labels (D1, D2, …, or just how many) and the date. This puts
 a **Devices made** step on the timeline, listing the devices; everything
 before it is their shared history. Steps added afterwards, such as annealing,
@@ -491,8 +492,8 @@ parameters, notes, dates and files) are visible to:
 - anyone the sample's **visibility** lets in.
 
 **Visibility** is set per sample, when it is created and at any time later,
-either on the sample's *Edit* page or under *Sharing* (owner or admin): **Personal** (the default: only the people above),
-**Team** (also everyone in the owner's team) or **Public** (everyone logged
+either on the sample's *Edit* page or under *Sharing* (owner or admin): **Personal** (only the people above),
+**Team** (the default: also everyone in the owner's team) or **Public** (everyone logged
 in). A piece cut from a sample starts with its parent's visibility. Visibility
 only decides who can *see* details; changing a sample still needs an explicit
 **Edit** share (or being the owner or an admin).
@@ -728,12 +729,39 @@ measurement asks for the rate by hand, filling the Deposition rate field (and
 its run copies that have none); **Not now** closes the prompt. Search and plots
 use the measured rate when there is one, else the typed one.
 
-**Rate history.** Each deposition card also plots the rates of every
-deposition you can see with the same machine, target, gas (atmosphere), gas
-flow and power (case aside), over time, with this one ringed, and a table
-view. Undated depositions aren't drawn. `backend/deposition_rate.py` (the
-conditions are `CONDITION_KEYS`, the steps that keep the thickness
-`THICKNESS_KEEPING_STEPS`), `backend/rate_plot.py`, `_rate_plot.html`.
+**Rate history.** The plot of the rate over time, one line per machine,
+target, gas (atmosphere), gas flow and power (case aside), is on the search
+page (Search by technique: Deposition); the sample page only lists the
+measurements and their average. Undated depositions aren't drawn.
+`backend/deposition_rate.py` (the conditions are `CONDITION_KEYS`, the steps
+that keep the thickness `THICKNESS_KEEPING_STEPS`), `backend/rate_plot.py`,
+`_rate_plot.html`.
+
+### Layers
+
+A thin-film sample's page draws its film stack above the timeline: the
+substrate (hatched, not to scale) and one rectangle per Deposition, bottom
+first, inherited ones included (a piece shows its parent's films). Planned
+depositions are drawn dashed and pale. Films are to scale with each other;
+very thin ones are drawn at a minimum height, and the caption says so.
+
+- **Material**: the deposition's Target, else the sample's film material.
+  The colour goes by material, so two films of the same material match.
+- **Thickness**, the first known of: the average of its thickness
+  measurements (as for the measured rate; only a single film can be
+  measured), the Thickness typed on the step, the typed Deposition rate ×
+  Duration, the Target thickness. The label says which.
+- **CMP** with a Thickness removed takes that much off the top films (a film
+  polished away goes); planned CMPs are left out.
+- Beside each film: the **process steps it went through** after it was
+  deposited (annealing, implantation, CMP, …; not Cut or Devices made), with
+  their first few parameter values and date. So with *deposit 100 nm, anneal
+  1000 °C, deposit 200 nm, anneal 400 °C*, the bottom film lists both
+  anneals and the top one only the 400 °C one.
+
+Click a film or a step to jump to it on the timeline. Bulk and project
+samples have no stack. `backend/layers.py` (stack and geometry),
+`_layers.html` (the SVG).
 
 ### One step or analysis on several samples
 

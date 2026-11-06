@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_rate_plot.html" import rate_plot with context %}
+{% from "_layers.html" import layer_stack with context %}
 {% block title %}{{ sample.title }} — Logbook{% endblock %}
 {% block content %}
 {% macro param_rows(rows) %}
@@ -349,7 +349,7 @@
   </a>
   <a href="/samples/{{ sample.id }}/steps/new?planned=1"
      title="{{ _("A step to do later, e.g. a deposition with its duration worked out from the target thickness") }}"
-     class="inline-flex items-center gap-1.5 text-sm border-2 border-dashed border-amber-400 text-amber-800 px-4 py-1.5 rounded-lg hover:bg-amber-50">
+     class="inline-flex items-center gap-1.5 text-sm border-2 border-dashed border-blue-500 text-blue-700 px-4 py-1.5 rounded-lg hover:bg-blue-50">
     {{ _("Plan a step") }}
   </a>
   <a href="/samples/{{ sample.id }}/analyses/new"
@@ -359,17 +359,18 @@
     </svg>
     {{ _("Add Analysis") }}
   </a>
+  {# Recording on the left; what's done to the sample itself (cut, devices) on the right #}
   <a href="/samples/{{ sample.id }}/cut"
-     class="inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 shadow-sm">
+     class="sm:ml-auto inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 shadow-sm">
     ✂ {{ _("Cut into pieces") }}
   </a>
   <button type="button" onclick="document.getElementById('devices-dialog').showModal()"
           title="{{ _("Process done: make devices") }}"
           class="inline-flex items-center gap-1.5 text-sm bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 shadow-sm">
-    {{ _("Make devices") }}
+    ⚡ {{ _("Make devices") }}
   </button>
   {% if can_edit and timeline|length > 1 %}
-  <form method="post" action="/samples/{{ sample.id }}/timeline/sort-by-date" class="ml-auto"
+  <form method="post" action="/samples/{{ sample.id }}/timeline/sort-by-date"
         onsubmit='return confirm({{ _("Reorder dated entries chronologically? Entries without a date keep their place.")|tojson }})'>
     <button class="text-sm border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50">{{ _("Sort by date") }}</button>
   </form>
@@ -422,6 +423,9 @@
   </div>
 </dialog>
 {% endif %}
+
+<!-- Layers: the film stack, thin films only (backend/layers.py) -->
+{{ layer_stack(layers, sample) }}
 
 <!-- ═══ UNIFIED TIMELINE ══════════════════════════════════════════════════ -->
 {% if timeline %}
@@ -545,8 +549,8 @@
         </div>
         {% endif %}
 
-        <!-- Deposition: thickness measurements, measured rate, rate history (backend/deposition_rate.py) -->
-        {% if entry.rate and (entry.rate.measured or entry.rate.plot) %}
+        <!-- Deposition: thickness measurements and the measured rate (backend/deposition_rate.py); the rate history plot is on the search page -->
+        {% if entry.rate and entry.rate.measured %}
         <div class="px-5 pb-3 pt-2 border-t border-gray-50 space-y-2">
           {% if entry.rate.measured %}
           <div class="text-sm">
@@ -566,27 +570,6 @@
               {{ '%g'|format(m.thickness) }} nm{% if m.rate is not none %} → {{ '%g'|format(m.rate) }} nm/min{% endif %}</li>
             {% endfor %}
           </ul>
-          {% endif %}
-          {% if entry.rate.plot %}
-          <details class="text-sm" open>
-            <summary class="text-xs text-gray-500 cursor-pointer select-none">{{ _("Rate history with the same conditions") }} <span class="text-gray-400">({{ entry.rate.conditions }})</span></summary>
-            <div class="mt-2 max-w-2xl">
-              {{ rate_plot(entry.rate.plot) }}
-              <details class="mt-1">
-                <summary class="text-xs text-gray-400 cursor-pointer select-none">{{ _("As a table") }}</summary>
-                <table class="text-xs mt-1">
-                  {% for p in entry.rate.history %}
-                  <tr class="{% if p.step.id == entry.id %}font-semibold{% endif %}">
-                    <td class="pr-3 text-gray-500">{{ p.step.performed_at.isoformat() if p.step.performed_at else '—' }}</td>
-                    <td class="pr-3"><a href="/samples/{{ p.sample.id }}#step-{{ p.step.id }}" class="font-mono text-blue-600 hover:underline">{{ p.sample.title }}</a></td>
-                    <td class="pr-3 text-gray-700">{{ '%g'|format(p.rate) }} nm/min</td>
-                    <td class="text-gray-400">{{ _("average of {n}", n=p.n) if p.n > 1 else _("measured") if p.n else _("typed") }}</td>
-                  </tr>
-                  {% endfor %}
-                </table>
-              </details>
-            </div>
-          </details>
           {% endif %}
         </div>
         {% endif %}
