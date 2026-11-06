@@ -11,7 +11,7 @@
 - Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0017`).
 - Add tests in `tests/` for new behaviour. They run on a throwaway SQLite DB; never touch the real DB or `uploads/`.
   This machine isn't the DB host: say what needs running there (e.g. migrations).
-- Commit directly (no feature branches); currently on `restructure`. Only commit when asked.
+- Each new feature gets its own branch, always branched from `main`; commit on that branch. Only commit when asked.
 - `todo` is a personal, git-ignored file: edit it, don't commit it.
 
 ## Running things
