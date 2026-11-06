@@ -238,6 +238,8 @@ class ProcessStepType(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     parameter_schema: Mapped[list[dict] | None] = mapped_column(JSON)
+    # Where it's usually done: a new entry's Where starts here (none: left empty)
+    default_location: Mapped[str | None] = mapped_column(String(120))
 
     steps: Mapped[list["ProcessStep"]] = relationship("ProcessStep", back_populates="step_type")
 
@@ -284,6 +286,8 @@ class AnalysisType(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     parameter_schema: Mapped[list[dict] | None] = mapped_column(JSON)
+    # Where it's usually done: a new entry's Where starts here (none: left empty)
+    default_location: Mapped[str | None] = mapped_column(String(120))
 
     analyses: Mapped[list["Analysis"]] = relationship("Analysis", back_populates="analysis_type")
 
@@ -372,6 +376,9 @@ class Attachment(Base):
     stored_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_size: Mapped[int | None] = mapped_column(BigInteger)
+    # Of the stored file's content: an upload identical to a stored file
+    # points at that file instead of storing it again (see save_upload)
+    sha256: Mapped[str | None] = mapped_column(String(64), index=True)
     mime_type: Mapped[str | None] = mapped_column(String(100))
     # Small JPEG preview for images (created on upload, or on first view)
     thumbnail_filename: Mapped[str | None] = mapped_column(String(255))

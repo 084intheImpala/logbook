@@ -37,7 +37,7 @@
       <select id="type-select" name="type_id" required class="{{ input_cls }} bg-white">
         <option value="">— {{ _("select") }} —</option>
         {% for ty in types %}
-        <option value="{{ ty.id }}" {% if entry and (entry.step_type_id if is_step else entry.analysis_type_id) == ty.id %}selected{% endif %}>
+        <option value="{{ ty.id }}" data-place="{{ ty.default_location or '' }}" {% if entry and (entry.step_type_id if is_step else entry.analysis_type_id) == ty.id %}selected{% endif %}>
           {{ ty.name }}{% if ty.description %} — {{ ty.description[:60] }}{% endif %}
         </option>
         {% endfor %}
@@ -254,6 +254,22 @@
     if (e.target.classList.contains('variant-select')) filterEquipment(true);
   });
   filterEquipment(false);   // an entry being edited keeps its machine even if it moved since
+{% if not entry %}
+
+  // A new entry's Where starts at the chosen type's usual place (empty if it
+  // has none), until Where is changed by hand.
+  let whereTouched = false;
+  if (where) where.addEventListener('change', () => { whereTouched = true; });
+  function usualPlace() {
+    if (!where || whereTouched) return;
+    const option = typeSelect.selectedOptions[0];
+    const place = option ? option.dataset.place || '' : '';
+    where.value = [...where.options].some(o => o.value === place) ? place : '';
+    filterEquipment(true);
+  }
+  typeSelect.addEventListener('change', usualPlace);
+  usualPlace();
+{% endif %}
 
   // Modes (e.g. XRD): ticking one shows its fields; new modes can be added.
   form.addEventListener('change', e => {

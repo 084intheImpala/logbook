@@ -12,7 +12,7 @@ from backend.models import (Sample, SampleShare, ProcessStep, ProcessStepType, A
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
 from backend.activity import log as log_activity
-from backend.utils import save_upload, chosen_files
+from backend.utils import save_upload, chosen_files, delete_attachments_of
 from backend.auth import (require_login, load_sample, can_view, can_edit, can_edit_entry, can_propose, can_decide,
                           coordinates_user, is_coordinator_of, is_owner, is_performer, is_proposer)
 from backend import timeline as tl
@@ -20,7 +20,7 @@ from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_samples_full, 
 from backend import rate_plot
 from backend.deposition_rate import DEPOSITION_TYPE_NAME, average, conditions, rate_points
 from backend.params import parse_date, describe
-from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, remember
+from backend.choices import FILM_LIST, LOCATION_LIST, canonical, option_lists, remember
 from backend.seed import PROCESS_STEP_TYPES
 from backend.config import settings
 from backend.email_utils import send_confirm_samples_email, send_declined_email, send_recoded_email
@@ -118,6 +118,7 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "projects": (await db.execute(select(Project).order_by(Project.name))).scalars().all(),
         "spec_files": await _attachments_for(db, "sample", [sample.id]) if editing else {},
         "known_tags": await all_tags(db),
+        "film_materials": (await option_lists(db)).get(FILM_LIST, []),
         "users": (await db.execute(select(User).order_by(User.username))).scalars().all()
                  if editing and current_user.is_admin else [],
         # Who a new sample can be created for (it gets their initials), or who
@@ -231,6 +232,7 @@ async def create_sample(
     # Plain values: the retry below rolls back, which expires loaded objects.
     by_id, by_admin, username, by_name = (current_user.id, current_user.is_admin,
                                           current_user.username, current_user.display_name)
+    film_material = await canonical(db, FILM_LIST, film_material)
     owner = current_user
     if owner_id.isdigit() and int(owner_id) != by_id:
         owner = await db.get(User, int(owner_id))
@@ -270,6 +272,8 @@ async def create_sample(
         except IntegrityError:
             await db.rollback()
             sample = new_sample()
+    if sample.sample_type == "thin_film":
+        await remember(db, [(FILM_LIST, film_material)], by_id)
     for f in files:
         await save_upload(f, "sample", sample.id, db, uploaded_by=username)
     await db.commit()
@@ -494,6 +498,7 @@ async def update_sample(
     sample = await load_sample(db, sample_id, current_user, "edit")
     was_owner = sample.owner_id == current_user.id
     coded_by = _coded_by(sample)
+    film_material = await canonical(db, FILM_LIST, film_material)
     _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                                      external_id, supplier, description, tags))
     files = chosen_files(files)
@@ -504,6 +509,8 @@ async def update_sample(
             status_code=400)
         await db.rollback()  # don't keep the invalid changes in this session
         return response
+    if sample.sample_type == "thin_film":
+        await remember(db, [(FILM_LIST, film_material)], current_user.id)
     # Admins reassign ownership directly; owners can give the sample to
     # someone else, who has to confirm. The sample ID keeps the original initials.
     new_owner = None
@@ -635,6 +642,11 @@ async def delete_sample(
                        "Delete the pieces first.", n=len(pieces)))
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
     log_activity(db, current_user, "sample_deleted", sample.title, sample.owner_id)
+    # Its files (and its entries') go to the trash, unless another sample's entry shares them
+    await delete_attachments_of(
+        db, sample_ids=[sample_id],
+        step_ids=(await db.execute(select(ProcessStep.id).where(ProcessStep.sample_id == sample_id))).scalars().all(),
+        analysis_ids=(await db.execute(select(Analysis.id).where(Analysis.sample_id == sample_id))).scalars().all())
     await db.delete(sample)
     await db.commit()
     return RedirectResponse("/samples/", status_code=303)
@@ -660,7 +672,8 @@ async def cut_form(
         "researchers": await _researchers(db),
         "options": await option_lists(db),
         "location_list": LOCATION_LIST,
-        "default_location": DEFAULT_LOCATION,
+        "default_location": (await db.execute(select(ProcessStepType.default_location)
+                                               .where(ProcessStepType.name == CUT_TYPE_NAME))).scalar(),
         "flash_error": request.session.pop("flash_error", None),
         "current_user": current_user,
     })

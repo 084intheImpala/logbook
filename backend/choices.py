@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.models import ChoiceOption
 
 LOCATION_LIST = "location"   # "Where" on every step and analysis
-DEFAULT_LOCATION = "CTN"
+DEFAULT_LOCATION = "CTN"    # preselected as a new type's usual place (see default_location)
+FILM_LIST = "film_material"  # a thin film sample's Film material
 
 
 async def option_locations(db: AsyncSession) -> dict[str, dict[str, str]]:
@@ -35,6 +36,17 @@ async def option_lists(db: AsyncSession) -> dict[str, list[str]]:
     for opt in (await db.execute(select(ChoiceOption))).scalars():
         lists.setdefault(opt.list, []).append(opt.value)
     return {name: sorted(values, key=str.lower) for name, values in lists.items()}
+
+
+async def canonical(db: AsyncSession, list_name: str, value: str) -> str:
+    """`value` as spelled in the list, if it's there ignoring case and
+    surrounding spaces, so "zno " and "ZnO" end up the same."""
+    value = (value or "").strip()
+    if value:
+        for known in (await db.execute(select(ChoiceOption.value).where(ChoiceOption.list == list_name))).scalars():
+            if known.lower() == value.lower():
+                return known
+    return value
 
 
 async def remember(db: AsyncSession, picked: list[tuple[str, str]], user_id: int | None,

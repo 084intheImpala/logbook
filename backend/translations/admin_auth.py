@@ -80,6 +80,8 @@ PT = {
     "Edit": "Editar",
     "Description": "Descrição",
     "Parameter Schema (JSON)": "Esquema de parâmetros (JSON)",
+    "Usually done at": "Feito normalmente em",
+    "nowhere in particular": "nenhum sítio em particular",
     "Existing entries keep their stored values. New keys appear empty the next time an entry is edited; removed keys stay on old entries.":
         "Os registos existentes mantêm os valores guardados. As chaves novas aparecem vazias da próxima vez que um registo for editado; as chaves removidas mantêm-se nos registos antigos.",
     "Delete type {name}?": "Eliminar o tipo {name}?",

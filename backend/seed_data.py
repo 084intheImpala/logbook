@@ -321,10 +321,22 @@ for _type in PROCESS_STEP_TYPES + ANALYSIS_TYPES:
     if _type["name"] not in ("Cleaning", "Cut", "Devices made"):
         _type["parameter_schema"] = with_equipment(_type["parameter_schema"], _type["name"])
 
+# Where each type is usually done; a new entry's Where starts there. Types not
+# listed are done at CTN; those mapped to None can't be done at either place,
+# so Where starts empty.
+DEFAULT_LOCATIONS = {
+    "Deposition": "INESC MN", "Etching": "INESC MN", "Lithography": "INESC MN", "CMP": "INESC MN",
+    "Ellipsometry": "INESC MN", "Hall / 4-probe": "INESC MN", "Profilometry": "INESC MN", "SEM": "INESC MN",
+    "AFM": "FCUL",
+    "TEM": None, "XPS": None,
+}
+for _type in PROCESS_STEP_TYPES + ANALYSIS_TYPES:
+    _type["default_location"] = DEFAULT_LOCATIONS.get(_type["name"], "CTN")
+
 # Starting values of the shared dropdowns; people add more as they go.
 # Equipment is given as (name, place).
 CHOICE_OPTIONS = {
-    "location": ["CTN", "INESC MN"],
+    "location": ["CTN", "INESC MN", "FCUL"],
     "machine": [("Alcatel SCM 450", "INESC MN"), ("UHV1", "INESC MN"), ("UHV2", "INESC MN"), ("SentiFet", "INESC MN")],
     "deposition_technique": ["RF magnetron sputtering", "DC magnetron sputtering"],
     "atmosphere": ["Ar", "Ar + O2", "Ar + N2", "N2", "O2", "Air", "Vacuum"],

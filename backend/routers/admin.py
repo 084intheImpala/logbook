@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from backend.database import get_db
 from backend.models import ProcessStepType, AnalysisType, ProcessStep, Analysis, User, Team
 from backend.params import validate_schema, with_equipment
+from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists
 from backend import accounts
 from backend.activity import log as log_activity
 from backend.auth import require_login
@@ -64,6 +65,8 @@ async def admin_index(request: Request, db: AsyncSession = Depends(get_db),
         "flash": flash,
         "flash_error": flash_error,
         "email_configured": bool(settings.SMTP_PASSWORD),
+        "places": (await option_lists(db)).get(LOCATION_LIST, []),
+        "default_location": DEFAULT_LOCATION,
     })
 
 
@@ -257,6 +260,7 @@ async def create_type(
     name: str = Form(...),
     description: str = Form(""),
     parameter_schema_json: str = Form("[]"),
+    default_location: str = Form(""),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
@@ -271,7 +275,8 @@ async def create_type(
         request.session["flash_error"] = t(request, "A type named '{name}' already exists.", name=name)
         return RedirectResponse("/admin/", status_code=303)
     # New techniques get the standard Equipment dropdown (it can be removed by editing the schema)
-    db.add(model(name=name, description=description.strip() or None, parameter_schema=with_equipment(schema, name)))
+    db.add(model(name=name, description=description.strip() or None, parameter_schema=with_equipment(schema, name),
+                 default_location=default_location.strip() or None))
     await db.commit()
     request.session["flash"] = t(request, "Type '{name}' added.", name=name)
     return RedirectResponse("/admin/", status_code=303)
@@ -285,6 +290,7 @@ async def update_type(
     name: str = Form(...),
     description: str = Form(""),
     parameter_schema_json: str = Form("[]"),
+    default_location: str = Form(""),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
@@ -304,6 +310,7 @@ async def update_type(
     obj.name = name
     obj.description = description.strip() or None
     obj.parameter_schema = schema
+    obj.default_location = default_location.strip() or None
     await db.commit()
     request.session["flash"] = t(request, "Type '{name}' updated. Existing entries keep their stored values.", name=name)
     return RedirectResponse("/admin/", status_code=303)

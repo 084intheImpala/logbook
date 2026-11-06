@@ -234,6 +234,16 @@
 <h2 class="text-lg font-semibold text-gray-800 mb-1">{{ _("Configurations") }}</h2>
 <p class="text-sm text-gray-500 mb-6">{{ _("Define the process step types and analysis types available in the logbook.") }}</p>
 
+{# Where a type is usually done: a new entry's Where starts there #}
+{% macro place_select(value) %}
+<label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Usually done at") }}</label>
+<select name="default_location" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white">
+  <option value="">— {{ _("nowhere in particular") }}</option>
+  {% for p in places %}<option value="{{ p }}" {% if value == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+  {% if value and value not in places %}<option value="{{ value }}" selected>{{ value }}</option>{% endif %}
+</select>
+{% endmacro %}
+
 {% macro type_panel(title, kind, types, usage, color, example) %}
 <div>
   <h3 class="text-base font-semibold text-gray-700 mb-3">{{ title }}</h3>
@@ -243,6 +253,7 @@
       <summary class="px-4 py-3 cursor-pointer list-none">
         <div class="flex items-center gap-2">
           <span class="font-medium text-sm flex-1">{{ t.name }}</span>
+          {% if t.default_location %}<span class="text-xs text-gray-500">📍 {{ t.default_location }}</span>{% endif %}
           <span class="text-xs text-gray-400">{{ _("1 entry") if usage.get(t.id, 0) == 1 else _("{count} entries", count=usage.get(t.id, 0)) }}</span>
           <span class="text-xs text-{{ color }}-600 group-open:hidden">{{ _("Edit") }}</span>
         </div>
@@ -266,6 +277,7 @@
               <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Description") }}</label>
               <input name="description" value="{{ t.description or '' }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
             </div>
+            <div>{{ place_select(t.default_location) }}</div>
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Parameter Schema (JSON)") }}</label>
@@ -300,6 +312,7 @@
         <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Description") }}</label>
         <input name="description" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
       </div>
+      <div>{{ place_select(default_location) }}</div>
       <div>
         <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Parameter Schema (JSON)") }}</label>
         <textarea name="parameter_schema_json" rows="5" placeholder='{{ example }}'

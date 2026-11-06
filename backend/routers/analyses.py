@@ -9,6 +9,7 @@ from backend.models import Analysis
 from backend.timeline import renumber
 from backend.auth import require_login, load_sample, can_edit_entry
 from backend.entry_forms import ANALYSIS, form_page, save, get_entry, overwrite_check
+from backend.utils import delete_attachments_of
 
 router = APIRouter()
 
@@ -72,6 +73,7 @@ async def delete_analysis(
     analysis = result.scalar_one_or_none()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
+    await delete_attachments_of(db, analysis_ids=[analysis_id])   # to the trash, unless shared
     await db.delete(analysis)
     await db.flush()
     await renumber(db, sample_id)

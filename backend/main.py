@@ -1,4 +1,5 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +12,7 @@ from backend.routers import samples, steps, analyses, files, attach, admin, sear
 from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException, RequiresProfileException
 from backend.seed import seed_types
+from backend.trash import empty_daily
 from backend.i18n import LANGS
 from backend.sample_backup import write_all, write_pending
 
@@ -21,7 +23,11 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as session:
         await seed_types(session)
     await write_all()
+    trash = asyncio.create_task(empty_daily())
     yield
+    trash.cancel()
+    with suppress(asyncio.CancelledError):
+        await trash
 
 
 app = FastAPI(title=settings.APP_TITLE, lifespan=lifespan)
