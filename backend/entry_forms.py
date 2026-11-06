@@ -19,7 +19,7 @@ from starlette.datastructures import UploadFile
 
 from backend import approvals
 from backend.auth import can_edit, can_edit_entry, can_view
-from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, option_locations, option_methods, remember
+from backend.choices import LOCATION_LIST, option_lists, option_locations, option_methods, remember
 from backend.config import settings
 from backend.deposition_rate import after_measurement
 from backend.i18n import t
@@ -118,8 +118,8 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
         "places": await option_locations(db),
         "methods": await option_methods(db),
         "location_list": LOCATION_LIST,
-        # New entries default to where most work happens
-        "location": entry.location if entry else DEFAULT_LOCATION if DEFAULT_LOCATION in options.get(LOCATION_LIST, []) else None,
+        # A new entry's Where is filled in from the type chosen (its default_location), on the page
+        "location": entry.location if entry else None,
         "users": await users_for_form(db),
         "attachments": attachments,
         "run": run,

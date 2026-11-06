@@ -183,7 +183,12 @@ Each type is explained beside its button on the new-sample form.
 
 - **Thin film:** a sample we deposited ourselves. A substrate from the library,
   dimensions, and optionally the film material (a sample is just its substrate
-  until it's deposited).
+  until it's deposited). The film is picked from a shared dropdown list, like
+  the ones on the step forms ("+ Add new…" adds one), so every sample spells it
+  the same way and filtering by film finds them all. A value typed in a
+  different case or with extra spaces is saved with the list's spelling.
+  Migration `0013` started the list from the films already on samples, merging
+  spellings that only differed in case or spaces into the most used one.
 - **Bulk:** a bulk crystal or membrane, e.g. a 5×5 mm piece of a library
   substrate. **External ID** holds the identifier given by whoever cut it.
 - **Project:** a commercial sample, or any sample sent for a project or
@@ -604,8 +609,13 @@ Each step or analysis type has its own fields, filled in on the form:
 - **XRD / HRXRD** has **modes** (2θ/ω, rocking curve, grazing incidence, …):
   tick the ones measured, or add another, and fill in each one's range, step,
   acquisition time and configuration.
-- **Where** (CTN, INESC MN, or another institute) is on every step and
-  analysis; it's a dropdown too. Every technique has an **Equipment**
+- **Where** (CTN, INESC MN, FCUL, or another institute) is on every step and
+  analysis; it's a dropdown too. On a new entry it starts at the chosen
+  type's usual place, and follows the type until Where is changed by hand:
+  INESC MN for Deposition, Etching, Lithography, CMP, Ellipsometry,
+  Hall / 4-probe, Profilometry and SEM; FCUL for AFM; empty for TEM and XPS
+  (done elsewhere); CTN for the rest. Admins change a type's usual place
+  under Configurations ("Usually done at"); migration `0014` set these. Every technique has an **Equipment**
   dropdown (Machine on Deposition) with its own list, and equipment belongs
   to a place: the dropdown only offers what's at the place chosen under
   Where (INESC MN has the Alcatel SCM 450, UHV1, UHV2 and SentiFet). A new
@@ -691,7 +701,7 @@ removes it from that sample.
 ## Adding or changing a step / analysis type
 
 Admins manage types under **Configurations**: add, edit (name, description,
-schema) or delete (only when unused). Editing a schema never changes stored
+where it's usually done, schema) or delete (only when unused). Editing a schema never changes stored
 data: values whose field was removed stay on existing entries and are still
 shown. Each type has a `parameter_schema`, a JSON list of fields. Every
 field has a `key` and a `label`; its `type` is one of:

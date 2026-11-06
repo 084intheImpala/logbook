@@ -270,7 +270,9 @@ Clique em \menu{Nova amostra} e escolha o \ui{Tipo de amostra}:
 \textbf{Tipo} & \textbf{O que preencher} \\
 \midrule
 Thin film     & O substrato da biblioteca (obrigatório), as dimensões e, depois
-                da deposição, o material do filme. \\
+                da deposição, o material do filme, escolhido de uma lista
+                partilhada (\ui{+ Adicionar novo…} acrescenta um), para que
+                todas as amostras o escrevam da mesma forma. \\
 Bulk          & O substrato da biblioteca de que é um pedaço (obrigatório), as
                 dimensões, e um \ui{ID externo} se foi cortado por outra pessoa. \\
 Project       & Uma amostra comercial, ou enviada para um projeto ou
@@ -324,7 +326,12 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 
 \begin{description}
   \item[Data] Opcional, só o dia. O botão \ui{Hoje} preenche-a.
-  \item[Onde] CTN, INESC MN ou outro instituto.
+  \item[Onde] CTN, INESC MN, FCUL ou outro instituto. Num registo novo
+    começa no local onde o tipo escolhido é normalmente feito, e acompanha
+    o tipo até ser mudado à mão: INESC MN para Deposition, Etching,
+    Lithography, CMP, Ellipsometry, Hall / 4-probe, Profilometry e SEM;
+    FCUL para AFM; vazio para TEM e XPS (feitos noutro sítio); CTN para os
+    restantes.
   \item[Equipamento] A máquina utilizada. A lista só mostra o equipamento
     que existe no local escolhido em \ui{Onde}. (Numa deposição chama-se
     \ui{Máquina}.) No recozimento, o equipamento também depende do método:
@@ -717,7 +724,9 @@ As \menu{Configurações} têm três partes.
     repor palavras-passe, tornar ou deixar de ser administrador, alterar o
     nome ou as iniciais de alguém, eliminar utilizadores.
   \item[Tipos de passo de processo / Tipos de análise] Acrescentar, editar
-    ou eliminar (quando não estão em uso) tipos. Cada tipo tem um
+    ou eliminar (quando não estão em uso) tipos. \ui{Feito normalmente em}
+    é o local com que começa o \ui{Onde} de um registo novo desse tipo.
+    Cada tipo tem um
     \emph{esquema de parâmetros}: uma lista JSON de campos. Editá-lo nunca
     altera os dados já guardados.
   \item[Exportar a base de dados completa (CSV)] Tudo, independentemente

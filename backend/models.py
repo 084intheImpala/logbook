@@ -238,6 +238,8 @@ class ProcessStepType(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     parameter_schema: Mapped[list[dict] | None] = mapped_column(JSON)
+    # Where it's usually done: a new entry's Where starts here (none: left empty)
+    default_location: Mapped[str | None] = mapped_column(String(120))
 
     steps: Mapped[list["ProcessStep"]] = relationship("ProcessStep", back_populates="step_type")
 
@@ -284,6 +286,8 @@ class AnalysisType(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     parameter_schema: Mapped[list[dict] | None] = mapped_column(JSON)
+    # Where it's usually done: a new entry's Where starts here (none: left empty)
+    default_location: Mapped[str | None] = mapped_column(String(120))
 
     analyses: Mapped[list["Analysis"]] = relationship("Analysis", back_populates="analysis_type")
 

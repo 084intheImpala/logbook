@@ -20,7 +20,7 @@ from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_samples_full, 
 from backend import rate_plot
 from backend.deposition_rate import DEPOSITION_TYPE_NAME, average, conditions, rate_points
 from backend.params import parse_date, describe
-from backend.choices import DEFAULT_LOCATION, LOCATION_LIST, option_lists, remember
+from backend.choices import FILM_LIST, LOCATION_LIST, canonical, option_lists, remember
 from backend.seed import PROCESS_STEP_TYPES
 from backend.config import settings
 from backend.email_utils import send_confirm_samples_email, send_declined_email, send_recoded_email
@@ -118,6 +118,7 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         "projects": (await db.execute(select(Project).order_by(Project.name))).scalars().all(),
         "spec_files": await _attachments_for(db, "sample", [sample.id]) if editing else {},
         "known_tags": await all_tags(db),
+        "film_materials": (await option_lists(db)).get(FILM_LIST, []),
         "users": (await db.execute(select(User).order_by(User.username))).scalars().all()
                  if editing and current_user.is_admin else [],
         # Who a new sample can be created for (it gets their initials), or who
@@ -231,6 +232,7 @@ async def create_sample(
     # Plain values: the retry below rolls back, which expires loaded objects.
     by_id, by_admin, username, by_name = (current_user.id, current_user.is_admin,
                                           current_user.username, current_user.display_name)
+    film_material = await canonical(db, FILM_LIST, film_material)
     owner = current_user
     if owner_id.isdigit() and int(owner_id) != by_id:
         owner = await db.get(User, int(owner_id))
@@ -270,6 +272,8 @@ async def create_sample(
         except IntegrityError:
             await db.rollback()
             sample = new_sample()
+    if sample.sample_type == "thin_film":
+        await remember(db, [(FILM_LIST, film_material)], by_id)
     for f in files:
         await save_upload(f, "sample", sample.id, db, uploaded_by=username)
     await db.commit()
@@ -494,6 +498,7 @@ async def update_sample(
     sample = await load_sample(db, sample_id, current_user, "edit")
     was_owner = sample.owner_id == current_user.id
     coded_by = _coded_by(sample)
+    film_material = await canonical(db, FILM_LIST, film_material)
     _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
                                      external_id, supplier, description, tags))
     files = chosen_files(files)
@@ -504,6 +509,8 @@ async def update_sample(
             status_code=400)
         await db.rollback()  # don't keep the invalid changes in this session
         return response
+    if sample.sample_type == "thin_film":
+        await remember(db, [(FILM_LIST, film_material)], current_user.id)
     # Admins reassign ownership directly; owners can give the sample to
     # someone else, who has to confirm. The sample ID keeps the original initials.
     new_owner = None
@@ -660,7 +667,8 @@ async def cut_form(
         "researchers": await _researchers(db),
         "options": await option_lists(db),
         "location_list": LOCATION_LIST,
-        "default_location": DEFAULT_LOCATION,
+        "default_location": (await db.execute(select(ProcessStepType.default_location)
+                                               .where(ProcessStepType.name == CUT_TYPE_NAME))).scalar(),
         "flash_error": request.session.pop("flash_error", None),
         "current_user": current_user,
     })
