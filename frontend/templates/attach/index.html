@@ -63,6 +63,23 @@
   {% for k, v in filters.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
   <input type="hidden" name="searched" value="1">
   {% if rows %}
+  <div class="p-4 border-b border-gray-200 space-y-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">📷 {{ _("Photos") }}</label>
+        <input type="file" name="photos" accept="image/*" multiple class="text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">📎 {{ _("Files") }}</label>
+        <input type="file" name="files" multiple class="text-sm">
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="submit" id="attach-submit" disabled
+              class="bg-blue-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40">{{ _("Add to the ticked entries") }}</button>
+      <span id="tick-count" class="text-xs text-gray-500"></span>
+    </div>
+  </div>
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead class="text-xs text-gray-500 border-b border-gray-200">
@@ -103,23 +120,6 @@
   {% if more %}
   <p class="px-4 py-2 text-xs text-amber-700">{{ _("Only the newest {n} are shown; narrow the search to see the others.", n=limit) }}</p>
   {% endif %}
-  <div class="p-4 border-t border-gray-200 space-y-3">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">📷 {{ _("Photos") }}</label>
-        <input type="file" name="photos" accept="image/*" multiple class="text-sm">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">📎 {{ _("Files") }}</label>
-        <input type="file" name="files" multiple class="text-sm">
-      </div>
-    </div>
-    <div class="flex items-center gap-3">
-      <button type="submit" id="attach-submit" disabled
-              class="bg-blue-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40">{{ _("Add to the ticked entries") }}</button>
-      <span id="tick-count" class="text-xs text-gray-500"></span>
-    </div>
-  </div>
   {% else %}
   <p class="p-6 text-sm text-gray-500">{{ _("No entries match. Entries without a date only show when no dates are set.") }}</p>
   {% endif %}
