@@ -76,14 +76,19 @@
     <text x="{{ d.label_x }}" y="{{ g.label_y + 25 }}" font-size="11" fill="var(--viz-axis)">
       {{- sources[l.source] if l.source else _("thickness unknown") }}
       {%- if l.source == "measured" and l.n > 1 %} ({{ _("average of {n}", n=l.n) }}){% endif %}
-      {%- if l.partial %} · {% if l.on %}{{ _("on part of the {material}", material=l.on.material or _("Unknown material")) }}{% elif l.on_substrate %}{{ _("on part of the substrate") }}{% else %}{{ _("on part of the surface") }}{% endif %}
-      {%- elif l.on %} · {{ _("on the {material}", material=l.on.material or _("Unknown material")) }}{% endif %}
-      {%- if l.removed %} · {{ _("{nm} nm removed by CMP", nm='%g'|format(l.removed)) }}{% endif %}
-      {%- if l.step.performed_at %} · {{ l.step.performed_at.isoformat() }}{% endif %}
-      {%- if l.sample.id != sample.id %} · {{ _("from {sample}", sample=l.sample.title) }}{% endif %}</text>
+      {%- if l.removed %} · {{ _("{nm} nm removed by CMP", nm='%g'|format(l.removed)) }}{% endif %}</text>
+    {% if l.where_line %}
+    {%- set on_name = (l.on.material or _("Unknown material")) if l.on else "" %}
+    {%- set placed = (_("on part of the {material}", material=on_name) if l.on else (_("on part of the substrate") if l.on_substrate else _("on part of the surface")))
+                     if l.partial else (_("on the {material}", material=on_name) if l.on else "") %}
+    {%- set where = [placed, l.step.performed_at.isoformat() if l.step.performed_at else "",
+                     _("from {sample}", sample=l.sample.title) if l.inherited else ""]|select|join(" · ") %}
+    <text x="{{ d.label_x }}" y="{{ g.label_y + 39 }}" font-size="11" fill="var(--viz-axis)">{{ where }}</text>
+    {% endif %}
+    {% set first = g.label_y + (53 if l.where_line else 39) %}
     {% for p in l.processes %}
     <a href="#step-{{ p.step.id }}">
-      <text x="{{ d.label_x + 10 }}" y="{{ g.label_y + 39 + loop.index0 * 14 }}" font-size="11"
+      <text x="{{ d.label_x + 10 }}" y="{{ first + loop.index0 * 14 }}" font-size="11"
             fill="var(--viz-muted)"{% if p.planned %} font-style="italic"{% endif %}>
         {{- "↳ " }}{{ p.name }}{% if p.summary %} · {{ p.summary }}{% endif %}
         {%- if p.planned %} ({{ _("planned") }}){% elif p.step.performed_at %} · {{ p.step.performed_at.isoformat() }}{% endif %}</text>

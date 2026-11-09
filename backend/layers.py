@@ -32,7 +32,7 @@ CMP_TYPE_NAME = "CMP"
 SLOTS = 8   # material colours (--series-1 … --series-8, as in _rate_plot.html)
 
 # Geometry of the drawing, in SVG units
-WIDTH = 640
+WIDTH = 680
 STACK_X, STACK_W = 8, 180
 LABEL_X = STACK_X + STACK_W + 40
 TOP = 8
@@ -61,6 +61,12 @@ class Layer:
     on: "Layer | None" = None        # the layer it was deposited on (None: everything, or the substrate)
     on_substrate: bool = False
     partial: bool = False            # covers only part of what it's on
+    inherited: bool = False          # recorded on the sample this one was cut from
+
+    @property
+    def where_line(self) -> bool:
+        """Whether its label has a line for where it is (what it's on, the date, the sample)."""
+        return bool(self.partial or self.on or getattr(self.step, "performed_at", None) or self.inherited)
     span: tuple = (0.0, 1.0)         # across the drawing, as fractions of its width
     geometry: dict = field(default_factory=dict)
 
@@ -118,7 +124,8 @@ def stack(sample, items, points: dict[int, RatePoint] | None = None) -> list[Lay
             on = next((l for l in layers if l.step.id == on_id), None) if on_id else None
             layers.append(Layer(material, thickness, source, step, item.source, step.planned, n=n, on=on,
                                 on_substrate=on is None and bool(getattr(step, "on_substrate", False)),
-                                partial=bool(getattr(step, "partial", False))))
+                                partial=bool(getattr(step, "partial", False)),
+                                inherited=item.source.id != sample.id))
             continue
         if item.technique in SPECIAL_STEP_TYPES:
             continue
@@ -136,8 +143,12 @@ def stack(sample, items, points: dict[int, RatePoint] | None = None) -> list[Lay
 
 
 def _label_h(layer: Layer | None) -> float:
-    """Height of a label: material and thickness, how it's known, then one line per process."""
-    return LINE_H * (2 + (len(layer.processes) if layer else 0))
+    """Height of a label: material and thickness, how it's known, where it is
+    (what it's on, date, sample; kept apart so no line runs off the drawing),
+    then one line per process."""
+    if layer is None:
+        return LINE_H * 2
+    return LINE_H * (2 + layer.where_line + len(layer.processes))
 
 
 def _spread(centres: list[float], heights: list[float], low: float, high: float) -> list[float]:

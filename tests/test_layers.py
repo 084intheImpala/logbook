@@ -233,3 +233,17 @@ def test_a_piece_can_put_a_deposition_on_an_inherited_layer(world):
     # and editing it keeps the choice
     edit = client.get(f"/samples/{piece.id}/steps/{ti.id}/edit").text
     assert f'value="{ga2o3.id}" selected' in edit
+
+
+def test_where_a_layer_is_gets_its_own_label_line():
+    """How the thickness is known on one line, what it's on / date / sample on
+    the next: together they ran off the right of the drawing."""
+    from datetime import date
+    other = SimpleNamespace(id=2, film_material="Ga2O3", title="P")
+    film = Item("process", "Deposition", _item("Deposition", thickness=170, partial=True).entry, other)
+    film.entry.performed_at = date(2025, 11, 19)
+    bare = _item("Deposition", thickness=10)
+    film_layer, bare_layer = layers.stack(SAMPLE, [film, bare])
+    assert film_layer.inherited and film_layer.where_line and not bare_layer.where_line
+    assert layers._label_h(film_layer) == layers.LINE_H * 3   # name, source, where; no processes since
+    assert layers._label_h(bare_layer) == layers.LINE_H * 2
