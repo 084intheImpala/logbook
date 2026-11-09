@@ -124,6 +124,10 @@ PT = {
     "on": "em",
     "measured": "medida",
     "typed": "introduzida",
+    "typed; measured {rate} nm/min": "introduzida; medida {rate} nm/min",
+    "typed; measured {rate} nm/min, average of {n}": "introduzida; medida {rate} nm/min, média de {n}",
+    "The Deposition rate typed, {rate} nm/min, is kept as this deposition's rate; later depositions with the same conditions go by the measured one.":
+        "A taxa de deposição introduzida, {rate} nm/min, mantém-se como a taxa desta deposição; as deposições seguintes com as mesmas condições usam a medida.",
     "Deposition rate over time": "Taxa de deposição ao longo do tempo",
     "Deposition rate over time, by machine, target, gas, gas flow and power":
         "Taxa de deposição ao longo do tempo, por máquina, alvo, gás, fluxo de gás e potência",

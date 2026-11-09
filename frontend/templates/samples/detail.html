@@ -565,6 +565,9 @@
             <span class="text-xs text-gray-500 ml-1">{{ _("no duration recorded, so no rate") }}</span>
             {% endif %}
           </div>
+          {% if entry.rate.typed is not none and entry.rate.average is not none and entry.rate.average != entry.rate.typed %}
+          <p class="text-xs text-gray-500">{{ _("The Deposition rate typed, {rate} nm/min, is kept as this deposition's rate; later depositions with the same conditions go by the measured one.", rate='%g'|format(entry.rate.typed)) }}</p>
+          {% endif %}
           <ul class="text-xs text-gray-600 space-y-0.5">
             {% for m in entry.rate.measured %}
             <li>{{ m.item.technique }}

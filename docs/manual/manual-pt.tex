@@ -413,6 +413,12 @@ camadas, ou sem duração), a página pergunta-a: escreva-a e carregue em
 \ui{Adicionar à deposição} (fica só na deposição dessa amostra), ou
 \ui{Agora não}.
 
+Uma taxa introduzida no campo \ui{Taxa de deposição} (por exemplo, ao
+configurar a deposição) nunca é substituída pela medida: continua a ser a
+taxa da deposição na pesquisa, e o cartão indica-a por baixo da medida. As
+deposições seguintes usam a taxa medida (\ui{Usar a última taxa conhecida}, o
+gráfico da taxa) quando a há, senão a introduzida.
+
 O gráfico da taxa ao longo do tempo está na pesquisa (Secção~\ref{sec:search}),
 não no cartão da deposição.
 
@@ -455,8 +461,8 @@ tempo} (nm/min): preenchidas as duas, a duração é calculada (espessura a
 dividir pela taxa, em min:s). \ui{Usar a última taxa conhecida}, por baixo da
 taxa, vai buscar a taxa da deposição mais recente (das que pode ver) com a
 mesma máquina, alvo, gás, fluxo de gás e potência que preencheu (os campos
-vazios aceitam qualquer valor), a medida se a houver, e diz de que deposição
-é. Os dois valores ficam guardados na entrada, separados da \ui{Taxa de
+vazios aceitam qualquer valor), a medida se a houver (mesmo que também lhe
+tenham introduzido uma taxa), e diz de que deposição é. Os dois valores ficam guardados na entrada, separados da \ui{Taxa de
 deposição} (a taxa realmente obtida), e não contam como taxas na pesquisa nem
 nos gráficos. Serve para qualquer deposição, planeada ou não.
 
@@ -773,9 +779,11 @@ procurar exatamente. Só aparecem filtros para os parâmetros que alguma das
 entradas tem, para o formulário não ficar demasiado comprido; ao pesquisar,
 a página salta para a tabela das entradas.
 
-Nas deposições, a coluna da taxa (e o seu filtro) usa a taxa medida (média
-das medidas de espessura) quando a há, senão a introduzida, e por cima da
-tabela aparece um gráfico da taxa ao longo do tempo, com uma linha por
+Nas deposições, a coluna da taxa (e o seu filtro) usa a taxa introduzida,
+com a medida ao lado quando é diferente (\emph{introduzida; medida 10
+nm/min}), senão a medida (média das medidas de espessura), e por cima da
+tabela aparece um gráfico da taxa ao longo do tempo (com a medida, quando a
+há), com uma linha por
 conjunto de máquina, alvo, gás, fluxo de gás e potência. Passe o rato por um
 ponto para ver a amostra e a taxa; clique para a abrir.
 

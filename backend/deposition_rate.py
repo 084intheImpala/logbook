@@ -12,8 +12,13 @@ copy has only its own measurements: they are not pooled.
 Each such measurement gives a rate, thickness ÷ the deposition's duration, in
 nm/min. The deposition's *measured rate* is their average. Where there is none
 (a stack, no duration), the rate can still be typed in the Deposition rate
-field; after such a measurement the sample page asks for it. The rate used for
-search and plots is the measured one if there is one, else the typed one.
+field; after such a measurement the sample page asks for it.
+
+A rate typed in the Deposition rate field is the deposition's rate and a
+measurement never overrides it: the search table shows it with the measured
+rate as a note. What is known of the machine for later depositions (the
+"Use the last known rate" button, the rate plot) is the measured rate if there
+is one, else the typed one.
 """
 from dataclasses import dataclass
 from datetime import date
@@ -182,6 +187,13 @@ class RatePoint:
     rate: float | None         # effective_rate
     n: int                     # measurements averaged (0: the typed rate)
     found: list                # its visible measurements (on its sample and pieces)
+    typed: float | None = None     # the Deposition rate typed on the step
+    measured: float | None = None  # the average of its measurements
+
+    @property
+    def recorded(self) -> float | None:
+        """The deposition's own rate: the typed one, which a measurement doesn't override, else the measured one."""
+        return self.typed if self.typed is not None else self.measured
 
 
 def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePoint]:
@@ -199,7 +211,8 @@ def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePo
                 continue
             found = visible(user, of_step(by_step, step))
             rate, n = effective_rate(step, found)
-            points[step.id] = RatePoint(step, sample, rate, n, found)
+            points[step.id] = RatePoint(step, sample, rate, n, found, _number((step.parameters or {}).get(RATE_KEY)),
+                                        rate if n else None)
     return points
 
 
@@ -207,7 +220,8 @@ def last_rate(user, samples, params: dict) -> RatePoint | None:
     """The latest deposition with a rate whose conditions match those filled
     in `params` (machine, target, gas, gas flow, power; empty ones match
     anything), among those `user` can see: what a new deposition's duration
-    can be worked out from. Undated depositions count as the oldest."""
+    can be worked out from. Its rate is the measured one when there is one,
+    even if a rate was typed on it. Undated depositions count as the oldest."""
     wanted = {i: v for i, v in enumerate(conditions(SimpleNamespace(parameters=params))) if v is not None}
     if not wanted:
         return None

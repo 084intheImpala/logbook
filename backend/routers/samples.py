@@ -455,7 +455,7 @@ async def _add_deposition_rates(db: AsyncSession, user, timeline: list[dict]) ->
     for e in shown:
         point = points.get(e["id"])
         if point is not None:
-            e["rate"] = {"measured": list(point.found), "average": average(point.found),
+            e["rate"] = {"measured": list(point.found), "average": average(point.found), "typed": point.typed,
                          "n": sum(m.rate is not None for m in point.found)}
     return points
 

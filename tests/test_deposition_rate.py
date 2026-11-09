@@ -235,28 +235,49 @@ def test_the_sample_page_shows_the_measured_rate_but_no_rate_plot(world):
     assert "Histórico da taxa nas mesmas condições" not in html
 
 
-def test_search_uses_the_measured_rate_and_plots_it(world):
+def test_search_keeps_a_typed_rate_notes_the_measured_one_and_plots_it(world):
     owner = world.user("rate-search")
     client = world.client(owner)
     target = f"S-{owner.username}"
-    a, b = world.sample(owner), world.sample(owner)
+    a, b, c = world.sample(owner), world.sample(owner), world.sample(owner)
     _deposit(client, a, "2026-04-01", target=target, gas_flow="20/5", duration="10", deposition_rate="99")
-    _measure(client, a, thickness="100")      # measured 10 beats the typed 99
+    _measure(client, a, thickness="100")      # measured 10: noted, the typed 99 stays
     _deposit(client, b, "2026-05-01", target=target, gas_flow="20", deposition_rate="7")
+    _deposit(client, c, "2026-06-01", target=target, gas_flow="20", duration="10")
+    _measure(client, c, thickness="50")       # nothing typed: the measured 5
 
     html = client.get("/search", params={"technique": "Deposition", "pf.target": target}).text
     section = html[html.index('id="technique-entries"'):]
-    assert "10 nm/min (medida)" in section and "7 nm/min (introduzida)" in section
-    assert "data-rate-plot" in section and section.count('class="viz-hit"') == 2
+    assert "99 nm/min (introduzida; medida 10 nm/min)" in section
+    assert "7 nm/min (introduzida)" in section and "5 nm/min (medida)" in section
+    assert "data-rate-plot" in section and section.count('class="viz-hit"') == 3
+    assert "10 nm/min" in section[section.index("data-rate-plot"):]   # the plot goes by the measured rate
 
     html = client.get("/search", params={"technique": "Deposition", "pf.target": target,
-                                         "min.deposition_rate": "9"}).text
+                                         "min.deposition_rate": "50"}).text
     section = html[html.index('id="technique-entries"'):]
-    assert "10 nm/min (medida)" in section and "7 nm/min" not in section
+    assert "99 nm/min" in section and "7 nm/min" not in section and "5 nm/min (medida)" not in section
     # a gas flow that isn't a number is matched as typed
     html = client.get("/search", params={"technique": "Deposition", "pf.target": target, "min.gas_flow": "20/5"}).text
     section = html[html.index('id="technique-entries"'):]
-    assert "10 nm/min (medida)" in section and "7 nm/min" not in section
+    assert "99 nm/min" in section and "7 nm/min" not in section
+
+
+def test_a_typed_rate_stays_and_later_depositions_use_the_measured_one(world):
+    owner = world.user("rate-kept")
+    client = world.client(owner)
+    conditions = {"machine": "KeptMachine", "target": f"K-{owner.username}"}
+    sample, planned = world.sample(owner), world.sample(owner)
+    _deposit(client, sample, "2026-04-01", duration="10", deposition_rate="12", **conditions)
+    _measure(client, sample, thickness="100")
+    assert _steps(sample)[0].parameters["deposition_rate"] == 12
+
+    block = _measured_block(client.get(f"/samples/{sample.id}").text)
+    assert "10 nm/min" in block and "A taxa de deposição introduzida, 12 nm/min, mantém-se" in block
+
+    found = client.get(f"/samples/{planned.id}/steps/last-rate",
+                       params={f"p::{k}": v for k, v in conditions.items()}).json()
+    assert found["rate"] == 10 and "(medida)" in found["message"]
 
 
 def _point(step_id, day, rate, power):

@@ -197,17 +197,27 @@ def technique_view(request: Request, family: Family, results, user, technique: s
         r["params"] = r["entry"].parameters or {}
     points = {}
     if technique.strip().lower() == DEPOSITION_TYPE_NAME.lower():
-        # The rate shown, filtered by and plotted is the measured one (average) when there is one
+        # The rate shown and filtered by is the typed one, else the measured one (average): a
+        # measurement doesn't override a typed rate, it's noted next to it. The plot shows the
+        # measured one when there is one (what later depositions go by, deposition_rate.last_rate).
         points = rate_points(user, list(family.samples.values()), family)
         if not any(c["id"] == RATE_KEY for c in columns):
             columns.append({"id": RATE_KEY, "label": t(request, "Deposition rate")})
         for r in rows:
             point = points.get(r["entry"].id) if r["kind"] == "process" else None
-            if point and point.rate is not None:
-                r["params"] = r["params"] | {RATE_KEY: point.rate}
-                note = (t(request, "average of {n}", n=point.n) if point.n > 1 else t(request, "measured") if point.n
-                        else t(request, "typed"))
-                r["values"][RATE_KEY] = f"{point.rate:g} nm/min ({note})"
+            if point and point.recorded is not None:
+                r["params"] = r["params"] | {RATE_KEY: point.recorded}
+                how = t(request, "average of {n}", n=point.n) if point.n > 1 else t(request, "measured")
+                if point.typed is None:
+                    note = how
+                elif point.measured is None or point.measured == point.typed:
+                    note = t(request, "typed")
+                else:
+                    note = t(request, "typed; measured {rate} nm/min", rate=f"{point.measured:g}")
+                    if point.n > 1:
+                        note = t(request, "typed; measured {rate} nm/min, average of {n}",
+                                 rate=f"{point.measured:g}", n=point.n)
+                r["values"][RATE_KEY] = f"{point.recorded:g} nm/min ({note})"
     choices = {f["key"]: sorted({str(r["entry"].parameters[f["key"]]) for r in rows
                                  if (r["entry"].parameters or {}).get(f["key"]) not in (None, "")}, key=str.lower)
                for f in fields if f.get("type") == "choice"}

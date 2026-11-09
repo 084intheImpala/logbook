@@ -254,8 +254,8 @@ filling both in works the duration out (thickness ÷ rate, as min:s), on a
 planned deposition or any other. **Use the last known rate** under the rate
 fills it in with the rate of the latest deposition you can see whose machine,
 target, gas, gas flow and power match those filled in on the form (empty ones
-match anything), measured if it was measured, and says which deposition that
-is. Both values are kept on the entry, so a planned deposition records the
+match anything), measured if it was measured (even when a rate was also typed
+on it), and says which deposition that is. Both values are kept on the entry, so a planned deposition records the
 rate its time came from. They're separate from the Deposition rate field (the
 rate actually achieved), so they don't count as rates in search and plots.
 Migration `0016` adds the two fields to an existing Deposition type, before its
@@ -643,9 +643,10 @@ E.g. Thin film + Deposition + Target Ga2O3 lists every Ga2O3 deposition,
 newest first, with its power, gas flow and rate. A number field's min box
 also takes a value that isn't a number, e.g. a gas flow of `20/5`, and then
 matches it exactly. For Deposition, the rate column (and its filter) is the
-measured rate, marked *measured*/*average of n*, or the typed one, marked
-*typed*; a plot above the table shows the rates of the entries listed over
-time, one line per set of machine, target, gas, gas flow and power (the eight
+typed Deposition rate, marked *typed* (with the measured rate noted next to
+it when that differs: *typed; measured 10 nm/min*), else the measured rate,
+marked *measured*/*average of n*; a plot above the table shows the rates of
+the entries listed over time (the measured rate where there is one), one line per set of machine, target, gas, gas flow and power (the eight
 with most depositions; narrow the filters for the rest). Each set keeps its
 colour when filters change. Hovering a point shows the sample and rate;
 clicking opens it. Searching with a technique chosen jumps down to its
@@ -732,8 +733,12 @@ analyses, so editing or deleting one updates it. Saving such an analysis says
 what the average now is. Only measurements on samples you can view count, for
 you. Where a rate can't be worked out (a stack, or no duration), saving the
 measurement asks for the rate by hand, filling the Deposition rate field of
-that sample's deposition only; **Not now** closes the prompt. Search and plots
-use the measured rate when there is one, else the typed one.
+that sample's deposition only; **Not now** closes the prompt.
+A rate typed in the Deposition rate field (e.g. when configuring the
+deposition) is never overridden by a measurement: it stays the deposition's
+rate in search, and the card notes it under the measured one. Later
+depositions go by the measured rate (Use the last known rate, the rate plot)
+when there is one, else the typed one.
 
 **Rate history.** The plot of the rate over time, one line per machine,
 target, gas (atmosphere), gas flow and power (case aside), is on the search
