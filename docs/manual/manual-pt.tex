@@ -403,20 +403,21 @@ espessura mede a deposição anterior na cronologia, se for a única deposição
 até aí (senão a espessura é a de todo o empilhamento) e se entretanto só houve
 um corte ou uma limpeza (uma corrosão, CMP, recozimento, \ldots{} mudam a
 espessura e a medida deixa de contar). As medidas nos pedaços contam para a
-deposição da amostra-mãe, e as cópias de uma deposição no mesmo ensaio juntam
-as suas. Cada medida dá espessura a dividir pela duração, em nm/min; o cartão
+deposição da amostra-mãe. As cópias de uma deposição no mesmo ensaio são
+filmes em amostras diferentes: cada uma fica só com as suas medidas (as taxas e
+as espessuras não se juntam numa média). Cada medida dá espessura a dividir pela duração, em nm/min; o cartão
 da deposição lista-as em \ui{Taxa de deposição medida}, com a média. Nada fica
 gravado: a média é recalculada a partir das análises. Ao guardar a medida, a
 página diz qual é agora a média. Se a taxa não puder ser calculada (várias
 camadas, ou sem duração), a página pergunta-a: escreva-a e carregue em
-\ui{Adicionar à deposição} (fica também nas cópias do mesmo ensaio sem taxa), ou
+\ui{Adicionar à deposição} (fica só na deposição dessa amostra), ou
 \ui{Agora não}.
 
 O gráfico da taxa ao longo do tempo está na pesquisa (Secção~\ref{sec:search}),
 não no cartão da deposição.
 
 \textbf{Camadas.} Numa amostra de filme fino, por cima da cronologia aparece o
-empilhamento: o substrato (tracejado, fora de escala) e um retângulo por
+empilhamento: o substrato (tracejado, fora de escala) e um filme por
 deposição, de baixo para cima, incluindo as herdadas da amostra-mãe. As
 deposições planeadas aparecem a tracejado. Os filmes estão à escala entre si
 (os muito finos são desenhados um pouco mais grossos, e a legenda avisa).
@@ -432,6 +433,20 @@ parâmetros e a data. Por exemplo, depositar 100~nm, recozer a 1000~°C,
 depositar 200~nm e recozer a 400~°C: a camada de baixo mostra os dois
 recozimentos e a de cima só o de 400~°C. Clique numa camada ou num passo para
 ir para ele na cronologia.
+
+\textbf{Camadas parciais (contactos).} Nem todas as deposições cobrem a amostra
+toda: contactos metálicos depositados através de uma máscara, por exemplo. No
+formulário da Deposition, \ui{Depositado sobre} diz onde vai a camada:
+\ui{Tudo o que já lá está (toda a superfície)} (o normal), \ui{O substrato},
+ou uma das camadas que a amostra já tem; e \ui{Cobre só uma parte} marca que
+não a cobre toda. Por exemplo: Ni sobre parte da superfície, Au sobre o Ni,
+Ti sobre parte do substrato, Au sobre o Ti. O desenho mostra então dois
+contactos lado a lado, com a superfície descoberta à volta; cada camada segue
+a superfície onde cai, por isso uma camada depositada depois sobre tudo cobre
+os contactos. A legenda diz onde está cada camada (\emph{sobre parte do Ni},
+\emph{sobre o Ti}); a largura das camadas parciais não está à escala. Se
+acrescentar a deposição a várias amostras, em cada uma vai para a cópia da
+camada escolhida (da mesma série).
 
 \textbf{Calcular a duração de uma deposição.} O formulário da Deposition tem,
 antes da duração, \ui{Espessura pretendida} (nm) e \ui{Taxa usada para o

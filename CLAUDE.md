@@ -8,7 +8,7 @@
   changes also go in the README's data model / `sample.json` table (bump `FORMAT` in `backend/sample_backup.py`).
 - Every user-visible string is translated: English in the code/templates, Portuguese in `backend/translations/`.
   In templates, don't put `"` inside a `_("...")` string.
-- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0018`).
+- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0019`).
 - Add tests in `tests/` for new behaviour. They run on a throwaway SQLite DB; never touch the real DB or `uploads/`.
   This machine isn't the DB host: say what needs running there (e.g. migrations).
 - Each new feature gets its own branch, always branched from `main`; commit on that branch. Only commit when asked.
@@ -50,6 +50,8 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
 - **Layers** (`layers.py`, `_layers.html`): a thin-film sample's page draws its film stack (one layer per
   Deposition, thickness from measurements / typed / rate × duration / target, CMP takes off the top) with the
   process steps each layer went through since. The rate-over-time plot is on the search page only.
+  A Deposition can go on a given layer or the substrate (`on_step_id`, `on_substrate`) and cover only part of it
+  (`partial`, e.g. contacts): partial layers sit side by side, each film follows the surface it lands on.
 - **Printable record** (`/samples/{id}/print`, `samples/print.html`): the sample page's data (`samples._page`)
   laid out for A4, printed or saved as PDF by the browser; photo previews, file names only.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.

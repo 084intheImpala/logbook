@@ -446,7 +446,7 @@ async def _page(request: Request, db: AsyncSession, sample_id: int, current_user
 
 async def _add_deposition_rates(db: AsyncSession, user, timeline: list[dict]) -> dict:
     """For each deposition on the timeline: its thickness measurements (on
-    this sample, its pieces and its run) and their average (backend/deposition_rate.py).
+    this sample and its pieces) and their average (backend/deposition_rate.py).
     Returns the rate points (step id → RatePoint; empty without depositions)."""
     shown = [e for e in timeline if e["kind"] == "process" and e["type_name"] == DEPOSITION_TYPE_NAME and e["visible"]]
     if not shown:

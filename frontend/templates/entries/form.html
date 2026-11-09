@@ -87,6 +87,34 @@
     </div>
     {% endfor %}
 
+    {% if deposition_type_id %}
+    <!-- Deposition: what the layer goes on, and whether it covers all of it (backend/layers.py) -->
+    {% set on = "substrate" if entry and entry.on_substrate else (entry.on_step_id|string if entry and entry.on_step_id else "") %}
+    <div class="type-fields grid grid-cols-2 gap-4 items-start" data-type="{{ deposition_type_id }}">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Deposited on") }}</label>
+        <select name="layer_on" class="{{ input_cls }}">
+          <option value="">{{ _("Everything so far (the whole surface)") }}</option>
+          <option value="substrate" {% if on == "substrate" %}selected{% endif %}>{{ _("The substrate") }}</option>
+          {% for l in layers_below|reverse %}
+          <option value="{{ l.step.id }}" {% if on == l.step.id|string %}selected{% endif %}>
+            {{- l.material or _("Unknown material") }}{% if l.thickness %} · {{ '%g'|format(l.thickness) }} nm{% endif %}
+            {%- if l.partial %} ({{ _("partial") }}){% endif %}
+            {%- if l.planned %} ({{ _("planned") }}){% elif l.step.performed_at %} · {{ l.step.performed_at.isoformat() }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs text-gray-400 mt-1">{{ _("A layer already on the sample, e.g. Au on the Ni contacts.") }}</p>
+      </div>
+      <div>
+        <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer mt-6">
+          <input type="checkbox" name="layer_partial" value="1" {% if entry and entry.partial %}checked{% endif %}>
+          {{ _("Covers only part of it") }}
+        </label>
+        <p class="text-xs text-gray-400 mt-1">{{ _("e.g. contacts deposited through a mask: some of the surface below stays clear.") }}</p>
+      </div>
+    </div>
+    {% endif %}
+
     <details {% if extra_text %}open{% endif %} class="text-sm">
       <summary class="cursor-pointer text-gray-500">{{ _("Other parameters") }}</summary>
       <p class="text-xs text-gray-400 my-1.5">

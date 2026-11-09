@@ -16,4 +16,17 @@ PT = {
     "not set": "não indicado",
     "planned": "planeado",
     "planned deposition": "deposição planeada",
+    "the width of partial layers is not to scale": "a largura das camadas parciais não está à escala",
+    "on part of the {material}": "sobre parte do {material}",
+    "on part of the substrate": "sobre parte do substrato",
+    "on part of the surface": "sobre parte da superfície",
+    "on the {material}": "sobre o {material}",
+    # The Deposition form: what the layer goes on
+    "Deposited on": "Depositado sobre",
+    "Everything so far (the whole surface)": "Tudo o que já lá está (toda a superfície)",
+    "The substrate": "O substrato",
+    "partial": "parcial",
+    "A layer already on the sample, e.g. Au on the Ni contacts.": "Uma camada que já está na amostra, p. ex. Au sobre os contactos de Ni.",
+    "Covers only part of it": "Cobre só uma parte",
+    "e.g. contacts deposited through a mask: some of the surface below stays clear.": "p. ex. contactos depositados através de uma máscara: parte da superfície por baixo fica descoberta.",
 }

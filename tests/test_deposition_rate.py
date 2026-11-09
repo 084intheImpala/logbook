@@ -1,5 +1,5 @@
-"""Deposition rates measured from thickness measurements (on the sample, its
-pieces and its run), the prompt for a rate by hand, and the rate plots (search page)."""
+"""Deposition rates measured from thickness measurements (on the sample and its
+pieces; a run's copies keep their own), the prompt for a rate by hand, and the rate plots (search page)."""
 import re
 from datetime import date
 from types import SimpleNamespace
@@ -132,14 +132,19 @@ def test_a_piece_someone_else_cant_see_doesnt_count_for_them(world):
     assert "300 nm" not in block and "10 nm/min" in block
 
 
-def test_run_copies_pool_their_measurements(world):
-    first, client = _setup(world, "rate-run-pool")
+def test_run_copies_keep_their_own_measurements(world):
+    """Copies of a deposition in a run are films on different samples: their
+    rates and thicknesses aren't averaged together."""
+    first, client = _setup(world, "rate-run-apart")
     second = world.sample(_owner(first))
     _deposit(client, first, duration="10", run_samples=[second])
     _measure(client, first, thickness="100")
     html = _measure(client, second, thickness="80")
-    assert "9 nm/min, a média de 2 medidas" in html
-    assert "média de 2" in _measured_block(client.get(f"/samples/{first.id}").text)
+    assert "8 nm/min, a média de 1 medida" in html
+    first_block = _measured_block(client.get(f"/samples/{first.id}").text)
+    second_block = _measured_block(client.get(f"/samples/{second.id}").text)
+    assert "10 nm/min" in first_block and "80 nm" not in first_block and "média de 2" not in first_block
+    assert "8 nm/min" in second_block and "100 nm" not in second_block
 
 
 def test_steps_that_change_the_thickness_stop_it_counting(world):
@@ -194,15 +199,14 @@ def test_no_duration_asks_for_the_rate_and_lists_the_thickness(world):
     assert "90 nm" in block and "sem duração registada" in block
 
 
-def test_a_rate_typed_by_hand_goes_on_the_whole_run(world):
+def test_a_rate_typed_by_hand_stays_on_that_sample(world):
     sample, client = _setup(world, "rate-run")
-    other = world.sample(world.user("rate-run-unused"))
     mine = world.sample(_owner(sample))
     _deposit(client, sample, duration="10", run_samples=[mine])
     step = _steps(sample)[0]
     client.post(f"/samples/{sample.id}/steps/{step.id}/deposition-rate", data={"rate": "0.1", "back": sample.id})
-    assert _steps(mine)[0].parameters["deposition_rate"] == 0.1
-    assert _steps(other) == []
+    assert _steps(sample)[0].parameters["deposition_rate"] == 0.1
+    assert "deposition_rate" not in (_steps(mine)[0].parameters or {})
 
 
 def test_bad_rates_and_strangers_are_refused(world):
