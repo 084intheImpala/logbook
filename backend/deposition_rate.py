@@ -6,8 +6,8 @@ Deposition before it on the timeline, when that is the only deposition so far
 thickness (etching, CMP, annealing, …: anything outside THICKNESS_KEEPING_STEPS)
 was done in between. Pieces count: a piece inherits its parent's timeline, so a
 measurement on a piece measures the parent's deposition. Copies of one
-deposition on several samples (a run) were deposited together, so their
-measurements are pooled.
+deposition on several samples (a run) are films on different samples, so each
+copy has only its own measurements: they are not pooled.
 
 Each such measurement gives a rate, thickness ÷ the deposition's duration, in
 nm/min. The deposition's *measured rate* is their average. Where there is none
@@ -101,17 +101,9 @@ def measurements(family: Family, samples) -> dict[int, list[Measurement]]:
     return found
 
 
-def run_copies(samples, step) -> list:
-    """The other copies of `step` in its run."""
-    if not step.run_id:
-        return []
-    return [s for sample in samples for s in sample.process_steps if s.run_id == step.run_id and s.id != step.id]
-
-
-def pooled(by_step: dict[int, list[Measurement]], step, copies=()) -> list[Measurement]:
-    """The measurements of `step` and of its run `copies`, oldest first."""
-    found = [m for s in [step, *copies] for m in by_step.get(s.id, [])]
-    return sorted(found, key=lambda m: (m.item.entry.performed_at or date.max, m.item.entry.id))
+def of_step(by_step: dict[int, list[Measurement]], step) -> list[Measurement]:
+    """The measurements of `step` (on its sample and pieces), oldest first."""
+    return sorted(by_step.get(step.id, []), key=lambda m: (m.item.entry.performed_at or date.max, m.item.entry.id))
 
 
 def visible(user, found: list[Measurement]) -> list[Measurement]:
@@ -165,7 +157,7 @@ async def after_measurement(db, sample, analysis, type_name: str, user) -> dict 
             "step_date": step.performed_at.isoformat() if step.performed_at else None,
             "inherited": source.id != sample.id, "analysis": type_name, "thickness": thickness}
     if ctx.depositions == 1 and duration_seconds((step.parameters or {}).get("duration")):
-        found = visible(user, pooled(measurements(family, samples), step, run_copies(samples, step)))
+        found = visible(user, of_step(measurements(family, samples), step))
         return info | {"counted": True, "rate": average(found), "n": sum(m.rate is not None for m in found)}
     if (step.parameters or {}).get(RATE_KEY) not in (None, "") or not can_edit_entry(user, source, step):
         return None
@@ -173,8 +165,7 @@ async def after_measurement(db, sample, analysis, type_name: str, user) -> dict 
 
 
 def set_rate(entries, rate: float) -> int:
-    """Fill in `rate` on deposition steps that have none (the step itself and
-    copies of it in the same run, deposited together); how many were filled."""
+    """Fill in `rate` on deposition steps that have none; how many were filled."""
     filled = 0
     for entry in entries:
         params = dict(entry.parameters or {})
@@ -190,7 +181,7 @@ class RatePoint:
     sample: Sample             # the sample it is recorded on
     rate: float | None         # effective_rate
     n: int                     # measurements averaged (0: the typed rate)
-    found: list                # its visible measurements (run copies' included)
+    found: list                # its visible measurements (on its sample and pieces)
 
 
 def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePoint]:
@@ -199,11 +190,6 @@ def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePo
     measurements on pieces and run copies are found)."""
     family = family or Family(samples)
     by_step = measurements(family, samples)
-    runs: dict[str, list] = {}
-    for sample in samples:
-        for step in sample.process_steps:
-            if step.run_id:
-                runs.setdefault(step.run_id, []).append(step)
     points = {}
     for sample in samples:
         for step in sample.process_steps:
@@ -211,8 +197,7 @@ def rate_points(user, samples, family: Family | None = None) -> dict[int, RatePo
                 continue
             if not (can_view(user, sample) or is_performer(user, step)):
                 continue
-            copies = [s for s in runs.get(step.run_id, []) if s.id != step.id] if step.run_id else []
-            found = visible(user, pooled(by_step, step, copies))
+            found = visible(user, of_step(by_step, step))
             rate, n = effective_rate(step, found)
             points[step.id] = RatePoint(step, sample, rate, n, found)
     return points

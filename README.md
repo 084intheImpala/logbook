@@ -718,15 +718,17 @@ thickness measures the Deposition before it on the timeline, if that is the
 only deposition so far (otherwise the thickness is the whole stack's) and
 only a Cut or Cleaning came in between (an etch, CMP, anneal, … changes the
 thickness, so the measurement doesn't count). Measurements on pieces count for
-the parent's deposition, and the copies of a deposition in a run pool theirs.
+the parent's deposition. The copies of a deposition in a run are films on
+different samples, so each keeps its own measurements (rates and thicknesses
+aren't averaged across the run).
 Each gives thickness ÷ the deposition's duration in nm/min; the deposition
 card lists them (technique, date, sample, thickness → rate) under **Measured
 deposition rate**, their average. Nothing is stored: it's worked out from the
 analyses, so editing or deleting one updates it. Saving such an analysis says
 what the average now is. Only measurements on samples you can view count, for
 you. Where a rate can't be worked out (a stack, or no duration), saving the
-measurement asks for the rate by hand, filling the Deposition rate field (and
-its run copies that have none); **Not now** closes the prompt. Search and plots
+measurement asks for the rate by hand, filling the Deposition rate field of
+that sample's deposition only; **Not now** closes the prompt. Search and plots
 use the measured rate when there is one, else the typed one.
 
 **Rate history.** The plot of the rate over time, one line per machine,
