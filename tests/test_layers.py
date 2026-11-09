@@ -196,3 +196,18 @@ def test_the_form_puts_a_deposition_on_part_of_a_layer(world):
     assert client.post(f"/samples/{sample.id}/steps/new", data=data).status_code == 303
     anneal = _steps(sample.id)[-1]
     assert anneal.on_step_id is None and not anneal.partial
+
+
+def test_a_run_copy_shows_only_its_own_thickness(world):
+    """A deposition added to two samples at once: each film has its own
+    measured thickness, not the average of both."""
+    owner = world.user("layers-run")
+    client = world.client(owner)
+    first, second = world.sample(owner, film_material="Ga2O3"), world.sample(owner, film_material="Ga2O3")
+    _deposit(client, first, "2026-01-05", duration="10", run_samples=[second])
+    _measure(client, first, thickness="100")
+    _measure(client, second, thickness="30")
+    for sample, mine, other in ((first, "100 nm", "30 nm"), (second, "30 nm", "100 nm")):
+        html = client.get(f"/samples/{sample.id}").text
+        section = html[html.index('id="layers"'):html.index("</section>", html.index('id="layers"'))]
+        assert f"Ga2O3 · {mine}" in section and other not in section and "média" not in section

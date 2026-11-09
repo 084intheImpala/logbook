@@ -8,7 +8,7 @@ from backend.database import get_db
 from backend.models import Sample, ProcessStep, ProcessStepType
 from backend.timeline import renumber
 from backend.auth import require_login, load_sample, can_edit_entry
-from backend.entry_forms import STEP, form_page, save, get_entry, overwrite_check, run_entries
+from backend.entry_forms import STEP, form_page, save, get_entry, overwrite_check
 from backend import rate_plot
 from backend.deposition_rate import CONDITION_KEYS, DEPOSITION_TYPE_NAME, all_samples, last_rate, set_rate
 from backend.params import parse_form
@@ -94,7 +94,8 @@ async def check_overwrite(request: Request, sample_id: int, step_id: int, db: As
 async def add_deposition_rate(request: Request, sample_id: int, step_id: int, db: AsyncSession = Depends(get_db),
                               current_user=Depends(require_login)):
     """Fill in the rate offered after a thickness measurement (see backend/deposition_rate.py)
-    on this deposition and its copies in the same run, then go back to `back` (the measured sample)."""
+    on this deposition (not its copies in a run: those are films on other samples),
+    then go back to `back` (the measured sample)."""
     sample, entry = await _editable(db, sample_id, step_id, current_user)
     form = await request.form()
     back = form.get("back", "")
@@ -107,8 +108,7 @@ async def add_deposition_rate(request: Request, sample_id: int, step_id: int, db
     if not isinstance(rate, (int, float)) or rate <= 0:
         request.session["flash_error"] = t(request, "The deposition rate must be a number above zero.")
         return RedirectResponse(back_url, status_code=303)
-    others = [o for o, s in await run_entries(db, STEP, entry) if can_edit_entry(current_user, s, o)]
-    filled = set_rate([entry] + others, rate)
+    filled = set_rate([entry], rate)
     await db.commit()
     if filled:
         request.session["flash"] = t(request, "Deposition rate of {rate} nm/min added to the deposition of {sample}.",
