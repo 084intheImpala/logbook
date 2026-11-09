@@ -8,7 +8,7 @@
   changes also go in the README's data model / `sample.json` table (bump `FORMAT` in `backend/sample_backup.py`).
 - Every user-visible string is translated: English in the code/templates, Portuguese in `backend/translations/`.
   In templates, don't put `"` inside a `_("...")` string.
-- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0019`).
+- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0020`).
 - Add tests in `tests/` for new behaviour. They run on a throwaway SQLite DB; never touch the real DB or `uploads/`.
   This machine isn't the DB host: say what needs running there (e.g. migrations).
 - Each new feature gets its own branch, always branched from `main`; commit on that branch. Only commit when asked.

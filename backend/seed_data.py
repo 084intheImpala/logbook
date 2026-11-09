@@ -45,7 +45,7 @@ PROCESS_STEP_TYPES = [
             choice("technique", "Technique", "deposition_technique"),
             choice("target", "Target"),
             choice("atmosphere", "Atmosphere"),
-            num("base_pressure", "Base pressure", "mTorr", placeholder="e.g. 1e-4"),
+            num("base_pressure", "Base pressure", "×10⁻⁶ Torr", placeholder="e.g. 2 for 2×10⁻⁶ Torr"),
             num("working_pressure", "Working pressure", "mTorr", placeholder="e.g. 3"),
             num("power", "Power", "W"),
             num("gas_flow", "Gas flow", "sccm", placeholder="e.g. 20, or 20/5 for Ar/O2"),

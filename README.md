@@ -378,7 +378,7 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 6: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps). |
+| `format` | Version of this layout (currently 7: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
 | `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk` or `project`; `visibility` is `personal`, `team` or `public`. |
@@ -662,8 +662,13 @@ Admins can download the whole database from the admin page. The CSV has one row 
 
 Each step or analysis type has its own fields, filled in on the form:
 
-- **Numbers** have their own box and unit (pressures are in mTorr and can be typed as `1e-4`;
-  a decimal comma works too). Durations like the deposition time take
+- **Numbers** have their own box and unit (pressures are in mTorr and can be typed as `1e-4`,
+  except a Deposition's base pressure, in 10⁻⁶ Torr: `2` is 2×10⁻⁶ Torr;
+  a decimal comma works too). Base pressures stored before migration `0019`
+  (asked in mTorr, though some were typed in Torr) were each read as Torr,
+  mTorr or 10⁻⁶ Torr, whichever puts it nearest 10⁻⁶ Torr (`1e-6` and
+  `1e-3` both become 1), and converted; the migration logs each conversion,
+  and warns about values that aren't numbers or end up outside 10⁻⁸–10⁻⁴ Torr. Durations like the deposition time take
   min:s (`12:30`), or plain minutes (`12`).
 - **Dropdowns** (machine, technique, target, atmosphere, …) offer values
   saved earlier. **+ Add new…** types a new one, which is then offered to

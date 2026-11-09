@@ -93,7 +93,7 @@ def test_a_planned_step_is_on_the_timeline_but_not_in_search_or_exports(world):
     assert not re.search(r'name="planned" value="1" checked', form)
     r = client.post(f"/samples/{sample.id}/steps/{step.id}/edit", data={
         "type_id": step.step_type_id, "performed_at": "2030-01-16", "p::machine": "PlanMachine1",
-        "p::duration": "20:00", "p::base_pressure": "1e-4"})
+        "p::duration": "20:00", "p::base_pressure": "2"})
     assert r.status_code == 303
     assert not _steps(sample)[0].planned
     assert "Marcar como feito" not in client.get(f"/samples/{sample.id}").text

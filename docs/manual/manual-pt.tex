@@ -364,8 +364,14 @@ Escolha primeiro o tipo; o formulário mostra então os campos desse tipo.
 
 \begin{itemize}
   \item \textbf{Números} têm a sua caixa e unidade. As pressões estão em
-    mTorr e podem escrever-se como \texttt{1e-4}; a vírgula decimal também
-    funciona.
+    mTorr e podem escrever-se como \texttt{1e-4}, exceto a pressão de base
+    das deposições, em 10\textsuperscript{-6}~Torr: \texttt{2} quer dizer
+    2×10\textsuperscript{-6}~Torr. A vírgula decimal também funciona. As
+    pressões de base que já estavam guardadas (pedidas em mTorr, mas por
+    vezes escritas em Torr) foram convertidas: cada uma foi lida em Torr,
+    mTorr ou 10\textsuperscript{-6}~Torr, conforme o que a deixa mais perto
+    de 10\textsuperscript{-6}~Torr (\texttt{1e-6} e \texttt{1e-3} passam
+    ambos a 1).
   \item \textbf{Durações} aceitam \texttt{min:s} (\texttt{12:30}),
     \texttt{h:min:s} ou só minutos (\texttt{12}).
   \item \textbf{Listas} oferecem os valores já guardados. Escolha

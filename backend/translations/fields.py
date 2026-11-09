@@ -100,6 +100,7 @@ PT = {
     "e.g. 20, or 20/5 for Ar/O2": "ex.: 20, ou 20/5 para Ar/O2",
     "e.g. 12:30": "ex.: 12:30",
     "e.g. 1e-4": "ex.: 1e-4",
+    "e.g. 2 for 2×10⁻⁶ Torr": "ex.: 2 para 2×10⁻⁶ Torr",
     "e.g. 3": "ex.: 3",
     "if known": "se for conhecida",
     "e.g. 1e16": "ex.: 1e16",
