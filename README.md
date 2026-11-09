@@ -763,6 +763,21 @@ Click a film or a step to jump to it on the timeline. Bulk and project
 samples have no stack. `backend/layers.py` (stack and geometry),
 `_layers.html` (the SVG).
 
+### Printing a sample's record
+
+**🖨 Print / PDF** at the top of a sample's page opens its record laid out
+for an A4 sheet, to print or save as a PDF (choose *Save as PDF* as the
+printer) and keep with the sample: the summary (ID, type, label, researcher,
+substrate, film, project, tags, devices, description), the layers drawing
+and the whole timeline, inherited entries included, each with its date,
+performer, place, parameters, measured rate, notes and pieces. Photos are
+small previews and files are listed by name only; the header has the
+sample's link and when it was printed. It shows what the page shows to you:
+without access to the details, only the summary. Made by the browser, so
+nothing extra is needed on the server: `GET /samples/{id}/print`
+(`routers/samples.py`, which shares the page's data with the sample page),
+`samples/print.html`.
+
 ### One step or analysis on several samples
 
 Things done in parallel (one deposition run, one XRD session) can be

@@ -50,5 +50,7 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
 - **Layers** (`layers.py`, `_layers.html`): a thin-film sample's page draws its film stack (one layer per
   Deposition, thickness from measurements / typed / rate × duration / target, CMP takes off the top) with the
   process steps each layer went through since. The rate-over-time plot is on the search page only.
+- **Printable record** (`/samples/{id}/print`, `samples/print.html`): the sample page's data (`samples._page`)
+  laid out for A4, printed or saved as PDF by the browser; photo previews, file names only.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).
