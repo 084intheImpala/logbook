@@ -111,8 +111,11 @@
       <p class="mt-2 text-sm text-gray-600 max-w-2xl">{{ sample.description }}</p>
     {% endif %}
   </div>
-  {% if can_edit %}
   <div class="flex gap-2 shrink-0">
+    <a href="/samples/{{ sample.id }}/print" target="_blank"
+       title="{{ _("Everything on this page, laid out to print or save as a PDF to go with the sample") }}"
+       class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">🖨 {{ _("Print / PDF") }}</a>
+    {% if can_edit %}
     <a href="/samples/{{ sample.id }}/edit"
        class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Edit") }}</a>
     {% if is_owner %}
@@ -121,8 +124,8 @@
       <button class="text-sm border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">{{ _("Delete") }}</button>
     </form>
     {% endif %}
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
 {% if flash %}

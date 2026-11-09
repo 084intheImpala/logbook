@@ -1,5 +1,5 @@
 import logging
-from datetime import date
+from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -323,6 +323,32 @@ async def sample_detail(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
+    return templates.TemplateResponse("samples/detail.html", await _page(request, db, sample_id, current_user) | {
+        "flash": request.session.pop("flash", None),
+        "flash_error": request.session.pop("flash_error", None),
+        "rate_prompt": request.session.pop("rate_prompt", None),
+    })
+
+
+@router.get("/{sample_id}/print", response_class=HTMLResponse)
+async def sample_print(
+    request: Request,
+    sample_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    """Everything on the sample's page, laid out for printing (or saving as a
+    PDF from the browser) to go with the sample: photos as small previews,
+    files listed by name."""
+    page = await _page(request, db, sample_id, current_user)
+    return templates.TemplateResponse("samples/print.html", page | {
+        "printed_at": datetime.now().replace(microsecond=0),
+        "page_url": str(request.url_for("sample_detail", sample_id=sample_id)),
+    })
+
+
+async def _page(request: Request, db: AsyncSession, sample_id: int, current_user) -> dict:
+    """What the sample's page shows (also its printable version)."""
     sample = await load_sample_full(db, sample_id)
     if not sample:
         raise HTTPException(status_code=404, detail="Sample not found")
@@ -393,7 +419,7 @@ async def sample_detail(
         AccessRequest.sample_id == sample_id, AccessRequest.user_id == current_user.id,
         AccessRequest.status == "pending"))).scalars().all()
     spec_files = (await _attachments_for(db, "sample", [sample_id]))[sample_id] if viewable else []
-    return templates.TemplateResponse("samples/detail.html", {
+    return {
         "spec_files": spec_files,
         "code_prompt": await _code_prompt(db, request, sample) if can_edit(current_user, sample) else None,
         "request": request,
@@ -415,10 +441,7 @@ async def sample_detail(
         "visibilities": VISIBILITY,
         "share_candidates": await _share_candidates(db, sample) if owner else [],
         "owner_user": (await db.get(User, sample.owner_id)) if sample.owner_id else None,
-        "flash": request.session.pop("flash", None),
-        "flash_error": request.session.pop("flash_error", None),
-        "rate_prompt": request.session.pop("rate_prompt", None),
-    })
+    }
 
 
 async def _add_deposition_rates(db: AsyncSession, user, timeline: list[dict]) -> dict:

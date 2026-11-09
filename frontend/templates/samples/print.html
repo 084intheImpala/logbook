@@ -1,0 +1,207 @@
+{#- The sample's page laid out for printing (or saving as a PDF from the
+    browser's print dialog), to go with the sample: its details, the layers and
+    the timeline, photos as small previews and files by name. Context: the same
+    as samples/detail.html (routers/samples.py, _page), plus printed_at and page_url.
+    Standalone (no sidebar, no Tailwind), always light. -#}
+{% from "_layers.html" import layer_stack with context %}
+<!doctype html>
+<html lang="{{ get_lang(request) }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ sample.title }} — {{ _("Printable record") }}</title>
+  <style>
+    @page { size: A4; margin: 14mm 12mm 16mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e5e7eb; color: #111827; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+           font: 10pt/1.35 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .sheet { max-width: 210mm; margin: 16px auto; padding: 14mm 12mm; background: #fff;
+             box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+    .toolbar { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; justify-content: center;
+               padding: 10px 16px; background: #f9fafb; border-bottom: 1px solid #d1d5db; }
+    .toolbar button, .toolbar a { font: inherit; font-size: 10.5pt; padding: 6px 14px; border-radius: 8px;
+               border: 1px solid #d1d5db; background: #fff; color: #374151; text-decoration: none; cursor: pointer; }
+    .toolbar button { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+    .toolbar span { align-self: center; color: #6b7280; font-size: 9pt; }
+    a { color: inherit; text-decoration: none; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { color: #6b7280; }
+    .small { font-size: 8.5pt; }
+    header.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+                 border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 8px; }
+    h1 { margin: 0; font-size: 20pt; line-height: 1.1; }
+    h1 .badge { font: 600 8.5pt ui-sans-serif, system-ui, sans-serif; vertical-align: middle;
+                border: 1px solid #9ca3af; border-radius: 4px; padding: 1px 6px; margin-left: 4px; }
+    .label { font-size: 12pt; color: #374151; margin-top: 2px; }
+    .meta { text-align: right; font-size: 8.5pt; color: #6b7280; }
+    dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 1px 12px; margin: 6px 0; }
+    dl.facts dt { color: #6b7280; }
+    dl.facts dd { margin: 0; }
+    .description { margin: 6px 0; white-space: pre-line; }
+    h2 { font-size: 11.5pt; margin: 14px 0 6px; padding-bottom: 2px; border-bottom: 1px solid #d1d5db; }
+    /* The layer drawing (its own markup is styled for the app's Tailwind page) */
+    .layers-root { margin: 10px 0; break-inside: avoid; }
+    .layers-root h2 { font-size: 11.5pt; margin: 0; padding: 0; border: 0; }
+    .layers-root > div:first-child { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px;
+                                     border-bottom: 1px solid #d1d5db; margin-bottom: 4px; }
+    .layers-root > div:first-child p { margin: 0; font-size: 8pt; color: #6b7280; }
+    .layers-root svg { display: block; width: 100%; max-width: 170mm; height: auto; }
+    /* Timeline */
+    .entry { border: 1px solid #d1d5db; border-left: 4px solid #2563eb; border-radius: 4px;
+             padding: 5px 8px; margin: 0 0 6px; break-inside: avoid; }
+    .entry.analysis { border-left-color: #059669; }
+    .entry.planned { border-style: dashed; border-left-style: solid; border-left-color: #d97706; }
+    .entry.inherited { background: #f9fafb; }
+    .entry-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .entry-head .what { font-weight: 600; }
+    .entry-head .what .n { color: #9ca3af; font-weight: 400; margin-right: 4px; }
+    .tag { font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
+           border: 1px solid currentColor; border-radius: 3px; padding: 0 4px; margin-left: 4px; color: #6b7280; }
+    .tag.planned { color: #b45309; }
+    .entry-head .when { font-size: 8.5pt; color: #4b5563; white-space: nowrap; }
+    .params { display: grid; grid-template-columns: repeat(auto-fill, minmax(38mm, 1fr)); gap: 2px 10px; margin-top: 4px; }
+    .params .long { grid-column: 1 / -1; }
+    .params .k { font-size: 7.5pt; color: #6b7280; }
+    .params .v { white-space: pre-line; }
+    .group { margin-top: 4px; padding: 3px 6px; border: 1px solid #e5e7eb; border-radius: 3px; }
+    .group > .k { font-weight: 600; font-size: 8pt; }
+    .row { margin-top: 4px; }
+    .notes { margin-top: 4px; font-style: italic; white-space: pre-line; color: #374151; }
+    .photos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .photos img { width: 24mm; height: 24mm; object-fit: cover; border: 1px solid #d1d5db; border-radius: 2px; }
+    ul.files { margin: 3px 0 0; padding-left: 14px; font-size: 8.5pt; }
+    .cut { margin: 4px 0 8px; padding: 3px 8px; border: 1px dashed #9ca3af; border-radius: 4px; color: #4b5563; font-size: 9pt; }
+    footer { margin-top: 12px; padding-top: 4px; border-top: 1px solid #d1d5db; font-size: 8pt; color: #6b7280; }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+      h2 { break-after: avoid; }
+    }
+    @media (max-width: 640px) { .sheet { margin: 0; padding: 16px; } }
+  </style>
+</head>
+<body>
+<div class="toolbar">
+  <button type="button" onclick="window.print()">{{ _("Print / save as PDF") }}</button>
+  <a href="/samples/{{ sample.id }}">{{ _("Back to the sample") }}</a>
+  <span>{{ _("To get a PDF, choose “Save as PDF” as the printer.") }}</span>
+</div>
+
+<div class="sheet">
+  <header class="top">
+    <div>
+      <h1 class="mono">{{ sample.title }}
+        <span class="badge">{{ _(sample.type_label) }}</span>
+        {%- if sample.is_reference %} <span class="badge">{{ _("Reference") }}</span>{% endif %}</h1>
+      {% if sample.label %}<div class="label">{{ sample.label }}</div>{% endif %}
+    </div>
+    <div class="meta">
+      {{ _("Logbook record") }}<br>
+      <span class="mono">{{ page_url }}</span><br>
+      {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d %H:%M')) }}
+    </div>
+  </header>
+
+  <dl class="facts">
+    {% if sample.previous_codes %}<dt>{{ _("Previously") }}</dt><dd class="mono">{{ sample.previous_codes|join(", ") }}</dd>{% endif %}
+    {% if parent %}
+    <dt>{{ _("Cut from") }}</dt>
+    <dd><span class="mono">{{ parent.title }}</span>{% if cut and cut.performed_at %} {{ _("on {date}", date=cut.performed_at.strftime('%Y-%m-%d')) }}{% endif %}
+      {%- if siblings|length > 1 %} · {{ _("pieces:") }} {% for p in siblings %}<span class="mono">{{ p.title }}</span>{% if p.is_reference %} {{ _("(ref)") }}{% endif %}{{ ", " if not loop.last }}{% endfor %}{% endif %}</dd>
+    {% endif %}
+    <dt>{{ _("Researcher") }}</dt><dd>{{ sample.researcher or '—' }} <span class="muted">· {{ sample.created_at.strftime('%Y-%m-%d') }}</span></dd>
+    {% if sample.substrate %}
+    <dt>{{ _("Substrate") }}</dt>
+    <dd>{{ sample.substrate.name }} — {{ sample.substrate.material }}
+      {%- if sample.substrate.orientation %} ({{ sample.substrate.orientation }}){% endif %}
+      {%- if sample.substrate.thickness_um %}, {{ '%g'|format(sample.substrate.thickness_um) }} µm{% endif %}
+      {%- if sample.substrate.batch_no %} · {{ _("batch") }} {{ sample.substrate.batch_no }}{% endif %}</dd>
+    {% endif %}
+    {% if sample.substrate_dimensions %}<dt>{{ _("Dimensions") }}</dt><dd>{{ sample.substrate_dimensions }}</dd>{% endif %}
+    {% if sample.film_material %}<dt>{{ _("Film") }}</dt><dd>{{ sample.film_material }}</dd>{% endif %}
+    {% if sample.project %}
+    <dt>{{ _("Project") }}</dt><dd>{{ sample.project.name }} <span class="mono muted">({{ sample.project.code }})</span>{% if sample.project.institution %} · {{ sample.project.institution }}{% endif %}</dd>
+    {% endif %}
+    {% if sample.external_id %}
+    <dt>{% if sample.sample_type == "project" %}{{ _("Their sample ID, or product / batch no.") }}{% else %}{{ _("External ID") }}{% endif %}</dt>
+    <dd class="mono">{{ sample.external_id }}</dd>
+    {% endif %}
+    {% if sample.supplier %}<dt>{{ _("Supplier") }}</dt><dd>{{ sample.supplier }}</dd>{% endif %}
+    {% if sample.tags %}<dt>{{ _("Tags") }}</dt><dd>{{ sample.tags|join(", ") }}</dd>{% endif %}
+    {% if sample.devices %}<dt>{{ _("Devices") }}</dt><dd>{{ sample.devices|map(attribute="label")|join(", ") }}</dd>{% endif %}
+    {% if spec_files %}<dt>{{ _("Spec sheet") }}</dt><dd>{{ spec_files|map(attribute="original_filename")|join(", ") }}</dd>{% endif %}
+  </dl>
+  {% if can_view and sample.description %}<div class="description">{{ sample.description }}</div>{% endif %}
+  {% if not can_view %}
+  <p class="muted small">🔒 {{ _("You can see this sample's summary only.") }}</p>
+  {% endif %}
+
+  {{ layer_stack(layers, sample) }}
+
+  {% macro param_rows(rows) %}
+  <div class="params">
+    {% for row in rows if not row.rows is defined %}
+    <div class="{% if row.long %}long{% endif %}"><div class="k">{{ _(row.label) }}</div><div class="v">{{ row.value if row.value != "" else "—" }}</div></div>
+    {% endfor %}
+  </div>
+  {% endmacro %}
+
+  <h2>{{ _("Timeline") }} <span class="muted small">({{ timeline|length }})</span></h2>
+  {% for entry in timeline %}
+  {% set is_process = entry.kind == "process" %}
+  {% if not entry.inherited and loop.previtem is defined and loop.previtem.inherited %}
+  <div class="cut">✂ {{ _("Cut from") }} <span class="mono">{{ parent.title }}</span>{% if cut and cut.performed_at %} {{ _("on {date}", date=cut.performed_at.strftime('%Y-%m-%d')) }}{% endif %}.
+    {{ _("Entries above are inherited; this piece's own history starts here.") }}</div>
+  {% endif %}
+  <div class="entry {{ entry.kind }}{% if entry.planned %} planned{% endif %}{% if entry.inherited %} inherited{% endif %}">
+    <div class="entry-head">
+      <div class="what"><span class="n">{{ loop.index }}.</span>{{ entry.type_name }}
+        <span class="tag">{{ _("Process") if is_process else _("Analysis") }}</span>
+        {%- if entry.planned %} <span class="tag planned">{{ _("Planned") }}</span>{% endif %}
+        {%- for label in entry.made_devices %} <span class="tag">{{ label }}</span>{% endfor %}
+        {%- if entry.device %} <span class="tag">{{ entry.device }}</span>{% endif %}
+        {%- if entry.inherited %} <span class="muted small">{{ _("from") }} <span class="mono">{{ entry.source.title }}</span></span>{% endif %}</div>
+      {% if entry.visible %}
+      <div class="when">
+        {%- if entry.performed_at %}{% if entry.planned %}{{ _("for {date}", date=entry.performed_at.strftime('%Y-%m-%d')) }}{% else %}{{ entry.performed_at.strftime('%Y-%m-%d') }}{% endif %}{% endif %}
+        {%- if entry.performed_by %} · {{ _("by {name}", name=entry.performed_by) }}{% endif %}
+        {%- if entry.location %} · {{ entry.location }}{% endif %}</div>
+      {% endif %}
+    </div>
+    {% if entry.visible %}
+    {% if entry.run %}<div class="row small muted">🔗 {{ _("Also on:") }} {% for s in entry.run %}<span class="mono">{{ s.title }}</span>{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
+    {% if entry.params %}
+    {{ param_rows(entry.params) }}
+    {% for group in entry.params if group.rows is defined %}
+    <div class="group"><div class="k">{% if group.group %}{{ _(group.group) }}: {% endif %}{{ group.label }}</div>{{ param_rows(group.rows) }}</div>
+    {% endfor %}
+    {% endif %}
+    {% if entry.rate and entry.rate.measured %}
+    <div class="row small">{{ _("Measured deposition rate") }}:
+      {% if entry.rate.average is not none %}<b>{{ '%g'|format(entry.rate.average) }} nm/min</b>
+        ({{ _("average of {n}", n=entry.rate.n) if entry.rate.n > 1 else _("from 1 measurement") }}){% else %}{{ _("no duration recorded, so no rate") }}{% endif %}
+      — {% for m in entry.rate.measured %}{{ m.item.technique }} {{ _("on") }} <span class="mono">{{ m.sample.title }}</span>: {{ '%g'|format(m.thickness) }} nm{{ "; " if not loop.last }}{% endfor %}</div>
+    {% endif %}
+    {% if entry.notes %}<div class="notes">{{ entry.notes }}</div>{% endif %}
+    {% if entry.pieces %}<div class="row small">{{ _("Pieces:") }} {% for p in entry.pieces %}<span class="mono">{{ p.title }}</span>{% if p.label %} {{ p.label }}{% endif %}{% if p.is_reference %} {{ _("(ref)") }}{% endif %}{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
+    {% if entry.photos %}
+    <div class="photos">{% for att in entry.photos %}<img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" title="{{ att.original_filename }}">{% endfor %}</div>
+    {% endif %}
+    {% if entry.files %}
+    <div class="row small muted">{{ _("Files") }}:</div>
+    <ul class="files">{% for att in entry.files %}<li>{{ att.original_filename }} <span class="muted">({{ (att.file_size / 1024)|round(1) }} KB)</span></li>{% endfor %}</ul>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="muted">{{ _("No steps or analyses recorded yet.") }}</p>
+  {% endfor %}
+  {% if timeline and timeline[-1].inherited %}
+  <div class="cut">✂ {{ _("Cut from") }} <span class="mono">{{ parent.title }}</span>. {{ _("Entries above are inherited; this piece's own history starts here.") }}</div>
+  {% endif %}
+
+  <footer>{{ sample.title }} · {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d %H:%M')) }} {{ _("by {name}", name=current_user.display_name) }} · {{ _("photos shown as previews; the files themselves are in the logbook") }}</footer>
+</div>
+</body>
+</html>

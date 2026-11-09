@@ -52,5 +52,7 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   process steps each layer went through since. The rate-over-time plot is on the search page only.
   A Deposition can go on a given layer or the substrate (`on_step_id`, `on_substrate`) and cover only part of it
   (`partial`, e.g. contacts): partial layers sit side by side, each film follows the surface it lands on.
+- **Printable record** (`/samples/{id}/print`, `samples/print.html`): the sample page's data (`samples._page`)
+  laid out for A4, printed or saved as PDF by the browser; photo previews, file names only.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).
