@@ -767,7 +767,8 @@ very thin ones are drawn at a minimum height, and the caption says so.
 - **What it goes on, and partial layers** (metal contacts through a mask):
   the Deposition form has **Deposited on**: *Everything so far* (the
   default), *The substrate*, or one of the layers already on the sample (its
-  timeline before this step), and **Covers only part of it**. A full layer
+  timeline before this step, including layers a piece inherits from the
+  sample it was cut from), and **Covers only part of it**. A full layer
   spans what it's on; a partial one gets a slice of that, side by side with
   the other partial layers on the same thing, so some of the surface stays
   clear. Each film follows the surface it lands on, so *Ni on part of the
@@ -775,8 +776,9 @@ very thin ones are drawn at a minimum height, and the caption says so.
   pads with clear film around them, and a later full layer drapes over them.
   The label says what it's on ("on part of the Ni", "on the Ti"); the width
   of partial layers is not to scale, and the Total is the thickest column.
-  Added to several samples at once, a copy goes on that sample's copy of
-  the chosen layer (same run), else on everything. Stored on the step as
+  Added to several samples at once, a copy goes on that sample's copy of the
+  chosen layer (same run), or on the layer itself if that sample inherits it
+  too (sibling pieces), else on everything. Stored on the step as
   `on_step_id`, `on_substrate` and `partial` (migration `0018`); a layer
   whose base is deleted or polished away goes on everything.
 

@@ -113,17 +113,26 @@ async def _placement(db: AsyncSession, form, sample, entry, entry_type, user) ->
 
 
 async def _placement_for(db: AsyncSession, on_step_id: int | None, target_sample_id: int) -> int | None:
-    """The layer a copy on another sample of the run goes on: that sample's
-    copy of the chosen deposition (same run), if it has one."""
+    """The layer the deposition goes on on `target_sample_id` (this sample or
+    another of the run): the chosen deposition if it's on that sample's
+    timeline (its own, or inherited from the sample it was cut from), else
+    that sample's copy of it (same run), if it has one."""
     if on_step_id is None:
         return None
     chosen = await db.get(ProcessStep, on_step_id)
-    if chosen is None or chosen.sample_id == target_sample_id:
-        return on_step_id if chosen is not None else None
-    if not chosen.run_id:
+    if chosen is None:
         return None
-    return (await db.execute(select(ProcessStep.id).where(
-        ProcessStep.run_id == chosen.run_id, ProcessStep.sample_id == target_sample_id))).scalars().first()
+    if chosen.sample_id == target_sample_id:
+        return on_step_id
+    if chosen.run_id:
+        copy = (await db.execute(select(ProcessStep.id).where(
+            ProcessStep.run_id == chosen.run_id, ProcessStep.sample_id == target_sample_id))).scalars().first()
+        if copy is not None:
+            return copy
+    # inherited: a piece's timeline includes its parent's steps up to the cut
+    target = await load_sample_full(db, target_sample_id)
+    items = (await load_family(db, target))["family"].timeline(target, planned=True)
+    return on_step_id if any(i.kind == "process" and i.entry.id == on_step_id for i in items) else None
 
 
 async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entry, user,

@@ -211,3 +211,25 @@ def test_a_run_copy_shows_only_its_own_thickness(world):
         html = client.get(f"/samples/{sample.id}").text
         section = html[html.index('id="layers"'):html.index("</section>", html.index('id="layers"'))]
         assert f"Ga2O3 · {mine}" in section and other not in section and "média" not in section
+
+
+def test_a_piece_can_put_a_deposition_on_an_inherited_layer(world):
+    """Ga2O3 deposited on the parent, then cut: on the piece, Ti can go on that
+    inherited Ga2O3 (the step belongs to the parent, not the piece)."""
+    from tests.test_deposition_rate import _cut
+    owner = world.user("layers-inherited")
+    client = world.client(owner)
+    parent, twin = world.sample(owner, film_material="Ga2O3"), world.sample(owner, film_material="Ga2O3")
+    _deposit(client, parent, "2026-01-05", thickness="170", run_samples=[twin])   # a run: the step has a run_id
+    ga2o3 = _steps(parent.id)[0]
+    piece = _cut(parent)
+    assert f'value="{ga2o3.id}"' in client.get(f"/samples/{piece.id}/steps/new").text
+    _put(client, piece, "2026-03-01", target="Ti", thickness="10", layer_on=str(ga2o3.id), layer_partial="1")
+    ti = _steps(piece.id)[-1]
+    assert ti.on_step_id == ga2o3.id and ti.partial
+    html = client.get(f"/samples/{piece.id}").text
+    section = html[html.index('id="layers"'):html.index("</section>", html.index('id="layers"'))]
+    assert "sobre parte do Material desconhecido" in section   # the test piece has no film material of its own
+    # and editing it keeps the choice
+    edit = client.get(f"/samples/{piece.id}/steps/{ti.id}/edit").text
+    assert f'value="{ga2o3.id}" selected' in edit
