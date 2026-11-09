@@ -6,15 +6,18 @@ from backend.deposition_rate import RatePoint
 from backend.lineage import Item
 from tests.test_deposition_rate import _deposit, _measure, _type_id
 from tests.loop import run
-from backend.models import ProcessStepType
+from backend.models import ProcessStep, ProcessStepType
+from backend.database import AsyncSessionLocal
+from sqlalchemy import select
 
 SCHEMA = [{"key": "method", "label": "Method", "type": "text"},
           {"key": "temperature", "label": "Temperature", "type": "number", "unit": "°C"}]
 _ids = iter(range(1, 10_000))
 
 
-def _item(technique, planned=False, **params):
+def _item(technique, planned=False, on=None, on_substrate=False, partial=False, **params):
     step = SimpleNamespace(id=next(_ids), parameters=params, planned=planned, performed_at=None,
+                           on_step_id=on.entry.id if on else None, on_substrate=on_substrate, partial=partial,
                            step_type=SimpleNamespace(parameter_schema=SCHEMA))
     return Item("process", technique, step, SAMPLE)
 
@@ -93,6 +96,106 @@ def test_the_sample_page_draws_the_layers(world):
     bulk = world.sample(owner, sample_type="bulk")
     _deposit(client, bulk, thickness="5")
     assert 'id="layers"' not in client.get(f"/samples/{bulk.id}").text
+
+
+def _contacts():
+    """Ni on part of the film, Au on the Ni; Ti on part of the substrate, Au on the Ti."""
+    film = _item("Deposition", thickness=100)
+    ni = _item("Deposition", target="Ni", thickness=50, partial=True)
+    au1 = _item("Deposition", target="Au", thickness=100, on=ni)
+    ti = _item("Deposition", target="Ti", thickness=20, on_substrate=True, partial=True)
+    au2 = _item("Deposition", target="Au", thickness=100, on=ti)
+    return [film, ni, au1, ti, au2]
+
+
+def test_partial_layers_sit_side_by_side_on_what_they_were_put_on():
+    stack = layers.stack(SAMPLE, _contacts())
+    film, ni, au1, ti, au2 = stack
+    assert au1.on is ni and au2.on is ti and ti.on_substrate and ni.partial and not au1.partial
+    d = layers.diagram(stack)
+    assert film.span == (0.0, 1.0)
+    # Ni and Ti each take a slice of the surface, apart, with clear surface around them;
+    # the Au covers all of what it's on
+    assert 0 < ni.span[0] < ni.span[1] < ti.span[0] < ti.span[1] < 1
+    assert au1.span == ni.span and au2.span == ti.span
+    # the tallest column (film + Ni + Au) sets the scale and the total
+    assert d["total"] == 250 and d["partial"]
+    # each film follows the surface it landed on: the Au on the Ni ends at the Ni's right end, above it
+    assert au1.geometry["end_x"] == ni.geometry["end_x"] < layers.STACK_X + layers.STACK_W
+    assert au1.geometry["mid"] < ni.geometry["mid"] < film.geometry["mid"]
+    assert au1.geometry["inside"] and not film.geometry["inside"]
+    # the same material, the same colour
+    assert au1.slot == au2.slot != ni.slot
+
+
+def test_a_full_layer_over_pads_follows_them():
+    items = _contacts()
+    cap = _item("Deposition", target="SiO2", thickness=10)
+    stack = layers.stack(SAMPLE, items + [cap])
+    d = layers.diagram(stack)
+    assert stack[-1].span == (0.0, 1.0)
+    # an outline with steps: more than the four corners of a rectangle
+    assert stack[-1].geometry["path"].count(" L") > 3
+    assert d["layers"][0] is stack[-1]          # the top label first
+    # a layer on one that's not on the timeline (or polished away) goes on everything
+    stray = _item("Deposition", thickness=5, on=SimpleNamespace(entry=SimpleNamespace(id=-1)))
+    assert layers.stack(SAMPLE, [stray])[0].on is None
+
+
+def _put(client, sample, date, run_samples=(), layer_on="", layer_partial="", **params):
+    """A deposition, with what it goes on (layer_on) and whether it covers only part of it."""
+    data = {"type_id": run(_type_id(ProcessStepType, "Deposition")), "performed_at": date, "layer_on": layer_on,
+            "run_samples": [s.id for s in run_samples]} | {f"p::{k}": v for k, v in params.items()}
+    if layer_partial:
+        data["layer_partial"] = layer_partial
+    assert client.post(f"/samples/{sample.id}/steps/new", data=data).status_code == 303
+
+
+def _steps(sample_id):
+    async def get():
+        async with AsyncSessionLocal() as db:
+            return list((await db.execute(select(ProcessStep).where(ProcessStep.sample_id == sample_id)
+                                          .order_by(ProcessStep.id))).scalars())
+    return run(get())
+
+
+def test_the_form_puts_a_deposition_on_part_of_a_layer(world):
+    owner = world.user("layers-contacts")
+    client = world.client(owner)
+    sample, twin = world.sample(owner, film_material="Ga2O3"), world.sample(owner, film_material="Ga2O3")
+    _deposit(client, sample, "2026-02-01", thickness="100")
+    form = client.get(f"/samples/{sample.id}/steps/new").text
+    assert 'name="layer_on"' in form and 'name="layer_partial"' in form and "Ga2O3 · 100 nm" in form
+    # Ni on part of it, on both samples (a run)
+    _put(client, sample, "2026-02-02", run_samples=[twin], target="Ni", thickness="50", layer_partial="1")
+    ni = _steps(sample.id)[-1]
+    assert ni.partial and ni.on_step_id is None and not ni.on_substrate
+    # Au on the Ni: on the twin, its own Ni
+    _put(client, sample, "2026-02-03", run_samples=[twin], target="Au", thickness="100", layer_on=str(ni.id))
+    au, twin_ni, twin_au = _steps(sample.id)[-1], *_steps(twin.id)
+    assert au.on_step_id == ni.id and not au.partial
+    assert twin_au.on_step_id == twin_ni.id
+    # Ti on part of the substrate
+    _put(client, sample, "2026-02-04", target="Ti", thickness="20", layer_on="substrate", layer_partial="1")
+    ti = _steps(sample.id)[-1]
+    assert ti.on_substrate and ti.partial and ti.on_step_id is None
+
+    html = client.get(f"/samples/{sample.id}").text
+    section = html[html.index('id="layers"'):html.index("</section>", html.index('id="layers"'))]
+    assert "sobre parte da superfície" in section and "sobre o Ni" in section and "sobre parte do substrato" in section
+    assert "<path" in section
+
+    # Editing keeps it; only a layer below the deposition can be picked
+    edit = client.get(f"/samples/{sample.id}/steps/{au.id}/edit").text
+    assert f'value="{ni.id}" selected' in edit and f'value="{ti.id}"' not in edit
+    other = _steps(twin.id)[0]
+    _put(client, sample, "2026-02-05", target="Cr", thickness="5", layer_on=str(other.id))
+    assert _steps(sample.id)[-1].on_step_id is None
+    # other steps never have it
+    data = {"type_id": run(_type_id(ProcessStepType, "Annealing")), "layer_on": str(ni.id), "layer_partial": "1"}
+    assert client.post(f"/samples/{sample.id}/steps/new", data=data).status_code == 303
+    anneal = _steps(sample.id)[-1]
+    assert anneal.on_step_id is None and not anneal.partial
 
 
 def test_a_run_copy_shows_only_its_own_thickness(world):

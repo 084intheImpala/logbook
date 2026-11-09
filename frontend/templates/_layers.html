@@ -1,6 +1,8 @@
 {#- The film stack of a thin-film sample (geometry from backend/layers.py): the
-    substrate, one rectangle per deposition, and beside each layer how thick it
-    is, how that's known and the process steps it went through since.
+    substrate, one outline per deposition (following the surface it landed on;
+    partial layers, e.g. contacts, cover only part of it), and beside each layer
+    how thick it is, how that's known, what it was put on and the process steps
+    it went through since.
     Colours: the categorical palette by material, as in _rate_plot.html. -#}
 {% macro layer_stack(d, sample) %}
 {% if d %}
@@ -13,7 +15,7 @@
     --substrate: #4b5563;
     --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
     --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767; }
-  .layers-root a:hover rect { stroke: var(--viz-ink); stroke-width: 1.5; }
+  .layers-root a:hover path { stroke: var(--viz-ink); stroke-width: 1.5; }
 </style>
 {% set sources = {
   "measured": _("measured"),
@@ -27,6 +29,7 @@
     <p class="text-xs text-gray-500">
       {%- if d.total %}{{ _("Total") }} {{ '%g'|format(d.total) }} nm{% if not d.all_known %} {{ _("(not counting the layers of unknown thickness)") }}{% endif %} · {% endif -%}
       {{ _("Films to scale, the substrate not") }}{% if d.clamped %}; {{ _("very thin films drawn thicker") }}{% endif %}
+      {%- if d.partial %}; {{ _("the width of partial layers is not to scale") }}{% endif %}
     </p>
   </div>
   <div class="overflow-x-auto">{# on a phone, scroll rather than shrink the text #}
@@ -52,14 +55,19 @@
     {% for l in d.layers %}
     {% set g = l.geometry %}
     <a href="#step-{{ l.step.id }}">
-      <rect x="{{ d.x }}" y="{{ g.y }}" width="{{ d.w }}" height="{{ g.h }}"
+      <path d="{{ g.path }}" stroke-linejoin="round"
             fill="var(--series-{{ l.slot }})" fill-opacity="{{ 0.25 if l.planned else 0.85 }}"
             stroke="{{ 'var(--series-' ~ l.slot ~ ')' if l.planned else 'var(--viz-surface)' }}" stroke-width="1"
             {% if l.planned %}stroke-dasharray="4 3"{% endif %}>
         <title>{{ l.material or _("Unknown material") }}{% if l.thickness %} · {{ '%g'|format(l.thickness) }} nm{% endif %}</title>
-      </rect>
+      </path>
     </a>
-    <line x1="{{ d.x + d.w }}" y1="{{ g.mid }}" x2="{{ d.label_x - 6 }}" y2="{{ g.lead_y }}" stroke="var(--viz-axis)" stroke-width="1"/>
+    {% endfor %}
+    {# Labels, joined to the right end of their film (top first) #}
+    {% for l in d.layers %}
+    {% set g = l.geometry %}
+    <line x1="{{ g.end_x }}" y1="{{ g.mid }}" x2="{{ d.label_x - 6 }}" y2="{{ g.lead_y }}" stroke="var(--viz-axis)" stroke-width="1"/>
+    {% if g.inside %}<circle cx="{{ g.end_x }}" cy="{{ g.mid }}" r="2" fill="var(--viz-ink)"/>{% endif %}
     <a href="#step-{{ l.step.id }}">
       <text x="{{ d.label_x }}" y="{{ g.label_y + 11 }}" font-size="12" font-weight="600" fill="var(--viz-ink)">
         {{- l.material or _("Unknown material") }} · {% if l.thickness %}{{ '%g'|format(l.thickness) }} nm{% else %}? nm{% endif %}
@@ -68,6 +76,8 @@
     <text x="{{ d.label_x }}" y="{{ g.label_y + 25 }}" font-size="11" fill="var(--viz-axis)">
       {{- sources[l.source] if l.source else _("thickness unknown") }}
       {%- if l.source == "measured" and l.n > 1 %} ({{ _("average of {n}", n=l.n) }}){% endif %}
+      {%- if l.partial %} · {% if l.on %}{{ _("on part of the {material}", material=l.on.material or _("Unknown material")) }}{% elif l.on_substrate %}{{ _("on part of the substrate") }}{% else %}{{ _("on part of the surface") }}{% endif %}
+      {%- elif l.on %} · {{ _("on the {material}", material=l.on.material or _("Unknown material")) }}{% endif %}
       {%- if l.removed %} · {{ _("{nm} nm removed by CMP", nm='%g'|format(l.removed)) }}{% endif %}
       {%- if l.step.performed_at %} · {{ l.step.performed_at.isoformat() }}{% endif %}
       {%- if l.sample.id != sample.id %} · {{ _("from {sample}", sample=l.sample.title) }}{% endif %}</text>

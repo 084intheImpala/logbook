@@ -23,7 +23,8 @@ from backend.choices import LOCATION_LIST, option_lists, option_locations, optio
 from backend.config import settings
 from backend.deposition_rate import DEPOSITION_TYPE_NAME, after_measurement
 from backend.i18n import t
-from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
+from backend.layers import stack as layer_stack
+from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES, load_family, load_sample_full
 from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
 from backend.params import (describe, extra_params, located_lists, located_methods, params_to_text, parse_date, parse_form,
                             parse_params, schema_keys, varied_params, vary_choices)
@@ -84,6 +85,47 @@ async def _run_candidates(db: AsyncSession, user, sample, run) -> list[tuple[Sam
     return sorted(picked, key=lambda p: ("sibling", "owner", "other").index(p[1]))   # stable: newest first
 
 
+async def _layers_below(db: AsyncSession, sample, entry, user) -> list:
+    """The layers a deposition can be put on (backend/layers.py): those on the
+    sample's timeline (inherited and planned ones included) before `entry`, or
+    all of them for a new one; inherited ones only if `user` can see them."""
+    full = await load_sample_full(db, sample.id)
+    items = (await load_family(db, full))["family"].timeline(full, planned=True)
+    items = [i for i in items if i.source.id == full.id or can_view(user, i.source)]
+    if entry is not None:
+        at = next((n for n, i in enumerate(items) if i.kind == "process" and i.entry.id == entry.id), len(items))
+        items = items[:at]
+    return layer_stack(full, items)
+
+
+async def _placement(db: AsyncSession, form, sample, entry, entry_type, user) -> tuple[int | None, bool, bool]:
+    """(on_step_id, on_substrate, partial) from the form: only a Deposition has
+    them, and only a layer below it on this sample's timeline can be picked."""
+    if entry_type.name != DEPOSITION_TYPE_NAME:
+        return None, False, False
+    on, partial = form.get("layer_on", ""), bool(form.get("layer_partial"))
+    if on == "substrate":
+        return None, True, partial
+    if on.isdigit() and (int(on) == getattr(entry, "on_step_id", None)
+                         or int(on) in {l.step.id for l in await _layers_below(db, sample, entry, user)}):
+        return int(on), False, partial
+    return None, False, partial
+
+
+async def _placement_for(db: AsyncSession, on_step_id: int | None, target_sample_id: int) -> int | None:
+    """The layer a copy on another sample of the run goes on: that sample's
+    copy of the chosen deposition (same run), if it has one."""
+    if on_step_id is None:
+        return None
+    chosen = await db.get(ProcessStep, on_step_id)
+    if chosen is None or chosen.sample_id == target_sample_id:
+        return on_step_id if chosen is not None else None
+    if not chosen.run_id:
+        return None
+    return (await db.execute(select(ProcessStep.id).where(
+        ProcessStep.run_id == chosen.run_id, ProcessStep.sample_id == target_sample_id))).scalars().first()
+
+
 async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entry, user,
                     error: str | None = None, status_code: int = 200):
     types = (await db.execute(select(kind.type_model).order_by(kind.type_model.name))).scalars().all()
@@ -138,6 +180,8 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
         "marking_done": bool(entry and entry.planned and request.query_params.get("done")),
         # The duration calculator shows with this type's fields
         "deposition_type_id": next((ty.id for ty in types if ty.name == DEPOSITION_TYPE_NAME), None),
+        # A deposition goes on everything so far, the substrate or a given layer, covering all or part of it
+        "layers_below": await _layers_below(db, sample, entry, user) if kind is STEP else [],
         "error": error,
     }, status_code=status_code)
 
@@ -182,6 +226,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         "location": location,
         "planned": bool(form.get("planned")),
     }
+    if kind is STEP:
+        on_step_id, fields["on_substrate"], fields["partial"] = await _placement(db, form, sample, entry, entry_type, user)
     device_id = form.get("device_id", "")
     device = next((d for d in sample.devices if str(d.id) == device_id), None) if kind is ANALYSIS else None
     performed_at = parse_date(form.get("performed_at", ""))
@@ -190,6 +236,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
     async def apply(target):
         for name, value in fields.items():
             setattr(target, name, value)
+        if kind is STEP:   # on the chosen layer, or on another sample of the run its copy there
+            target.on_step_id = await _placement_for(db, on_step_id, target.sample_id)
         # What this sample has different from the others (new copies only)
         if target.sample_id in new_sample_ids:
             own, own_picked = varied_params(form, entry_type.parameter_schema, target.sample_id)
