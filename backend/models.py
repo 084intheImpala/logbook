@@ -271,6 +271,12 @@ class ProcessStep(Base):
     # Planned, not done yet: shown on the sample's timeline, left out of search,
     # exports, deposition rates and what pieces inherit until marked done.
     planned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    # A Deposition's layer goes on top of another deposition's layer (none: on
+    # everything so far, or with `on_substrate` the bare substrate), covering all
+    # of it or, `partial`, only part (contacts through a mask). See backend/layers.py.
+    on_step_id: Mapped[int | None] = mapped_column(ForeignKey("process_steps.id", ondelete="SET NULL"))
+    on_substrate: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    partial: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps", foreign_keys=[sample_id])

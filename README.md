@@ -378,7 +378,7 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 5: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries). |
+| `format` | Version of this layout (currently 6: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
 | `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk` or `project`; `visibility` is `personal`, `team` or `public`. |
@@ -396,7 +396,11 @@ technique, e.g. `Annealing`), `position`, `performed_at` (a date), `location`,
 without an account, or `null`), `notes`, `run_id` (entries added to several
 samples at once share it), `status` (`approved`, or `pending` for an entry a
 teammate proposed that the owner hasn't approved), `proposed_by`, `planned`
-(`true` for an entry planned and not done yet), `created_at`,
+(`true` for an entry planned and not done yet), `created_at`, on a step
+`on_step_id` / `on_substrate` / `partial` (what a deposited layer was put on:
+the `id` of another deposition, or the bare substrate, or neither for
+everything so far; `partial` when it covers only part of it, see
+[Layers](#layers)),
 `files` (`file` is the path under `uploads/`, plus `original_name`, `size`,
 `mime_type`, `uploaded_by`, `uploaded_at`) and **`parameters`**. An analysis
 also has `device`: the label of the device it was measured on, or `null`.
@@ -740,7 +744,7 @@ that keep the thickness `THICKNESS_KEEPING_STEPS`), `backend/rate_plot.py`,
 ### Layers
 
 A thin-film sample's page draws its film stack above the timeline: the
-substrate (hatched, not to scale) and one rectangle per Deposition, bottom
+substrate (hatched, not to scale) and one film per Deposition, bottom
 first, inherited ones included (a piece shows its parent's films). Planned
 depositions are drawn dashed and pale. Films are to scale with each other;
 very thin ones are drawn at a minimum height, and the caption says so.
@@ -758,6 +762,21 @@ very thin ones are drawn at a minimum height, and the caption says so.
   their first few parameter values and date. So with *deposit 100 nm, anneal
   1000 °C, deposit 200 nm, anneal 400 °C*, the bottom film lists both
   anneals and the top one only the 400 °C one.
+- **What it goes on, and partial layers** (metal contacts through a mask):
+  the Deposition form has **Deposited on**: *Everything so far* (the
+  default), *The substrate*, or one of the layers already on the sample (its
+  timeline before this step), and **Covers only part of it**. A full layer
+  spans what it's on; a partial one gets a slice of that, side by side with
+  the other partial layers on the same thing, so some of the surface stays
+  clear. Each film follows the surface it lands on, so *Ni on part of the
+  film, Au on the Ni, Ti on part of the substrate, Au on the Ti* draws two
+  pads with clear film around them, and a later full layer drapes over them.
+  The label says what it's on ("on part of the Ni", "on the Ti"); the width
+  of partial layers is not to scale, and the Total is the thickest column.
+  Added to several samples at once, a copy goes on that sample's copy of
+  the chosen layer (same run), else on everything. Stored on the step as
+  `on_step_id`, `on_substrate` and `partial` (migration `0018`); a layer
+  whose base is deleted or polished away goes on everything.
 
 Click a film or a step to jump to it on the timeline. Bulk and project
 samples have no stack. `backend/layers.py` (stack and geometry),
