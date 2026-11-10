@@ -138,6 +138,11 @@ Sample            (generated ID, type, optional label and tags)
  ├── Device       (D1, D2, …; made by a "Devices made" step)
  └── Analysis     (XRD, RBS, SEM, …; optionally on one Device; planned or done)
       └── Attachment (data files, images)
+Study             (several samples; co-owners; personal / team / public)
+ ├── StudySample     (a sample in it; a sample can be in several studies)
+ ├── StudyReference  (a paper by DOI, or a link, with a note)
+ └── StudyNote       (dated, ordered note; may point at a sample, step or analysis)
+      └── Attachment (photos, files)
 ```
 
 ### Sample IDs
@@ -312,6 +317,10 @@ uploads/
       scan 01 (final) (2).raw             ← same name taken: (2), (3), …
   substrates/
     Si-100-wafer/datasheet.pdf
+  studies/
+    3-Contacts-on-Ga2O3/                   ← a study (<id>-<title>, kept if it's renamed)
+      study.json                           ← the study's record (see below)
+      paper.pdf                            ← files on its notes
 ```
 
 Only characters Windows can't store in a name (`<>:"|?*`) are replaced by
@@ -360,9 +369,10 @@ samples when the app starts (or on demand:
 `docker compose exec app python -m backend.sample_backup`), so it's always current. It's there so that, if
 the database is lost, `uploads/` still says what every file is. A piece's
 file doesn't repeat the entries it inherits: `cut_from` names the parent
-and the Cut step, and they are in the parent's file. Users, entry types,
-dropdown values and suggestions aren't in these files; the database dump is
-still the real backup.
+and the Cut step, and they are in the parent's file. Each study's folder
+has a `study.json` in the same way (see [Studies](#studies)). Users, entry
+types, dropdown values and suggestions aren't in these files; the database
+dump is still the real backup.
 
 Mandatory: the substrate for thin-film and bulk samples, a project and a description for project samples, and the type of each step/analysis. `required` in
 a type's schema is a hint shown on the form, not enforced.
@@ -378,7 +388,7 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 7: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr). |
+| `format` | Version of this layout (currently 8: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr; 8 adds `studies`). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
 | `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk` or `project`; `visibility` is `personal`, `team` or `public`. |
@@ -388,6 +398,7 @@ indented, so it can be read without the app. Top level:
 | `cut_from` | For a piece: `{sample, cut_step_id, cut_position}`: the parent's ID and where on its timeline the Cut step is. The piece inherits everything before that position; those entries are in the parent's file, not repeated here. |
 | `files` | Files attached to the sample itself (e.g. a spec sheet). |
 | `devices` | The devices made on the sample: list of `{label, notes}`. |
+| `studies` | The studies it is in: list of `{id, title}` (their notes and references are in each study's `study.json`). |
 | `timeline` | The sample's own steps and analyses, in order. |
 
 Each `timeline` entry has `id`, `kind` (`step` or `analysis`), `type` (the
@@ -482,6 +493,62 @@ pieces, and neither can a Cut step that pieces were cut at.
 Access to a piece includes its inherited history (entries and files from
 before the cut), even without access to the parent. Search matches pieces on
 inherited entries, and the CSV marks those rows in `inherited_from`.
+
+## Studies
+
+The **Studies** tab (`/studies`, `routers/studies.py`, permissions in
+`backend/studies.py`) is for work that spans several samples: an annealing
+series, a contact-metal comparison, a collaboration's batch. A study has a
+title, a description and three parts:
+
+- **Samples.** Add one by its ID on the study's page (the field suggests the
+  samples you can see), or with **Add to a study…** in the *Studies* row on a
+  sample's page, which also lists the studies the sample is in. Only samples
+  you can see can be added, and a study's page lists only the samples the
+  viewer can see ("and 2 samples you can't see" for the rest). A sample can be
+  in several studies; deleting a sample takes it out of them.
+- **References.** Paste a DOI (bare, `doi:…` or a `doi.org` link) or any
+  link, with an optional note on why it matters. For a DOI the title, authors,
+  journal and year are looked up at doi.org (`backend/doi.py`); if that fails
+  (no internet on the host, unknown DOI) the reference is kept with the DOI
+  and whatever title was typed. **Anyone who can see the study can add a
+  reference**; co-owners and whoever added it can remove it.
+- **Notes.** Dated notes for literature, thoughts and plans, with an
+  optional title, photos and files. They are ordered like a timeline: a new
+  or re-dated note goes after the others of its day, and ↑/↓ move it. A note
+  can be **about** one of the study's samples, or one of their steps or
+  analyses, and links to it. What concerns a single step (its parameters,
+  results, files) still belongs on the step. Note files are stored under
+  `uploads/studies/<id>-<title>/`.
+
+**Co-owners.** Whoever creates a study is its first co-owner and can add
+others (any user with an account). Every co-owner, and admins, can change
+everything: details, samples, notes, co-owners. A study always keeps at least
+one. **Who can see it** works as for samples: *Personal*, only its
+co-owners; *Team*, also everyone in a co-owner's team (the default);
+*Public*, everyone logged in. The tables are `studies`, `study_owners`,
+`study_samples`, `study_references` and `study_notes` (migration `0020`).
+
+**Printing.** **🖨 Print / PDF** on a study's page opens it laid out for A4
+(`/studies/{id}/print`, `studies/print.html`), like a sample's printable
+record: details, co-owners, the samples (only those the reader can see), the
+references as a numbered list, and the notes in order with photo previews and
+file names. Print it, or choose *Save as PDF* as the printer. A sample's own
+printout lists the studies it is in.
+
+**`study.json`.** Next to its notes' files, `uploads/studies/<id>-<title>/`
+(named when the study is created, and kept if it's renamed) has a
+`study.json`, written like `sample.json`: after every change and for every
+study at start-up. Keys: `format` (currently 1), `written_at`, `id`, `title`,
+`description`, `visibility`, `created_at`, `created_by`, `owners`
+(`{username, name, initials}`), `samples` (`{id, code, label, added_at}`),
+`references` (`doi`, `url`, `title`, `authors`, `journal`, `year`, `note`,
+`added_by`, `created_at`) and `notes`, in order (`id`, `position`, `noted_on`,
+`title`, `text`, `author`, `created_at`, `files` as in `sample.json`, and
+`about`: `null`, or `{sample, sample_id, kind, id}` where `kind` is `sample`,
+`step` or `analysis` and `id` is the entry's `id` in that sample's
+`sample.json` timeline). Deleting a study removes its `study.json`; its
+files go to the trash.
 
 ## Access and sharing
 

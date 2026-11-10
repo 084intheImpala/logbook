@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}{{ study.title }} — Logbook{% endblock %}
+{% block content %}
+{% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %}
+{% macro attachment_list(photos, files, editable) %}
+{% if photos %}
+<div class="flex flex-wrap gap-2 mt-3">
+  {% for att in photos %}
+  <div class="relative group">
+    <a href="/files/{{ att.id }}" target="_blank" title="{{ att.original_filename }}">
+      <img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" loading="lazy"
+           class="h-24 w-24 object-cover rounded-lg border border-gray-200 hover:opacity-90">
+    </a>
+    {% if editable %}
+    <form method="post" action="/files/{{ att.id }}/delete" class="absolute top-1 right-1 hidden group-hover:block"
+          onsubmit='return confirm({{ _("Remove this photo?")|tojson }})'>
+      <button class="w-6 h-6 rounded-full bg-black/60 text-white text-sm leading-none hover:bg-red-600" title="{{ _("Remove photo") }}">×</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% if files %}
+<div class="flex flex-wrap gap-2 mt-3">
+  {% for att in files %}
+  <span class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
+    <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
+    {% if editable %}
+    <form method="post" action="/files/{{ att.id }}/delete" class="inline"
+          onsubmit='return confirm({{ _("Remove {name}?", name=att.original_filename)|tojson }})'>
+      <button class="text-gray-300 hover:text-red-400 ml-1" title="{{ _("Remove") }}">×</button>
+    </form>
+    {% endif %}
+  </span>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+<!-- Header -->
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <div class="text-xs text-gray-400 mb-1"><a href="/studies/" class="hover:underline">{{ _("Studies") }}</a> /</div>
+    <h1 class="text-2xl font-bold text-gray-900">{{ study.title }}</h1>
+    <div class="mt-1 text-sm text-gray-500">
+      {{ _("Co-owners") }}: {{ study.owners|map(attribute="user")|map(attribute="display_name")|join(", ") }}
+      · {{ _(visibilities[study.visibility]) if study.visibility in visibilities else study.visibility }}
+      · {{ _("since {date}", date=study.created_at.strftime('%Y-%m-%d')) }}
+    </div>
+    {% if study.description %}<p class="mt-2 text-sm text-gray-700 max-w-3xl whitespace-pre-line">{{ study.description }}</p>{% endif %}
+  </div>
+  <div class="flex gap-2 shrink-0">
+    <a href="/studies/{{ study.id }}/print" target="_blank"
+       title="{{ _("The study's samples, references and notes, laid out to print or save as a PDF") }}"
+       class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">🖨 {{ _("Print / PDF") }}</a>
+    {% if is_owner %}
+    <a href="/studies/{{ study.id }}/edit" class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Edit") }}</a>
+    <form method="post" action="/studies/{{ study.id }}/delete"
+          onsubmit='return confirm({{ _("Delete this study, its notes and references? The samples stay as they are.")|tojson }})'>
+      <button class="text-sm border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">{{ _("Delete") }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if flash %}
+<div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ flash }}</div>
+{% endif %}
+{% if flash_error %}
+<div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ flash_error }}</div>
+{% endif %}
+
+{% if is_owner %}
+<details id="owners" class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+  <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">
+    {{ _("Co-owners") }} <span class="font-normal text-gray-400">· {{ study.owners|length }}</span>
+  </summary>
+  <div class="px-4 pb-4 space-y-3">
+    <p class="text-xs text-gray-400">{{ _("Every co-owner can change everything in the study, including who its co-owners are.") }}</p>
+    <ul class="divide-y divide-gray-100 text-sm">
+      {% for o in study.owners %}
+      <li class="flex items-center gap-3 py-1.5">
+        <span class="flex-1">{{ o.user.display_name }} <span class="text-gray-400 text-xs">{{ o.user.username }}</span></span>
+        {% if study.owners|length > 1 %}
+        <form method="post" action="/studies/{{ study.id }}/owners/{{ o.user_id }}/delete" class="inline"
+              {% if o.user_id == current_user.id %}onsubmit='return confirm({{ _("Stop being a co-owner of this study?")|tojson }})'{% endif %}>
+          <button class="text-xs text-red-500 hover:underline">{{ _("Remove") }}</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if owner_candidates %}
+    <form method="post" action="/studies/{{ study.id }}/owners" class="flex items-center gap-2">
+      <select name="user_id" required class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+        <option value="">{{ _("Add a co-owner…") }}</option>
+        {% for u in owner_candidates %}<option value="{{ u.id }}">{{ u.display_name }} ({{ u.username }})</option>{% endfor %}
+      </select>
+      <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Add") }}</button>
+    </form>
+    {% endif %}
+  </div>
+</details>
+{% endif %}
+
+<!-- Samples -->
+<section id="samples" class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("Samples") }} · {{ samples|length }}</h2>
+  {% if samples %}
+  <div class="flex flex-wrap gap-2">
+    {% for s in samples %}
+    <span class="flex items-center gap-1 bg-white border border-gray-200 rounded px-2 py-1 text-xs">
+      <a href="/samples/{{ s.id }}" class="hover:underline"><span class="font-mono text-blue-600">{{ s.title }}</span>{% if s.label %} <span class="text-gray-500">{{ s.label }}</span>{% endif %}</a>
+      {% if is_owner %}
+      <form method="post" action="/studies/{{ study.id }}/samples/{{ s.id }}/delete" class="inline"
+            onsubmit='return confirm({{ _("Take {code} out of this study?", code=s.title)|tojson }})'>
+        <button class="text-gray-300 hover:text-red-400 ml-1" title="{{ _("Take out of the study") }}">×</button>
+      </form>
+      {% endif %}
+    </span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-sm text-gray-400">{{ _("None yet.") }}</p>
+  {% endif %}
+  {% if hidden_samples %}
+  <p class="text-xs text-gray-400 mt-1">{{ _("and 1 sample you can't see") if hidden_samples == 1 else _("and {n} samples you can't see", n=hidden_samples) }}</p>
+  {% endif %}
+  {% if is_owner %}
+  <form method="post" action="/studies/{{ study.id }}/samples" class="flex items-center gap-2 mt-3">
+    <input name="code" list="addable-samples" required placeholder="{{ _("Sample ID") }}"
+           class="border border-gray-300 rounded px-2 py-1 text-sm font-mono w-48">
+    <datalist id="addable-samples">{% for s in addable %}<option value="{{ s.code }}">{{ s.label or '' }}</option>{% endfor %}</datalist>
+    <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Add sample") }}</button>
+    <span class="text-xs text-gray-400">{{ _("any sample you can see; also from a sample's page") }}</span>
+  </form>
+  {% endif %}
+</section>
+
+<!-- References -->
+<section id="references" class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("References") }} · {{ references|length }}</h2>
+  {% if references %}
+  <ul class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
+    {% for r in references %}
+    <li id="reference-{{ r.id }}" class="px-4 py-3 text-sm flex items-start gap-3">
+      <div class="flex-1 min-w-0">
+        <a href="{{ r.link }}" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">{{ r.title or r.doi or r.url }}</a>
+        {% if r.authors or r.journal or r.year %}
+        <div class="text-xs text-gray-600">{{ [r.authors, r.journal, r.year]|select|join(" · ") }}</div>
+        {% endif %}
+        {% if r.doi %}<div class="text-xs text-gray-400 font-mono">doi:{{ r.doi }}</div>{% endif %}
+        {% if r.note %}<p class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ r.note }}</p>{% endif %}
+        <div class="text-xs text-gray-400 mt-1">{{ _("Added by {name} on {date}", name=r.added_by.display_name if r.added_by else "—", date=r.created_at.strftime('%Y-%m-%d')) }}</div>
+      </div>
+      {% if is_owner or r.added_by_id == current_user.id %}
+      <form method="post" action="/studies/{{ study.id }}/references/{{ r.id }}/delete"
+            onsubmit='return confirm({{ _("Remove this reference?")|tojson }})'>
+        <button class="text-xs text-red-500 hover:underline">{{ _("Remove") }}</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <details class="mt-3 bg-white rounded-xl border border-gray-200 shadow-sm" {% if not references %}open{% endif %}>
+    <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ _("Add a paper or link") }}</summary>
+    <form method="post" action="/studies/{{ study.id }}/references" class="px-4 pb-4 space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("DOI or link") }} <span class="text-red-500">*</span></label>
+        <input name="link" required class="{{ input_cls }} font-mono" placeholder="10.1063/5.0012345 {{ _("or") }} https://…">
+        <p class="text-xs text-gray-400 mt-1">{{ _("With a DOI, the title, authors, journal and year are looked up for you.") }}</p>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Title") }}</label>
+        <input name="title" maxlength="500" class="{{ input_cls }}" placeholder="{{ _("optional with a DOI") }}">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Why it's interesting") }}</label>
+        <textarea name="note" rows="2" class="{{ input_cls }}"></textarea>
+      </div>
+      <button class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add reference") }}</button>
+    </form>
+  </details>
+</section>
+
+<!-- Notes -->
+<section id="notes" class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("Notes") }} · {{ notes|length }}</h2>
+  {% if notes %}
+  <div class="space-y-4">
+    {% for row in notes %}{% set n = row.note %}
+    <article id="note-{{ n.id }}" class="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
+      <div class="flex items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="text-xs text-gray-400">
+            {{ n.noted_on.isoformat() if n.noted_on else _("no date") }}{% if n.author %} · {{ n.author.display_name }}{% endif %}
+          </div>
+          {% if n.title %}<h3 class="font-semibold text-gray-900">{{ n.title }}</h3>{% endif %}
+          {% if row.about %}
+          <div class="text-xs mt-0.5">{{ _("About") }}:
+            {% if row.about_url %}<a href="{{ row.about_url }}" class="text-blue-600 hover:underline">{{ row.about }}</a>{% else %}{{ row.about }}{% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% if is_owner %}
+        <div class="flex items-center gap-2 shrink-0 text-xs">
+          {% for direction, arrow, edge in (("up", "↑", row.first), ("down", "↓", row.last)) %}
+          {% if not edge %}
+          <form method="post" action="/studies/{{ study.id }}/notes/{{ n.id }}/move" class="inline">
+            <input type="hidden" name="direction" value="{{ direction }}">
+            <button class="text-gray-400 hover:text-gray-700" title="{{ _("Move up") if direction == 'up' else _("Move down") }}">{{ arrow }}</button>
+          </form>
+          {% endif %}
+          {% endfor %}
+          <a href="/studies/{{ study.id }}/notes/{{ n.id }}/edit" class="text-gray-500 hover:underline">{{ _("Edit") }}</a>
+          <form method="post" action="/studies/{{ study.id }}/notes/{{ n.id }}/delete" class="inline"
+                onsubmit='return confirm({{ _("Delete this note and its files?")|tojson }})'>
+            <button class="text-red-500 hover:underline">{{ _("Delete") }}</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% if n.text %}<p class="mt-2 text-sm text-gray-700 whitespace-pre-line">{{ n.text }}</p>{% endif %}
+      {{ attachment_list(row.photos, row.files, is_owner) }}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-sm text-gray-400">{{ _("No notes yet.") }}</p>
+  {% endif %}
+
+  {% if is_owner %}
+  <details class="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm" {% if not notes %}open{% endif %}>
+    <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ _("Add a note") }}</summary>
+    <form method="post" action="/studies/{{ study.id }}/notes" enctype="multipart/form-data" class="px-4 pb-4 space-y-3">
+      {% set note, about = None, None %}
+      {% include "studies/_note_fields.html" %}
+      <button class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add note") }}</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endblock %}

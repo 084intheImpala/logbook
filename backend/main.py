@@ -8,7 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.migrate import migrate
-from backend.routers import samples, steps, analyses, files, attach, admin, search, substrates, suggestions, projects, teams, approvals, team, activity, devices
+from backend.routers import samples, steps, analyses, files, attach, admin, search, substrates, suggestions, projects, teams, approvals, team, activity, devices, studies
 from backend.routers import auth as auth_router
 from backend.auth import RequiresLoginException, RequiresProfileException
 from backend.seed import seed_types
@@ -54,6 +54,7 @@ app.include_router(auth_router.router, tags=["auth"])
 app.include_router(search.router)
 app.include_router(substrates.router)
 app.include_router(projects.router)
+app.include_router(studies.router)
 app.include_router(suggestions.router)
 app.include_router(samples.router, prefix="/samples", tags=["samples"])
 app.include_router(steps.router, prefix="/samples", tags=["steps"])

@@ -459,3 +459,105 @@ class SuggestionReply(Base):
 
     suggestion: Mapped["Suggestion"] = relationship("Suggestion", back_populates="replies")
     user: Mapped["User | None"] = relationship("User", lazy="selectin")
+
+
+class Study(Base):
+    """A study spanning several samples: the samples it uses, papers that bear
+    on it (StudyReference) and dated notes (StudyNote): literature, thoughts,
+    plans. Anything about one step stays on that step; a note can point at it.
+    Its co-owners (StudyOwner) all have full rights; who else can see it
+    follows `visibility` (keys of VISIBILITY, the teams being the co-owners')."""
+    __tablename__ = "studies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    visibility: Mapped[str] = mapped_column(String(10), default=DEFAULT_VISIBILITY, server_default=DEFAULT_VISIBILITY, nullable=False)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    created_by: Mapped["User | None"] = relationship("User", lazy="selectin")
+    # Always loaded: permission checks need them wherever a study is used.
+    owners: Mapped[list["StudyOwner"]] = relationship(
+        "StudyOwner", back_populates="study", lazy="selectin", cascade="all, delete-orphan", order_by="StudyOwner.id")
+    sample_links: Mapped[list["StudySample"]] = relationship(
+        "StudySample", back_populates="study", lazy="selectin", cascade="all, delete-orphan", order_by="StudySample.id")
+    references: Mapped[list["StudyReference"]] = relationship(
+        "StudyReference", back_populates="study", cascade="all, delete-orphan", order_by="StudyReference.id")
+    notes: Mapped[list["StudyNote"]] = relationship(
+        "StudyNote", back_populates="study", cascade="all, delete-orphan", order_by="StudyNote.position")
+
+
+class StudyOwner(Base):
+    """A co-owner of a study: may change everything in it, including its co-owners."""
+    __tablename__ = "study_owners"
+    __table_args__ = (UniqueConstraint("study_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    study_id: Mapped[int] = mapped_column(ForeignKey("studies.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+    study: Mapped["Study"] = relationship("Study", back_populates="owners")
+    user: Mapped["User"] = relationship("User", lazy="selectin")
+
+
+class StudySample(Base):
+    """A sample in a study (a sample can be in several)."""
+    __tablename__ = "study_samples"
+    __table_args__ = (UniqueConstraint("study_id", "sample_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    study_id: Mapped[int] = mapped_column(ForeignKey("studies.id", ondelete="CASCADE"), index=True)
+    sample_id: Mapped[int] = mapped_column(ForeignKey("samples.id", ondelete="CASCADE"), index=True)
+    added_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    study: Mapped["Study"] = relationship("Study", back_populates="sample_links")
+    sample: Mapped["Sample"] = relationship("Sample", lazy="selectin")
+
+
+class StudyReference(Base):
+    """A paper (by DOI) or a web page that bears on a study."""
+    __tablename__ = "study_references"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    study_id: Mapped[int] = mapped_column(ForeignKey("studies.id", ondelete="CASCADE"), index=True)
+    doi: Mapped[str | None] = mapped_column(String(200))      # e.g. 10.1063/5.0012345, without https://doi.org/
+    url: Mapped[str | None] = mapped_column(String(500))      # a link, when there's no DOI
+    # Looked up from the DOI when not typed in (see backend/doi.py)
+    title: Mapped[str | None] = mapped_column(String(500))
+    authors: Mapped[str | None] = mapped_column(String(500))
+    journal: Mapped[str | None] = mapped_column(String(300))
+    year: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(Text)            # why it matters to the study
+    added_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    study: Mapped["Study"] = relationship("Study", back_populates="references")
+    added_by: Mapped["User | None"] = relationship("User", lazy="selectin")
+
+    @property
+    def link(self) -> str | None:
+        return f"https://doi.org/{self.doi}" if self.doi else self.url
+
+
+class StudyNote(Base):
+    """A dated note in a study: literature, thoughts, plans. Ordered like a
+    sample's timeline (`position`, placed by date, then moved freely). It can
+    point at a sample of the study, or at one of its steps or analyses."""
+    __tablename__ = "study_notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    study_id: Mapped[int] = mapped_column(ForeignKey("studies.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int | None] = mapped_column(Integer)
+    noted_on: Mapped[date | None] = mapped_column(Date)
+    title: Mapped[str | None] = mapped_column(String(200))
+    text: Mapped[str | None] = mapped_column(Text)
+    sample_id: Mapped[int | None] = mapped_column(ForeignKey("samples.id", ondelete="SET NULL"))
+    step_id: Mapped[int | None] = mapped_column(ForeignKey("process_steps.id", ondelete="SET NULL"))
+    analysis_id: Mapped[int | None] = mapped_column(ForeignKey("analyses.id", ondelete="SET NULL"))
+    author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    study: Mapped["Study"] = relationship("Study", back_populates="notes")
+    author: Mapped["User | None"] = relationship("User", lazy="selectin")

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% set saved = study and study.id %}
+{% block title %}{{ study.title if saved else _("New study") }} — Logbook{% endblock %}
+{% block content %}
+{% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %}
+<div class="max-w-xl">
+  <div class="text-xs text-gray-400 mb-4">
+    <a href="/studies/" class="hover:underline">{{ _("Studies") }}</a> /
+    {% if saved %}<a href="/studies/{{ study.id }}" class="hover:underline">{{ study.title }}</a>{% else %}{{ _("New") }}{% endif %}
+  </div>
+  <h1 class="text-2xl font-bold mb-6">{{ _("Edit study") if saved else _("New study") }}</h1>
+
+  {% if error %}
+  <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="{% if saved %}/studies/{{ study.id }}/edit{% else %}/studies/new{% endif %}"
+        class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Title") }} <span class="text-red-500">*</span></label>
+      <input name="title" required maxlength="200" value="{{ study.title or '' if study else '' }}"
+             placeholder="{{ _("e.g. Ga2O3 Schottky contacts") }}" class="{{ input_cls }}">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Description") }}</label>
+      <textarea name="description" rows="4" placeholder="{{ _("What the study is about, what it is trying to find out") }}"
+                class="{{ input_cls }}">{{ study.description or '' if study else '' }}</textarea>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Who can see it") }}</label>
+      <select name="visibility" class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+        {% for value, label in visibilities.items() %}
+        <option value="{{ value }}" {% if (study.visibility if study else 'team') == value %}selected{% endif %}>{{ _(label) }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-gray-400 mt-1">{{ _("Personal: only its co-owners. Team: also everyone in a co-owner's team. Public: everyone logged in. Its samples are only listed to people who can see them.") }}</p>
+    </div>
+    <div class="flex gap-3 pt-1">
+      <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">
+        {{ _("Save changes") if saved else _("Create study") }}
+      </button>
+      <a href="{% if saved %}/studies/{{ study.id }}{% else %}/studies/{% endif %}" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">{{ _("Cancel") }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

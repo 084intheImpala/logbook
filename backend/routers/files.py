@@ -1,17 +1,18 @@
 """Uploaded files. Attachments hang off a step, an analysis, a sample (e.g. a
-commercial sample's spec sheet) or a library substrate, and follow that
-owner's access rules."""
+commercial sample's spec sheet), a library substrate or a study's note, and
+follow that owner's access rules. (Notes' files are added in routers/studies.py.)"""
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from backend.database import get_db
-from backend.models import Attachment, ProcessStep, Analysis, Substrate, User
+from backend.models import Attachment, ProcessStep, Analysis, StudyNote, Substrate, User
 from backend.config import settings
 from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry
 from backend.lineage import can_view_entry
 from backend.routers.substrates import can_edit_substrate
+from backend.studies import load_study
 from backend.utils import save_upload, delete_attachment, chosen_files, ensure_thumbnail
 
 router = APIRouter(prefix="/files", tags=["files"], dependencies=[Depends(require_login)])
@@ -37,6 +38,13 @@ async def _attachment(db: AsyncSession, attachment_id: int) -> Attachment:
     if not attachment:
         raise HTTPException(status_code=404, detail="File not found")
     return attachment
+
+
+async def _note_study_id(db: AsyncSession, note_id: int) -> int:
+    study_id = (await db.execute(select(StudyNote.study_id).where(StudyNote.id == note_id))).scalar_one_or_none()
+    if study_id is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return study_id
 
 
 async def _substrate(db: AsyncSession, substrate_id: int) -> Substrate:
@@ -82,6 +90,9 @@ async def _readable_attachment(db: AsyncSession, attachment_id: int, user: User)
     attachment = await _attachment(db, attachment_id)
     if attachment.entity_type == "substrate":
         await _substrate(db, attachment.entity_id)   # library specs are visible to everyone
+        return attachment
+    if attachment.entity_type == "study_note":
+        await load_study(db, await _note_study_id(db, attachment.entity_id), user)
         return attachment
     sample_id = await _entity_sample_id(db, attachment.entity_type, attachment.entity_id)
     sample = await load_sample(db, sample_id, user, "summary")
@@ -138,6 +149,9 @@ async def delete_file(attachment_id: int, db: AsyncSession = Depends(get_db),
         if not can_edit_substrate(current_user, substrate):
             raise HTTPException(status_code=403, detail="You can't change this substrate's files.")
         back = f"/substrates/{substrate.id}"
+    elif attachment.entity_type == "study_note":
+        study = await load_study(db, await _note_study_id(db, attachment.entity_id), current_user, "owner")
+        back = f"/studies/{study.id}#note-{attachment.entity_id}"
     else:
         sample_id = await _entity_sample_id(db, attachment.entity_type, attachment.entity_id)
         sample = await load_sample(db, sample_id, current_user, "summary")

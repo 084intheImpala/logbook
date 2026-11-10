@@ -1,0 +1,34 @@
+{# The fields of a study note, for adding one (study page) and editing one (note_form.html).
+   Needs: note (or None), entries (key → label), about (selected key), today. #}
+{% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %}
+<div class="grid grid-cols-[10rem_1fr] gap-4">
+  <div>
+    <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Date") }}</label>
+    <input type="date" name="noted_on" class="{{ input_cls }}"
+           value="{{ note.noted_on.isoformat() if note and note.noted_on else ('' if note else today.isoformat()) }}">
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Title") }}</label>
+    <input name="title" maxlength="200" value="{{ note.title or '' if note else '' }}" class="{{ input_cls }}"
+           placeholder="{{ _("optional, e.g. Literature: contact metals on Ga2O3") }}">
+  </div>
+</div>
+<div>
+  <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Note") }}</label>
+  <textarea name="text" rows="5" class="{{ input_cls }}"
+            placeholder="{{ _("What you read, thought or plan to do") }}">{{ note.text or '' if note else '' }}</textarea>
+</div>
+<div>
+  <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("About") }}</label>
+  <select name="about" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+    <option value="">{{ _("— the study as a whole —") }}</option>
+    {% for key, label in entries.items() %}
+    <option value="{{ key }}" {% if key == about %}selected{% endif %}>{% if not key.startswith("sample:") %}&nbsp;&nbsp;&nbsp;{% endif %}{{ label }}</option>
+    {% endfor %}
+  </select>
+  <p class="text-xs text-gray-400 mt-1">{{ _("Optionally, one of the study's samples, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.") }}</p>
+</div>
+<div class="flex flex-wrap gap-6 text-sm">
+  <label class="text-gray-600">📷 {{ _("Photos") }} <input type="file" name="photos" accept="image/*" multiple class="block text-xs mt-1"></label>
+  <label class="text-gray-600">📎 {{ _("Files") }} <input type="file" name="files" multiple class="block text-xs mt-1"></label>
+</div>

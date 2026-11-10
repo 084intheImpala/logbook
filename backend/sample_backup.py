@@ -2,16 +2,20 @@
 
 `uploads/<sample ID>/sample.json` holds everything the database knows about
 one sample: its details, who owns it and who it's shared with, the substrate
-and project, its own timeline (parameters, notes, who did it, when, the
+and project, the studies it is in, its own timeline (parameters, notes, who did it, when, the
 files) and, for a piece, which Cut step it came from. If the database is
 lost, `uploads/` still says what every file is and what was done.
 
 A piece's inherited entries aren't repeated: they're in its parent's file,
 and `cut_from` says where to look.
 
+Studies get the same: `uploads/studies/<id>-<title>/study.json`, next to
+their notes' files, holds the study's details, co-owners, samples (by ID),
+references and notes (text, what each is about, files).
+
 Files are rewritten after any request that changed the database (see
-`write_pending`) and for every sample at start-up (`write_all`), so the
-database stays the source of truth and a missed write fixes itself.
+`write_pending`) and for every sample and study at start-up (`write_all`),
+so the database stays the source of truth and a missed write fixes itself.
 """
 import json
 import logging
@@ -19,21 +23,27 @@ import os
 from datetime import date, datetime
 
 from sqlalchemy import event, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.lineage import _full_options
-from backend.models import Analysis, Attachment, Device, ProcessStep, Sample, SampleShare
-from backend.utils import _safe
+from backend.models import (Analysis, Attachment, Device, ProcessStep, Sample, SampleShare, Study, StudyNote,
+                            StudyOwner, StudyReference, StudySample)
+from backend.utils import _safe, study_folder
 
 log = logging.getLogger("uvicorn.error")
 
 FILE_NAME = "sample.json"
-FORMAT = 7   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr
+FORMAT = 8   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies
 
-# What changed since the last write: ("sample" | "step" | "analysis", id), or
-# ("gone", folder) for a deleted sample. Filled as the database is changed.
+STUDY_FILE_NAME = "study.json"
+STUDY_FORMAT = 1
+
+# What changed since the last write: ("sample" | "step" | "analysis" | "study" |
+# "study_note", id); ("study_title", id) for a study whose own details changed
+# (they are in its samples' files too); ("gone", folder) / ("study_gone", folder)
+# for a deleted sample / study. Filled as the database is changed.
 _pending: set[tuple[str, int | str]] = set()
 
 
@@ -47,17 +57,28 @@ def _note_changes(session, _context):
     for obj in (*session.new, *session.dirty):
         if isinstance(obj, Sample):
             _pending.add(("sample", obj.id))
-        elif isinstance(obj, (ProcessStep, Analysis, SampleShare, Device)):
-            _pending.add(("sample", obj.sample_id))
-        elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis"):
-            _pending.add((obj.entity_type, obj.entity_id))
+        elif isinstance(obj, Study):   # its title is in its samples' files
+            _pending.update({("study", obj.id), ("study_title", obj.id)})
+        else:
+            _note_other(obj)
     for obj in session.deleted:
         if isinstance(obj, Sample):
             _pending.add(("gone", folder_for(obj.code, obj.id)))
-        elif isinstance(obj, (ProcessStep, Analysis, SampleShare, Device)):
-            _pending.add(("sample", obj.sample_id))
-        elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis"):
-            _pending.add((obj.entity_type, obj.entity_id))
+        elif isinstance(obj, Study):
+            _pending.add(("study_gone", study_folder(obj.id, obj.title)))
+        else:
+            _note_other(obj)
+
+
+def _note_other(obj):
+    if isinstance(obj, StudySample):
+        _pending.update({("sample", obj.sample_id), ("study", obj.study_id)})
+    elif isinstance(obj, (ProcessStep, Analysis, SampleShare, Device)):
+        _pending.add(("sample", obj.sample_id))
+    elif isinstance(obj, (StudyOwner, StudyReference, StudyNote)):
+        _pending.add(("study", obj.study_id))
+    elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis", "study_note"):
+        _pending.add((obj.entity_type, obj.entity_id))
 
 
 def _person(user) -> dict | None:
@@ -89,7 +110,7 @@ def _entry(kind: str, entry, type_name: str, attachments: dict) -> dict:
     }
 
 
-def _document(sample: Sample, parent: tuple | None, attachments: dict) -> dict:
+def _document(sample: Sample, parent: tuple | None, attachments: dict, studies: list[dict] = ()) -> dict:
     entries = [_entry("step", s, s.step_type.name, attachments) for s in sample.process_steps]
     entries += [_entry("analysis", a, a.analysis_type.name, attachments) for a in sample.analyses]
     entries.sort(key=lambda e: (e["position"] is None, e["position"] or 0, e["id"]))
@@ -116,6 +137,7 @@ def _document(sample: Sample, parent: tuple | None, attachments: dict) -> dict:
             "sample": parent[0], "cut_step_id": sample.cut_step_id, "cut_position": parent[1]},
         "files": [_attachment(a) for a in attachments.get(("sample", sample.id), [])],
         "devices": [{"label": d.label, "notes": d.notes} for d in sample.devices],
+        "studies": list(studies),   # the studies it is in (their notes and references aren't copied here)
         "timeline": entries,
     }
 
@@ -126,12 +148,12 @@ def _json_default(value):
     raise TypeError(f"Can't store {type(value).__name__}")
 
 
-def _write(folder: str, document: dict) -> None:
+def _write(folder: str, document: dict, name: str = FILE_NAME) -> None:
     directory = settings.UPLOAD_DIR / folder
     directory.mkdir(parents=True, exist_ok=True)
-    temp = directory / f".{FILE_NAME}.tmp"
+    temp = directory / f".{name}.tmp"
     temp.write_text(json.dumps(document, indent=2, ensure_ascii=False, default=_json_default), encoding="utf-8")
-    os.replace(temp, directory / FILE_NAME)   # a crash never leaves half a file
+    os.replace(temp, directory / name)   # a crash never leaves half a file
 
 
 async def _write_samples(db, sample_ids: list[int] | None) -> int:
@@ -161,9 +183,63 @@ async def _write_samples(db, sample_ids: list[int] | None) -> int:
         cuts = {step_id: (code or f"sample-{sid}", position)
                 for step_id, sid, code, position in rows}
 
+    studies: dict[int, list[dict]] = {}
+    rows = await db.execute(select(StudySample.sample_id, Study.id, Study.title)
+                            .join(Study, Study.id == StudySample.study_id)
+                            .where(StudySample.sample_id.in_([sm.id for sm in samples])).order_by(Study.title))
+    for sample_id, study_id, title in rows:
+        studies.setdefault(sample_id, []).append({"id": study_id, "title": title})
+
     for sm in samples:
-        _write(folder_for(sm.code, sm.id), _document(sm, cuts.get(sm.cut_step_id), attachments))
+        _write(folder_for(sm.code, sm.id), _document(sm, cuts.get(sm.cut_step_id), attachments, studies.get(sm.id, [])))
     return len(samples)
+
+
+def _study_document(study: Study, notes_files: dict[int, list[Attachment]]) -> dict:
+    def about(note: StudyNote) -> dict | None:
+        if not note.sample_id:
+            return None
+        kind, entry_id = (("step", note.step_id) if note.step_id else ("analysis", note.analysis_id)
+                          if note.analysis_id else ("sample", None))
+        sample = next((l.sample for l in study.sample_links if l.sample_id == note.sample_id), None)
+        # A step or analysis by its id in the sample's sample.json `timeline`
+        return {"sample": sample.code if sample else None, "sample_id": note.sample_id, "kind": kind, "id": entry_id}
+
+    return {
+        "format": STUDY_FORMAT,
+        "written_at": datetime.now().replace(microsecond=0),
+        "id": study.id, "title": study.title, "description": study.description, "visibility": study.visibility,
+        "created_at": study.created_at, "created_by": _person(study.created_by),
+        "owners": [_person(o.user) for o in study.owners],
+        "samples": [{"id": l.sample.id, "code": l.sample.code, "label": l.sample.label, "added_at": l.created_at}
+                    for l in study.sample_links if l.sample is not None],
+        "references": [{"doi": r.doi, "url": r.url, "title": r.title, "authors": r.authors, "journal": r.journal,
+                        "year": r.year, "note": r.note, "added_by": _person(r.added_by), "created_at": r.created_at}
+                       for r in study.references],
+        "notes": [{"id": n.id, "position": n.position, "noted_on": n.noted_on, "title": n.title, "text": n.text,
+                   "about": about(n), "author": _person(n.author), "created_at": n.created_at,
+                   "files": [_attachment(a) for a in notes_files.get(n.id, [])]}
+                  for n in sorted(study.notes, key=lambda n: (n.position is None, n.position or 0, n.id))],
+    }
+
+
+async def _write_studies(db, study_ids: list[int] | None) -> int:
+    query = select(Study).options(selectinload(Study.references), selectinload(Study.notes))
+    if study_ids is not None:
+        if not study_ids:
+            return 0
+        query = query.where(Study.id.in_(study_ids))
+    studies = list((await db.execute(query)).scalars())
+    note_ids = [n.id for st in studies for n in st.notes]
+    files: dict[int, list[Attachment]] = {}
+    if note_ids:
+        for att in (await db.execute(select(Attachment).where(
+                Attachment.entity_type == "study_note", Attachment.entity_id.in_(note_ids))
+                .order_by(Attachment.id))).scalars():
+            files.setdefault(att.entity_id, []).append(att)
+    for st in studies:
+        _write(study_folder(st.id, st.title), _study_document(st, files), STUDY_FILE_NAME)
+    return len(studies)
 
 
 async def write_pending() -> None:
@@ -180,21 +256,39 @@ async def write_pending() -> None:
                 wanted = [i for k, i in changed if k == kind]
                 if wanted:
                     ids |= set((await db.execute(select(model.sample_id).where(model.id.in_(wanted)))).scalars())
+            wanted = [i for k, i in changed if k == "study_title"]
+            if wanted:
+                ids |= set((await db.execute(select(StudySample.sample_id)
+                                             .where(StudySample.study_id.in_(wanted)))).scalars())
             await _write_samples(db, sorted(ids))
+
+            study_ids = {i for kind, i in changed if kind == "study"}
+            wanted = [i for k, i in changed if k == "study_note"]
+            if wanted:
+                study_ids |= set((await db.execute(select(StudyNote.study_id)
+                                                   .where(StudyNote.id.in_(wanted)))).scalars())
+            if ids:   # a sample's ID or label is in its studies' files
+                study_ids |= set((await db.execute(select(StudySample.study_id)
+                                                   .where(StudySample.sample_id.in_(list(ids))))).scalars())
+            await _write_studies(db, sorted(study_ids))
+
             for kind, folder in changed:
                 if kind == "gone":
                     (settings.UPLOAD_DIR / folder / FILE_NAME).unlink(missing_ok=True)
+                elif kind == "study_gone":
+                    (settings.UPLOAD_DIR / folder / STUDY_FILE_NAME).unlink(missing_ok=True)
     except Exception:
         log.exception("Could not write sample backup files")
         _pending.update(changed)
 
 
-async def write_all() -> int:
-    """Write the file of every sample. Returns how many there were."""
+async def write_all() -> tuple[int, int]:
+    """Write the file of every sample and every study. Returns how many of each there were."""
     async with AsyncSessionLocal() as db:
-        return await _write_samples(db, None)
+        return await _write_samples(db, None), await _write_studies(db, None)
 
 
 if __name__ == "__main__":
     import asyncio
-    print(f"Wrote sample.json for {asyncio.run(write_all())} samples in {settings.UPLOAD_DIR}")
+    samples, studies = asyncio.run(write_all())
+    print(f"Wrote sample.json for {samples} samples and study.json for {studies} studies in {settings.UPLOAD_DIR}")

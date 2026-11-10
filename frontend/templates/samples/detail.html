@@ -77,6 +77,23 @@
         <span class="font-mono text-gray-500">({{ sample.project.code }})</span>{% if sample.project.institution %}
         <span class="text-gray-500">· {{ sample.project.institution }}</span>{% endif %}</dd>
       {% endif %}
+      {% if studies or study_choices %}
+      <dt class="text-gray-400">{{ _("Studies") }}</dt>
+      <dd id="studies" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-700">
+        {% for st in studies %}<a href="/studies/{{ st.id }}" class="text-blue-600 hover:underline">{{ st.title }}</a>{{ "," if not loop.last }}{% endfor %}
+        {% if not studies %}<span class="text-gray-400">—</span>{% endif %}
+        {% if study_choices %}
+        <form method="post" action="/studies/add-sample" class="inline-flex items-center gap-1">
+          <input type="hidden" name="sample_id" value="{{ sample.id }}">
+          <select name="study_id" required class="border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white">
+            <option value="">{{ _("Add to a study…") }}</option>
+            {% for st in study_choices %}<option value="{{ st.id }}">{{ st.title }}</option>{% endfor %}
+          </select>
+          <button class="text-xs text-blue-600 hover:underline">{{ _("Add") }}</button>
+        </form>
+        {% endif %}
+      </dd>
+      {% endif %}
       {% if sample.external_id %}
       <dt class="text-gray-400">{% if sample.sample_type == "project" %}{{ _("Their sample ID, or product / batch no.") }}{% else %}{{ _("External ID") }}{% endif %}</dt>
       <dd class="text-gray-700 font-mono">{{ sample.external_id }}</dd>

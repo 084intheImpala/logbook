@@ -8,7 +8,7 @@
   changes also go in the README's data model / `sample.json` table (bump `FORMAT` in `backend/sample_backup.py`).
 - Every user-visible string is translated: English in the code/templates, Portuguese in `backend/translations/`.
   In templates, don't put `"` inside a `_("...")` string.
-- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0020`).
+- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0021`).
 - Add tests in `tests/` for new behaviour. They run on a throwaway SQLite DB; never touch the real DB or `uploads/`.
   This machine isn't the DB host: say what needs running there (e.g. migrations).
 - Each new feature gets its own branch, always branched from `main`; commit on that branch. Only commit when asked.
@@ -54,5 +54,12 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   (`partial`, e.g. contacts): partial layers sit side by side, each film follows the surface it lands on.
 - **Printable record** (`/samples/{id}/print`, `samples/print.html`): the sample page's data (`samples._page`)
   laid out for A4, printed or saved as PDF by the browser; photo previews, file names only.
+- **Studies** (`routers/studies.py`, permissions and note order in `studies.py`, `models.Study*`): several samples
+  (only ones the user can see; listed per viewer), references (DOI looked up at doi.org by `doi.py`, stubbed in
+  tests; anyone who sees the study may add one), dated ordered notes that can point at a sample/step/analysis, with
+  files (`Attachment.entity_type` `study_note`, `uploads/studies/<id>-<title>/`). Co-owners all have full rights;
+  visibility personal/team/public over the co-owners' teams. The sample page has a Studies row; `sample.json` lists them.
+  Printable (`/studies/{id}/print`, `studies/print.html`, data from `studies._page`); `study.json` in the study's
+  folder (`utils.study_folder`, written by `sample_backup._write_studies`).
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).

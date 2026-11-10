@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Edit note") }} — {{ study.title }} — Logbook{% endblock %}
+{% block content %}
+<div class="max-w-2xl">
+  <div class="text-xs text-gray-400 mb-4">
+    <a href="/studies/" class="hover:underline">{{ _("Studies") }}</a> /
+    <a href="/studies/{{ study.id }}" class="hover:underline">{{ study.title }}</a>
+  </div>
+  <h1 class="text-2xl font-bold mb-6">{{ _("Edit note") }}</h1>
+  <form method="post" action="/studies/{{ study.id }}/notes/{{ note.id }}/edit" enctype="multipart/form-data"
+        class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+    {% set today = None %}
+    {% include "studies/_note_fields.html" %}
+    {% if attachments %}
+    <p class="text-xs text-gray-500">{{ _("Already attached") }}: {{ attachments|map(attribute="original_filename")|join(", ") }}
+      <span class="text-gray-400">({{ _("remove them on the study's page") }})</span></p>
+    {% endif %}
+    <div class="flex gap-3 pt-1">
+      <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700">{{ _("Save changes") }}</button>
+      <a href="/studies/{{ study.id }}#note-{{ note.id }}" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">{{ _("Cancel") }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

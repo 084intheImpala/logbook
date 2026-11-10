@@ -3,12 +3,12 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
 from backend.models import (DEFAULT_VISIBILITY, Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
-                            Substrate, Project, User, Suggestion, SAMPLE_TYPES, SAMPLE_TYPE_HELP, VISIBILITY, AccessRequest)
+                            Substrate, Project, StudySample, User, Suggestion, SAMPLE_TYPES, SAMPLE_TYPE_HELP, VISIBILITY, AccessRequest)
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
 from backend.activity import log as log_activity
@@ -25,6 +25,7 @@ from backend.seed import PROCESS_STEP_TYPES
 from backend.config import settings
 from backend.email_utils import send_confirm_samples_email, send_declined_email, send_recoded_email
 from backend.i18n import t
+from backend.studies import can_view_study, owned_studies, studies_of_sample
 
 router = APIRouter()
 log = logging.getLogger("uvicorn.error")
@@ -441,6 +442,18 @@ async def _page(request: Request, db: AsyncSession, sample_id: int, current_user
         "visibilities": VISIBILITY,
         "share_candidates": await _share_candidates(db, sample) if owner else [],
         "owner_user": (await db.get(User, sample.owner_id)) if sample.owner_id else None,
+        **await _studies(db, current_user, sample, viewable),
+    }
+
+
+async def _studies(db: AsyncSession, user, sample: Sample, viewable: bool) -> dict:
+    """The studies the sample is in that `user` can see, and the ones of
+    theirs it could be added to (only if they can see the sample)."""
+    studies = await studies_of_sample(db, sample.id)
+    taken = {s.id for s in studies}
+    return {
+        "studies": [s for s in studies if can_view_study(user, s)],
+        "study_choices": [s for s in await owned_studies(db, user) if s.id not in taken] if viewable else [],
     }
 
 
@@ -664,6 +677,8 @@ async def delete_sample(
         db, sample_ids=[sample_id],
         step_ids=(await db.execute(select(ProcessStep.id).where(ProcessStep.sample_id == sample_id))).scalars().all(),
         analysis_ids=(await db.execute(select(Analysis.id).where(Analysis.sample_id == sample_id))).scalars().all())
+    # The database drops it from its studies too (ON DELETE CASCADE); done here as well for SQLite
+    await db.execute(sa_delete(StudySample).where(StudySample.sample_id == sample_id))
     await db.delete(sample)
     await db.commit()
     return RedirectResponse("/samples/", status_code=303)

@@ -128,6 +128,7 @@
     <dd class="mono">{{ sample.external_id }}</dd>
     {% endif %}
     {% if sample.supplier %}<dt>{{ _("Supplier") }}</dt><dd>{{ sample.supplier }}</dd>{% endif %}
+    {% if studies %}<dt>{{ _("Studies") }}</dt><dd>{{ studies|map(attribute="title")|join(", ") }}</dd>{% endif %}
     {% if sample.tags %}<dt>{{ _("Tags") }}</dt><dd>{{ sample.tags|join(", ") }}</dd>{% endif %}
     {% if sample.devices %}<dt>{{ _("Devices") }}</dt><dd>{{ sample.devices|map(attribute="label")|join(", ") }}</dd>{% endif %}
     {% if spec_files %}<dt>{{ _("Spec sheet") }}</dt><dd>{{ spec_files|map(attribute="original_filename")|join(", ") }}</dd>{% endif %}

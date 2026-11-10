@@ -104,6 +104,7 @@ A barra lateral à esquerda (um botão de menu no telemóvel) tem:
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
 \menu{Amostras}       & Todas as amostras do laboratório, das mais recentes para as mais antigas, com os pedaços agrupados sob a amostra de que foram cortados. \\
+\menu{Estudos}        & Estudos que reúnem várias amostras, referências e notas (Secção~\ref{sec:studies}). \\
 \menu{Pesquisa}       & Filtrar, agrupar, partilhar e exportar amostras. \\
 \menu{Adicionar ficheiros} & Juntar as mesmas fotografias ou ficheiros a várias entradas de uma vez (Secção~\ref{sec:files}). \\
 \menu{Substratos}     & A biblioteca partilhada de substratos a partir dos quais se fazem as amostras. \\
@@ -756,6 +757,53 @@ usa. Uma instituição pode ter vários projetos; escolha-a entre as
 sugestões, para ficar sempre escrita da mesma maneira.
 
 %=====================================================================
+\section{Estudos}\label{sec:studies}
+%=====================================================================
+
+O separador \menu{Estudos} serve para o trabalho que abrange várias
+amostras: uma série de recozimentos, uma comparação de metais de contacto,
+um lote de uma colaboração. Um estudo tem título, descrição e três partes.
+
+\paragraph{Amostras.} Acrescente uma pelo seu ID na página do estudo (o campo
+sugere as amostras que pode ver), ou com \ui{Adicionar a um estudo…} na linha
+\ui{Estudos} da página da amostra, que também mostra os estudos em que a
+amostra está. Só se podem acrescentar amostras que se possam ver, e a página
+do estudo só mostra a cada pessoa as amostras que ela pode ver (as outras são
+apenas contadas). Uma amostra pode estar em vários estudos; eliminá-la tira-a
+deles.
+
+\paragraph{Referências.} Cole um DOI (\texttt{10.1063/\ldots},
+\texttt{doi:\ldots} ou um link \texttt{doi.org}) ou qualquer link, com uma
+nota opcional sobre porque é interessante. Com um DOI, o título, os autores,
+a revista e o ano são procurados automaticamente; se não for possível (sem
+internet no servidor, DOI desconhecido), a referência fica com o DOI e o
+título que escreveu. \emph{Qualquer pessoa que veja o estudo pode acrescentar
+uma referência}; os coproprietários e quem a acrescentou podem removê-la.
+
+\paragraph{Notas.} Notas datadas para literatura, ideias e planos, com
+título opcional, fotografias e ficheiros. Ordenam-se como uma cronologia:
+uma nota nova (ou com a data alterada) vai para depois das outras desse dia,
+e as setas para cima/baixo mudam-na de lugar. Uma nota pode ser \ui{Sobre} uma
+das amostras do estudo, ou um dos seus passos ou análises, e fica com uma
+ligação para ele. O que diz respeito a um único passo (parâmetros,
+resultados, ficheiros) continua a pertencer ao próprio passo.
+
+\paragraph{Coproprietários e visibilidade.} Quem cria o estudo é o primeiro
+coproprietário e pode acrescentar outros (qualquer utilizador com conta).
+Todos os coproprietários, e os administradores, podem alterar tudo: dados,
+amostras, notas e coproprietários; um estudo fica sempre com pelo menos um.
+\ui{Quem o pode ver} funciona como nas amostras: \ui{Pessoal}, só os
+coproprietários; \ui{Equipa}, também quem está na equipa de um
+coproprietário (o valor por omissão); \ui{Público}, todos.
+
+\paragraph{Imprimir.} \ui{Imprimir / PDF} na página do estudo abre-o pronto
+para uma folha A4, como o registo de uma amostra: dados, coproprietários, as
+amostras (só as que quem imprime pode ver), as referências numeradas e as
+notas por ordem, com as fotografias em miniatura e os ficheiros pelo nome.
+Imprima-o, ou escolha \ui{Guardar como PDF} como impressora. O registo
+impresso de uma amostra indica os estudos em que ela está.
+
+%=====================================================================
 \section{Pesquisa e exportação}\label{sec:search}
 %=====================================================================
 
@@ -982,16 +1030,23 @@ arranca (ou a pedido: \texttt{docker compose exec app python -m backend.sample\_
 os tipos de entrada, os valores das listas e as sugestões não estão lá: a
 cópia da base de dados continua a ser a cópia de segurança principal.
 
+Cada estudo tem uma pasta \texttt{uploads/studies/<id>-<título>/} (o nome
+fica o mesmo se o estudo mudar de título), com os ficheiros das suas notas e
+um \texttt{study.json}, escrito da mesma maneira: os dados do estudo,
+coproprietários, amostras (pelo ID), referências e notas por ordem (texto,
+sobre que amostra, passo ou análise é cada uma, e os seus ficheiros).
+
 \subsubsection*{Estrutura do \texttt{sample.json}}
 
 O ficheiro é JSON simples (UTF-8), legível sem a aplicação. No topo:
-\texttt{format} (versão do formato, atualmente 5), \texttt{written\_at},
+\texttt{format} (versão do formato, atualmente 8), \texttt{written\_at},
 \texttt{code} (o ID) e \texttt{previous\_codes} (IDs anteriores), os dados da
 amostra (\texttt{label}, \texttt{sample\_type}, \texttt{visibility},
 \texttt{tags}, \texttt{description}, \texttt{film\_material}, \ldots),
 \texttt{owner} e \texttt{shared\_with} (com \texttt{can\_edit}),
 \texttt{substrate} e \texttt{project} (copiados por inteiro),
 \texttt{devices} (os dispositivos: \texttt{label} e \texttt{notes}),
+\texttt{studies} (os estudos em que está: \texttt{id} e \texttt{title}),
 \texttt{cut\_from} (nas peças: a amostra de origem e a posição do corte; o que
 vem antes do corte está no ficheiro dessa amostra), \texttt{files} (ficheiros
 da própria amostra) e \texttt{timeline}, a lista ordenada dos passos e

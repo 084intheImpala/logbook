@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Studies") }} — Logbook{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">{{ _("Studies") }}</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ _("A study brings together several samples, the papers that bear on it and dated notes: literature, thoughts, plans. Anything about one step goes on the step itself; a note can point at it.") }}</p>
+  </div>
+  <a href="/studies/new"
+     class="shrink-0 inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
+    + {{ _("New study") }}
+  </a>
+</div>
+
+{% if flash %}
+<div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ flash }}</div>
+{% endif %}
+
+{% if studies %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="bg-gray-50 border-b border-gray-200">
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Study") }}</th>
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Co-owners") }}</th>
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Samples") }}</th>
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Notes") }}</th>
+        <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Visibility") }}</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for st in studies %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-2">
+          <a href="/studies/{{ st.id }}" class="font-semibold text-blue-600 hover:underline">{{ st.title }}</a>
+          {% if st.description %}<div class="text-xs text-gray-500 truncate max-w-md">{{ st.description }}</div>{% endif %}
+        </td>
+        <td class="px-4 py-2 text-gray-600">{{ st.owners|map(attribute="user")|map(attribute="display_name")|join(", ") }}</td>
+        <td class="px-4 py-2 text-gray-500 text-xs">{{ sample_counts[st.id] }}</td>
+        <td class="px-4 py-2 text-gray-500 text-xs">{{ note_counts.get(st.id, 0) }}</td>
+        <td class="px-4 py-2 text-gray-500 text-xs">{{ _(visibilities[st.visibility]) if st.visibility in visibilities else st.visibility }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
+  <p class="text-gray-500 mb-4 text-sm">{{ _("No studies yet.") }}</p>
+  <a href="/studies/new" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Start the first study") }}</a>
+</div>
+{% endif %}
+{% endblock %}

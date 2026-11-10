@@ -28,6 +28,13 @@ PASSWORD = "pw"
 _n = itertools.count(1)
 
 
+@pytest.fixture(autouse=True)
+def no_doi_lookups(monkeypatch):
+    """Tests never ask doi.org: the lookup finds nothing unless a test says otherwise."""
+    import backend.doi
+    monkeypatch.setattr(backend.doi, "_fetch_csl", lambda doi: None)
+
+
 @pytest.fixture(scope="session")
 def server():
     with TestClient(app, follow_redirects=False) as c:
