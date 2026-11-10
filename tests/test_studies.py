@@ -93,7 +93,7 @@ def test_the_sample_page_shows_its_studies_and_adds_it_to_one(world):
 
     # Its backup file says which studies it's in
     data = json.loads((settings.UPLOAD_DIR / sample.code / "sample.json").read_text())
-    assert data["format"] == 8 and data["studies"] == [{"id": second, "title": "Second study"}]
+    assert data["format"] >= 8 and data["studies"] == [{"id": second, "title": "Second study"}]
     client.post(f"/studies/{second}/edit", data={"title": "Second study, renamed", "visibility": "team"})
     data = json.loads((settings.UPLOAD_DIR / sample.code / "sample.json").read_text())
     assert data["studies"] == [{"id": second, "title": "Second study, renamed"}]

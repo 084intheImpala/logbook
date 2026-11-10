@@ -19,6 +19,19 @@
   <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
   <style>
     [x-cloak] { display: none !important; }
+    /* Text written in Markdown (procedures): Tailwind resets lists and headings */
+    .markdown > * + * { margin-top: .5rem; }
+    .markdown h1, .markdown h2, .markdown h3 { font-weight: 600; margin-top: 1rem; }
+    .markdown h1 { font-size: 1.125rem; } .markdown h2 { font-size: 1rem; } .markdown h3 { font-size: .9rem; }
+    .markdown ol { list-style: decimal; padding-left: 1.5rem; }
+    .markdown ul { list-style: disc; padding-left: 1.5rem; }
+    .markdown li + li { margin-top: .25rem; }
+    .markdown a { color: #2563eb; text-decoration: underline; }
+    .markdown code { font-family: ui-monospace, monospace; font-size: .85em; background: rgba(127,127,127,.15); padding: 0 .25rem; border-radius: .25rem; }
+    .markdown pre { background: rgba(127,127,127,.12); padding: .5rem .75rem; border-radius: .375rem; overflow-x: auto; }
+    .markdown blockquote { border-left: 3px solid rgba(127,127,127,.4); padding-left: .75rem; color: inherit; opacity: .85; }
+    .markdown table { border-collapse: collapse; }
+    .markdown th, .markdown td { border: 1px solid rgba(127,127,127,.35); padding: .25rem .5rem; text-align: left; }
     .step-badge { @apply inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold; }
 
     /* Dark mode: the templates use light Tailwind colours; in dark mode these
@@ -94,6 +107,10 @@
         <a href="/studies/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/studies') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13C10.832 18.477 9.246 18 7.5 18S4.168 18.477 3 19.253v-13C4.168 5.477 5.754 5 7.5 5s3.332.477 4.5 1.253zm0 0C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
           {{ _("Studies") }}
+        </a>
+        <a href="/procedures/" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/procedures') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+          {{ _("Procedures") }}
         </a>
         {% if current_user and current_user.is_coordinator %}
         <a href="/team" class="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-gray-800 {% if request.url.path.startswith('/team') %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">

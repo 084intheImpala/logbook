@@ -277,9 +277,12 @@ class ProcessStep(Base):
     on_step_id: Mapped[int | None] = mapped_column(ForeignKey("process_steps.id", ondelete="SET NULL"))
     on_substrate: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     partial: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    # The procedure followed (see Procedure); none if it wasn't recorded
+    procedure_id: Mapped[int | None] = mapped_column(ForeignKey("procedures.id", ondelete="SET NULL"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="process_steps", foreign_keys=[sample_id])
+    procedure: Mapped["Procedure | None"] = relationship("Procedure", lazy="selectin")
     step_type: Mapped["ProcessStepType"] = relationship("ProcessStepType", back_populates="steps")
     performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
     proposer: Mapped["User | None"] = relationship("User", foreign_keys=[proposed_by_id], lazy="selectin")
@@ -330,9 +333,12 @@ class Analysis(Base):
     # Planned, not done yet: shown on the sample's timeline, left out of search,
     # exports, deposition rates and what pieces inherit until marked done.
     planned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    # The procedure followed (see Procedure); none if it wasn't recorded
+    procedure_id: Mapped[int | None] = mapped_column(ForeignKey("procedures.id", ondelete="SET NULL"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample: Mapped["Sample"] = relationship("Sample", back_populates="analyses")
+    procedure: Mapped["Procedure | None"] = relationship("Procedure", lazy="selectin")
     analysis_type: Mapped["AnalysisType"] = relationship("AnalysisType", back_populates="analyses")
     device: Mapped["Device | None"] = relationship("Device", lazy="selectin")
     performer: Mapped["User | None"] = relationship("User", foreign_keys=[performer_id], lazy="selectin")
@@ -561,3 +567,57 @@ class StudyNote(Base):
 
     study: Mapped["Study"] = relationship("Study", back_populates="notes")
     author: Mapped["User | None"] = relationship("User", lazy="selectin")
+
+
+class Procedure(Base):
+    """How someone does a technique: their XRD scan, their annealing, their
+    cleaning (written in Markdown, with files). Tied to a step or analysis type,
+    or to none for a general one. A step or analysis can say it followed one
+    (`procedure_id`). Co-owners and visibility work as for a Study."""
+    __tablename__ = "procedures"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    # At most one of the two: the technique it is for
+    step_type_id: Mapped[int | None] = mapped_column(ForeignKey("process_step_types.id", ondelete="SET NULL"), index=True)
+    analysis_type_id: Mapped[int | None] = mapped_column(ForeignKey("analysis_types.id", ondelete="SET NULL"), index=True)
+    summary: Mapped[str | None] = mapped_column(Text)
+    text: Mapped[str | None] = mapped_column(Text)   # the procedure itself, in Markdown (backend/markdown.py)
+    visibility: Mapped[str] = mapped_column(String(10), default=DEFAULT_VISIBILITY, server_default=DEFAULT_VISIBILITY, nullable=False)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    created_by: Mapped["User | None"] = relationship("User", lazy="selectin")
+    step_type: Mapped["ProcessStepType | None"] = relationship("ProcessStepType", lazy="selectin")
+    analysis_type: Mapped["AnalysisType | None"] = relationship("AnalysisType", lazy="selectin")
+    # Always loaded: permission checks need them wherever a procedure is used.
+    owners: Mapped[list["ProcedureOwner"]] = relationship(
+        "ProcedureOwner", back_populates="procedure", lazy="selectin", cascade="all, delete-orphan",
+        order_by="ProcedureOwner.id")
+
+    @property
+    def technique(self) -> str | None:
+        """The type's name, e.g. "XRD / HRXRD"; None for a general procedure."""
+        kind = self.step_type or self.analysis_type
+        return kind.name if kind else None
+
+    @property
+    def technique_key(self) -> str:
+        """"step:<id>", "analysis:<id>" or "" (the technique's value on the forms)."""
+        if self.step_type_id:
+            return f"step:{self.step_type_id}"
+        return f"analysis:{self.analysis_type_id}" if self.analysis_type_id else ""
+
+
+class ProcedureOwner(Base):
+    """A co-owner of a procedure: may change it, including its co-owners."""
+    __tablename__ = "procedure_owners"
+    __table_args__ = (UniqueConstraint("procedure_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    procedure_id: Mapped[int] = mapped_column(ForeignKey("procedures.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+    procedure: Mapped["Procedure"] = relationship("Procedure", back_populates="owners")
+    user: Mapped["User"] = relationship("User", lazy="selectin")

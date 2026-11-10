@@ -171,6 +171,7 @@
       {% endif %}
     </div>
     {% if entry.visible %}
+    {% if entry.procedure %}<div class="row small">{{ _("Procedure") }}: {{ entry.procedure.title }}</div>{% endif %}
     {% if entry.run %}<div class="row small muted">🔗 {{ _("Also on:") }} {% for s in entry.run %}<span class="mono">{{ s.title }}</span>{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
     {% if entry.params %}
     {{ param_rows(entry.params) }}

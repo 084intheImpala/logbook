@@ -397,6 +397,7 @@ async def _page(request: Request, db: AsyncSession, sample_id: int, current_user
             "photos": [a for a in attachments.get(e.id, []) if _is_image(a)],
             "files": [a for a in attachments.get(e.id, []) if not _is_image(a)],
             "planned": e.planned,
+            "procedure": e.procedure,   # the procedure followed, if recorded
             "edit_url": f"/samples/{sample_id}/{path}/{e.id}/edit",
             "delete_url": f"/samples/{sample_id}/{path}/{e.id}/delete",
         })

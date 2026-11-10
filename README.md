@@ -143,6 +143,8 @@ Study             (several samples; co-owners; personal / team / public)
  ├── StudyReference  (a paper by DOI, or a link, with a note)
  └── StudyNote       (dated, ordered note; may point at a sample, step or analysis)
       └── Attachment (photos, files)
+Procedure         (how someone does a technique, written in Markdown, with files; co-owners;
+                   for a step / analysis type or general; steps and analyses can say they followed one)
 ```
 
 ### Sample IDs
@@ -321,6 +323,10 @@ uploads/
     3-Contacts-on-Ga2O3/                   ← a study (<id>-<title>, kept if it's renamed)
       study.json                           ← the study's record (see below)
       paper.pdf                            ← files on its notes
+  procedures/
+    5-My-XRD-2th-om-scan/                  ← a procedure (<id>-<title>, kept if it's renamed)
+      procedure.json                       ← the procedure's record (see Procedures)
+      checklist.pdf                        ← its files
 ```
 
 Only characters Windows can't store in a name (`<>:"|?*`) are replaced by
@@ -370,7 +376,8 @@ samples when the app starts (or on demand:
 the database is lost, `uploads/` still says what every file is. A piece's
 file doesn't repeat the entries it inherits: `cut_from` names the parent
 and the Cut step, and they are in the parent's file. Each study's folder
-has a `study.json` in the same way (see [Studies](#studies)). Users, entry
+has a `study.json` in the same way (see [Studies](#studies)), and each
+procedure's a `procedure.json` (see [Procedures](#procedures)). Users, entry
 types, dropdown values and suggestions aren't in these files; the database
 dump is still the real backup.
 
@@ -388,7 +395,7 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 8: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr; 8 adds `studies`). |
+| `format` | Version of this layout (currently 9: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr; 8 adds `studies`; 9 adds `procedure` on entries). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
 | `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk` or `project`; `visibility` is `personal`, `team` or `public`. |
@@ -407,7 +414,8 @@ technique, e.g. `Annealing`), `position`, `performed_at` (a date), `location`,
 without an account, or `null`), `notes`, `run_id` (entries added to several
 samples at once share it), `status` (`approved`, or `pending` for an entry a
 teammate proposed that the owner hasn't approved), `proposed_by`, `planned`
-(`true` for an entry planned and not done yet), `created_at`, on a step
+(`true` for an entry planned and not done yet), `procedure` (`{id, title}` of
+the procedure followed, or `null`), `created_at`, on a step
 `on_step_id` / `on_substrate` / `partial` (what a deposited layer was put on:
 the `id` of another deposition, or the bare substrate, or neither for
 everything so far; `partial` when it covers only part of it, see
@@ -549,6 +557,50 @@ study at start-up. Keys: `format` (currently 1), `written_at`, `id`, `title`,
 `step` or `analysis` and `id` is the entry's `id` in that sample's
 `sample.json` timeline). Deleting a study removes its `study.json`; its
 files go to the trash.
+
+## Procedures
+
+The **Procedures** tab (`/procedures`, `routers/procedures.py`, permissions
+and the entry form's choices in `backend/procedures.py`) is where people write
+down how they do a technique: their XRD scan, their annealing, their
+cleaning. A procedure has a title, the **technique** it is for (a process
+step or analysis type, or *General* for one that fits any), a summary, photos
+and files, and the procedure itself, written in one field in **Markdown**
+(`backend/markdown.py`, markdown-it-py): `1.` `2.` `3.` for numbered steps,
+`-` for a list, `##` for a heading (e.g. *Notes*), `**bold**`, tables; the
+**?** next to the field opens a short cheat sheet of what to type and what it
+gives. Raw HTML
+is shown as text and `javascript:` links aren't made, so what someone writes
+can't run in a colleague's browser. The list shows every procedure you can
+see, by technique, or only yours (**Mine**), with how often each was followed.
+
+**Co-owners and visibility** work as for studies: whoever writes it is its
+first co-owner and can add others; co-owners and admins can change it;
+*Personal*, *Team* (the default: the co-owners' teams) or *Public*.
+
+**Procedure followed.** The step and analysis forms have a **Procedure
+followed** field offering the procedures you can see for the chosen type,
+and general ones (**+ New procedure** next to it opens the form with the type
+filled in). The sample page shows it on the entry's card, with a link, and
+the printable record names it. On a run, it goes on every copy like the other
+fields. A procedure you can't see can't be picked, but an entry keeps the one
+it has when someone who can't see it edits the entry. The procedure's page
+lists where it was **followed in** (entries on samples you can see).
+Deleting a procedure keeps those entries, without it. The tables are
+`procedures` and `procedure_owners`, and `procedure_id` on `process_steps`
+and `analyses` (migration `0021`).
+
+**Printing.** **🖨 Print / PDF** on a procedure's page lays it out for A4
+(`/procedures/{id}/print`), e.g. to keep next to the machine.
+
+**`procedure.json`.** Each procedure's folder,
+`uploads/procedures/<id>-<title>/` (named when it's created and kept if it's
+renamed), has its files and a `procedure.json`, written like `sample.json`:
+`format` (currently 1), `written_at`, `id`, `title`, `technique`
+(`{kind: "step" | "analysis", type}`, or `null` for a general one),
+`summary`, `text` (the Markdown as written), `visibility`, `created_at`,
+`updated_at`, `created_by`, `owners` and `files`. Which entries followed it
+is in their samples' `sample.json` (`procedure` on each entry).
 
 ## Access and sharing
 

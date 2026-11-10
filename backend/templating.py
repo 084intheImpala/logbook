@@ -3,6 +3,7 @@ from fastapi.templating import Jinja2Templates
 from jinja2 import pass_context
 
 from backend.i18n import LANGS, get_lang, t
+from backend.markdown import render as render_markdown
 
 
 @pass_context
@@ -12,3 +13,4 @@ def _gettext(ctx, text: str, **values) -> str:
 
 templates = Jinja2Templates(directory="frontend/templates")
 templates.env.globals.update(_=_gettext, get_lang=get_lang, LANGS=LANGS)
+templates.env.filters["markdown"] = render_markdown

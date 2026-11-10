@@ -105,6 +105,7 @@ A barra lateral à esquerda (um botão de menu no telemóvel) tem:
 \toprule
 \menu{Amostras}       & Todas as amostras do laboratório, das mais recentes para as mais antigas, com os pedaços agrupados sob a amostra de que foram cortados. \\
 \menu{Estudos}        & Estudos que reúnem várias amostras, referências e notas (Secção~\ref{sec:studies}). \\
+\menu{Procedimentos}  & Como cada pessoa faz uma técnica, passo a passo (Secção~\ref{sec:procedures}). \\
 \menu{Pesquisa}       & Filtrar, agrupar, partilhar e exportar amostras. \\
 \menu{Adicionar ficheiros} & Juntar as mesmas fotografias ou ficheiros a várias entradas de uma vez (Secção~\ref{sec:files}). \\
 \menu{Substratos}     & A biblioteca partilhada de substratos a partir dos quais se fazem as amostras. \\
@@ -804,6 +805,41 @@ Imprima-o, ou escolha \ui{Guardar como PDF} como impressora. O registo
 impresso de uma amostra indica os estudos em que ela está.
 
 %=====================================================================
+\section{Procedimentos}\label{sec:procedures}
+%=====================================================================
+
+O separador \menu{Procedimentos} serve para escrever como se faz uma
+técnica: o seu varrimento de XRD, o seu recozimento, a sua limpeza. Um
+procedimento tem título, a \ui{Técnica} a que se aplica (um tipo de passo ou
+de análise, ou \ui{Geral} para um que serve para qualquer um), um resumo,
+fotografias e ficheiros, e o procedimento propriamente dito, escrito num só
+campo em Markdown: \texttt{1.}~\texttt{2.}~\texttt{3.} para passos numerados,
+\texttt{-} para uma lista, \texttt{\#\#} para um título (por exemplo
+\emph{Notas}), \texttt{**negrito**}, tabelas. O botão \ui{?} ao lado do
+campo mostra um resumo do que escrever e do que se obtém. A
+lista mostra todos os procedimentos que pode ver, por técnica, ou só os seus
+(\ui{Meus}), e quantas vezes cada um foi seguido.
+
+\paragraph{Coproprietários e visibilidade.} Como nos estudos: quem o escreve
+é o primeiro coproprietário e pode acrescentar outros; os coproprietários e
+os administradores podem alterá-lo; \ui{Pessoal}, \ui{Equipa} (o valor por
+omissão) ou \ui{Público}.
+
+\paragraph{Procedimento seguido.} Os formulários de passos e análises têm o
+campo \ui{Procedimento seguido}, que oferece os procedimentos que pode ver
+para o tipo escolhido e os gerais (\ui{+ Novo procedimento} ao lado abre o
+formulário já com o tipo). A página da amostra mostra-o no cartão da entrada,
+com uma ligação, e o registo impresso também o indica. A página do
+procedimento lista onde foi seguido (nas amostras que pode ver). Eliminar um
+procedimento não altera as entradas que o seguiram, que apenas deixam de o
+indicar.
+
+\paragraph{Imprimir e cópia de segurança.} \ui{Imprimir / PDF} dá o
+procedimento numa folha A4, por exemplo para ter junto ao equipamento. Cada procedimento
+tem uma pasta \texttt{uploads/procedures/<id>-<título>/} com os seus
+ficheiros e um \texttt{procedure.json}.
+
+%=====================================================================
 \section{Pesquisa e exportação}\label{sec:search}
 %=====================================================================
 
@@ -1039,7 +1075,7 @@ sobre que amostra, passo ou análise é cada uma, e os seus ficheiros).
 \subsubsection*{Estrutura do \texttt{sample.json}}
 
 O ficheiro é JSON simples (UTF-8), legível sem a aplicação. No topo:
-\texttt{format} (versão do formato, atualmente 8), \texttt{written\_at},
+\texttt{format} (versão do formato, atualmente 9), \texttt{written\_at},
 \texttt{code} (o ID) e \texttt{previous\_codes} (IDs anteriores), os dados da
 amostra (\texttt{label}, \texttt{sample\_type}, \texttt{visibility},
 \texttt{tags}, \texttt{description}, \texttt{film\_material}, \ldots),
@@ -1058,7 +1094,8 @@ Cada entrada de \texttt{timeline} tem \texttt{kind} (\texttt{step} ou
 \texttt{notes}, nas análises \texttt{device} (o nome do dispositivo, ou
 \texttt{null}), \texttt{status} (\texttt{approved}, ou \texttt{pending} se foi
 proposta por um colega e ainda não aprovada), \texttt{planned}
-(\texttt{true} se está planeada e ainda não foi feita), \texttt{files} (o caminho em
+(\texttt{true} se está planeada e ainda não foi feita), \texttt{procedure}
+(o procedimento seguido: \texttt{id} e \texttt{title}, ou \texttt{null}), \texttt{files} (o caminho em
 \texttt{uploads/}, o nome original, etc.) e \texttt{parameters}: um objeto com
 uma chave por campo do tipo de entrada, com números como números e texto como
 texto. Num campo de escolha entre variantes (por exemplo Forno/RTA em

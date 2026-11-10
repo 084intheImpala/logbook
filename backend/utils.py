@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend import images
-from backend.models import Attachment, Analysis, AnalysisType, ProcessStep, ProcessStepType, Sample, Study, StudyNote, Substrate
+from backend.models import Attachment, Analysis, AnalysisType, ProcessStep, ProcessStepType, Procedure, Sample, Study, StudyNote, Substrate
 from backend.config import settings
 from backend.trash import move_to_trash
 
@@ -105,16 +105,26 @@ def _safe(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-._") or "file"
 
 
-def study_folder(study_id: int, title: str) -> str:
-    """A study's folder in uploads/ (its notes' files and study.json):
-    studies/<id>-<title>, named when it's first needed. It keeps that name
-    if the study is renamed, so the files stay together."""
-    base = settings.UPLOAD_DIR / "studies"
+def record_folder(parent: str, record_id: int, title: str) -> str:
+    """The folder in uploads/ of a study or procedure (its files and its
+    .json): <parent>/<id>-<title>, named when it's first needed. It keeps that
+    name if the title changes, so the files stay together."""
+    base = settings.UPLOAD_DIR / parent
     if base.is_dir():
-        for path in sorted(base.glob(f"{study_id}-*")):
+        for path in sorted(base.glob(f"{record_id}-*")):
             if path.is_dir():
-                return f"studies/{path.name}"
-    return f"studies/{study_id}-{_safe(title)[:60]}"
+                return f"{parent}/{path.name}"
+    return f"{parent}/{record_id}-{_safe(title)[:60]}"
+
+
+def study_folder(study_id: int, title: str) -> str:
+    """A study's folder: studies/<id>-<title> (its notes' files and study.json)."""
+    return record_folder("studies", study_id, title)
+
+
+def procedure_folder(procedure_id: int, title: str) -> str:
+    """A procedure's folder: procedures/<id>-<title> (its files and procedure.json)."""
+    return record_folder("procedures", procedure_id, title)
 
 
 async def upload_folder(db: AsyncSession, entity_type: str, entity_id: int, fallback_day: date) -> str:
@@ -122,10 +132,14 @@ async def upload_folder(db: AsyncSession, entity_type: str, entity_id: int, fall
     analysis or substrate: the sample's ID, plus <date>_<technique> for a step
     or analysis (the entry's date, or `fallback_day` if it has none), e.g.
     ASS-2026-001/2026-10-22_XRD-HRXRD. Substrates: substrates/<name>; a
-    study's notes: studies/<id>-<title> (see study_folder)."""
+    study's notes: studies/<id>-<title>; a procedure: procedures/<id>-<title>
+    (see record_folder)."""
     if entity_type == "substrate":
         name = (await db.execute(select(Substrate.name).where(Substrate.id == entity_id))).scalar_one_or_none()
         return f"substrates/{_safe(name or str(entity_id))}"
+    if entity_type == "procedure":
+        title = (await db.execute(select(Procedure.title).where(Procedure.id == entity_id))).scalar_one_or_none()
+        return procedure_folder(entity_id, title or "")
     if entity_type == "study_note":
         row = (await db.execute(select(Study.id, Study.title).join(StudyNote, StudyNote.study_id == Study.id)
                                 .where(StudyNote.id == entity_id))).first()

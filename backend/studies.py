@@ -14,20 +14,16 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth import _teams
+from backend.auth import can_view_shared, is_co_owner
 from backend.models import Study, StudyNote, StudyOwner, StudySample, User
 
 
 def is_study_owner(user: User | None, study: Study) -> bool:
-    return user is not None and (user.is_admin or any(o.user_id == user.id for o in study.owners))
+    return is_co_owner(user, study)
 
 
 def can_view_study(user: User | None, study: Study) -> bool:
-    if user is None:
-        return False
-    if is_study_owner(user, study) or study.visibility == "public":
-        return True
-    return study.visibility == "team" and bool(_teams(user) & {t for o in study.owners for t in _teams(o.user)})
+    return can_view_shared(user, study)
 
 
 async def load_study(db: AsyncSession, study_id: int, user: User, need: str = "view") -> Study:

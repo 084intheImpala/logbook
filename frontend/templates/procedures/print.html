@@ -1,0 +1,113 @@
+{#- A procedure on a sheet, e.g. to keep next to the machine: its details, its
+    text (Markdown), photos as small previews
+    and files by name. Context: as procedures/detail.html (routers/procedures.py,
+    _page), plus printed_at and page_url. Standalone, always light. -#}
+<!doctype html>
+<html lang="{{ get_lang(request) }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ procedure.title }} — {{ _("Printable record") }}</title>
+  <style>
+    @page { size: A4; margin: 14mm 12mm 16mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e5e7eb; color: #111827; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+           font: 10pt/1.35 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .sheet { max-width: 210mm; margin: 16px auto; padding: 14mm 12mm; background: #fff;
+             box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+    .toolbar { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; justify-content: center;
+               padding: 10px 16px; background: #f9fafb; border-bottom: 1px solid #d1d5db; }
+    .toolbar button, .toolbar a { font: inherit; font-size: 10.5pt; padding: 6px 14px; border-radius: 8px;
+               border: 1px solid #d1d5db; background: #fff; color: #374151; text-decoration: none; cursor: pointer; }
+    .toolbar button { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+    .toolbar span { align-self: center; color: #6b7280; font-size: 9pt; }
+    a { color: inherit; text-decoration: none; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { color: #6b7280; }
+    .small { font-size: 8.5pt; }
+    header.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+                 border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 8px; }
+    h1 { margin: 0; font-size: 18pt; line-height: 1.15; }
+    .meta { text-align: right; font-size: 8.5pt; color: #6b7280; }
+    dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 1px 12px; margin: 6px 0; }
+    dl.facts dt { color: #6b7280; }
+    dl.facts dd { margin: 0; }
+    .description { margin: 6px 0; white-space: pre-line; }
+    h2 { font-size: 11.5pt; margin: 14px 0 6px; padding-bottom: 2px; border-bottom: 1px solid #d1d5db; }
+    table.samples { width: 100%; border-collapse: collapse; font-size: 9pt; }
+    table.samples td { padding: 1px 8px 1px 0; vertical-align: top; }
+    ol.refs { margin: 0; padding-left: 18px; }
+    ol.refs li { margin-bottom: 5px; break-inside: avoid; }
+    .ref-title { font-weight: 600; }
+    .ref-note { font-style: italic; color: #374151; white-space: pre-line; }
+    .note { border: 1px solid #d1d5db; border-left: 4px solid #7c3aed; border-radius: 4px;
+            padding: 5px 8px; margin: 0 0 6px; break-inside: avoid; }
+    .note-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .note-head .what { font-weight: 600; }
+    .note-head .what .n { color: #9ca3af; font-weight: 400; margin-right: 4px; }
+    .note-head .when { font-size: 8.5pt; color: #4b5563; white-space: nowrap; }
+    .text { margin-top: 3px; white-space: pre-line; }
+    .row { margin-top: 3px; }
+    .photos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .photos img { width: 24mm; height: 24mm; object-fit: cover; border: 1px solid #d1d5db; border-radius: 2px; }
+    ul.files { margin: 3px 0 0; padding-left: 14px; font-size: 8.5pt; }
+    .markdown h1, .markdown h2, .markdown h3 { font-size: 11.5pt; margin: 12px 0 4px; padding-bottom: 2px;
+                                               border-bottom: 1px solid #d1d5db; break-after: avoid; }
+    .markdown p { margin: 4px 0; }
+    .markdown ol, .markdown ul { margin: 4px 0; padding-left: 22px; }
+    .markdown li { margin: 2px 0; break-inside: avoid; }
+    .markdown code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9pt; background: #f3f4f6; padding: 0 3px; border-radius: 2px; }
+    .markdown table { border-collapse: collapse; margin: 6px 0; }
+    .markdown th, .markdown td { border: 1px solid #d1d5db; padding: 2px 6px; text-align: left; }
+    footer { margin-top: 12px; padding-top: 4px; border-top: 1px solid #d1d5db; font-size: 8pt; color: #6b7280; }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+      h2 { break-after: avoid; }
+    }
+    @media (max-width: 640px) { .sheet { margin: 0; padding: 16px; } }
+  </style>
+</head>
+<body>
+<div class="toolbar">
+  <button type="button" onclick="window.print()">{{ _("Print / save as PDF") }}</button>
+  <a href="/procedures/{{ procedure.id }}">{{ _("Back to the procedure") }}</a>
+  <span>{{ _("To get a PDF, choose “Save as PDF” as the printer.") }}</span>
+</div>
+
+<div class="sheet">
+  <header class="top">
+    <div>
+      <div class="muted small">{{ _("Procedure") }} · {{ procedure.technique or _("General") }}</div>
+      <h1>{{ procedure.title }}</h1>
+    </div>
+    <div class="meta">
+      {{ _("Logbook record") }}<br>
+      <span class="mono">{{ page_url }}</span><br>
+      {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d %H:%M')) }}
+    </div>
+  </header>
+
+  <dl class="facts">
+    <dt>{{ _("Co-owners") }}</dt><dd>{{ procedure.owners|map(attribute="user")|map(attribute="display_name")|join(", ") }}</dd>
+    {% if procedure.updated_at %}<dt>{{ _("Last changed") }}</dt><dd>{{ procedure.updated_at.strftime('%Y-%m-%d') }}</dd>{% endif %}
+  </dl>
+  {% if procedure.summary %}<div class="description">{{ procedure.summary }}</div>{% endif %}
+
+  {% if procedure.text %}
+  <div class="markdown">{{ procedure.text|markdown }}</div>
+  {% else %}
+  <p class="muted">{{ _("Nothing written yet.") }}</p>
+  {% endif %}
+
+  {% if photos or files %}
+  <h2>{{ _("Photos and files") }}</h2>
+  {% if photos %}<div class="photos">{% for att in photos %}<img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" title="{{ att.original_filename }}">{% endfor %}</div>{% endif %}
+  {% if files %}<ul class="files">{% for att in files %}<li>{{ att.original_filename }}</li>{% endfor %}</ul>{% endif %}
+  {% endif %}
+
+  <footer>{{ procedure.title }} · {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d %H:%M')) }} {{ _("by {name}", name=current_user.display_name) }} · {{ _("photos shown as previews; the files themselves are in the logbook") }}</footer>
+</div>
+</body>
+</html>

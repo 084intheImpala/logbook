@@ -11,7 +11,8 @@ and `cut_from` says where to look.
 
 Studies get the same: `uploads/studies/<id>-<title>/study.json`, next to
 their notes' files, holds the study's details, co-owners, samples (by ID),
-references and notes (text, what each is about, files).
+references and notes (text, what each is about, files). So do procedures:
+`uploads/procedures/<id>-<title>/procedure.json`, next to their files.
 
 Files are rewritten after any request that changed the database (see
 `write_pending`) and for every sample and study at start-up (`write_all`),
@@ -28,22 +29,26 @@ from sqlalchemy.orm import Session, selectinload
 from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.lineage import _full_options
-from backend.models import (Analysis, Attachment, Device, ProcessStep, Sample, SampleShare, Study, StudyNote,
-                            StudyOwner, StudyReference, StudySample)
-from backend.utils import _safe, study_folder
+from backend.models import (Analysis, Attachment, Device, Procedure, ProcedureOwner, ProcessStep, Sample, SampleShare,
+                            Study, StudyNote, StudyOwner, StudyReference, StudySample)
+from backend.utils import _safe, procedure_folder, study_folder
 
 log = logging.getLogger("uvicorn.error")
 
 FILE_NAME = "sample.json"
-FORMAT = 8   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies
+FORMAT = 9   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries
 
 STUDY_FILE_NAME = "study.json"
 STUDY_FORMAT = 1
+PROCEDURE_FILE_NAME = "procedure.json"
+PROCEDURE_FORMAT = 1
 
 # What changed since the last write: ("sample" | "step" | "analysis" | "study" |
 # "study_note", id); ("study_title", id) for a study whose own details changed
-# (they are in its samples' files too); ("gone", folder) / ("study_gone", folder)
-# for a deleted sample / study. Filled as the database is changed.
+# (they are in its samples' files too); ("procedure", id), and ("procedure_title",
+# id) for a procedure whose title may be in the files of the samples that
+# followed it; ("gone" | "study_gone" | "procedure_gone", folder) for a deleted
+# sample / study / procedure. Filled as the database is changed.
 _pending: set[tuple[str, int | str]] = set()
 
 
@@ -59,6 +64,8 @@ def _note_changes(session, _context):
             _pending.add(("sample", obj.id))
         elif isinstance(obj, Study):   # its title is in its samples' files
             _pending.update({("study", obj.id), ("study_title", obj.id)})
+        elif isinstance(obj, Procedure):
+            _pending.update({("procedure", obj.id), ("procedure_title", obj.id)})
         else:
             _note_other(obj)
     for obj in session.deleted:
@@ -66,6 +73,8 @@ def _note_changes(session, _context):
             _pending.add(("gone", folder_for(obj.code, obj.id)))
         elif isinstance(obj, Study):
             _pending.add(("study_gone", study_folder(obj.id, obj.title)))
+        elif isinstance(obj, Procedure):
+            _pending.add(("procedure_gone", procedure_folder(obj.id, obj.title)))
         else:
             _note_other(obj)
 
@@ -77,7 +86,9 @@ def _note_other(obj):
         _pending.add(("sample", obj.sample_id))
     elif isinstance(obj, (StudyOwner, StudyReference, StudyNote)):
         _pending.add(("study", obj.study_id))
-    elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis", "study_note"):
+    elif isinstance(obj, ProcedureOwner):
+        _pending.add(("procedure", obj.procedure_id))
+    elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis", "study_note", "procedure"):
         _pending.add((obj.entity_type, obj.entity_id))
 
 
@@ -102,6 +113,8 @@ def _entry(kind: str, entry, type_name: str, attachments: dict) -> dict:
         # "pending" entries were proposed by a teammate and aren't approved yet
         "status": entry.status, "proposed_by": _person(entry.proposer),
         "planned": entry.planned,   # planned, not done yet
+        # The procedure followed (its own file: uploads/procedures/<id>-<title>/procedure.json)
+        "procedure": {"id": entry.procedure.id, "title": entry.procedure.title} if entry.procedure else None,
         # A deposition's layer: on another deposition's (step id), on the substrate, covering only part
         **({"on_step_id": entry.on_step_id, "on_substrate": entry.on_substrate, "partial": entry.partial}
            if kind == "step" else {}),
@@ -242,6 +255,39 @@ async def _write_studies(db, study_ids: list[int] | None) -> int:
     return len(studies)
 
 
+def _procedure_document(procedure: Procedure, files: list[Attachment]) -> dict:
+    return {
+        "format": PROCEDURE_FORMAT,
+        "written_at": datetime.now().replace(microsecond=0),
+        "id": procedure.id, "title": procedure.title,
+        # The step or analysis type it is for (none: a general procedure)
+        "technique": ({"kind": "step" if procedure.step_type_id else "analysis", "type": procedure.technique}
+                      if procedure.technique else None),
+        "summary": procedure.summary, "text": procedure.text,   # Markdown
+        "visibility": procedure.visibility, "created_at": procedure.created_at, "updated_at": procedure.updated_at,
+        "created_by": _person(procedure.created_by), "owners": [_person(o.user) for o in procedure.owners],
+        "files": [_attachment(a) for a in files],
+    }
+
+
+async def _write_procedures(db, procedure_ids: list[int] | None) -> int:
+    query = select(Procedure)
+    if procedure_ids is not None:
+        if not procedure_ids:
+            return 0
+        query = query.where(Procedure.id.in_(procedure_ids))
+    procedures = list((await db.execute(query)).scalars())
+    files: dict[int, list[Attachment]] = {}
+    if procedures:
+        for att in (await db.execute(select(Attachment).where(
+                Attachment.entity_type == "procedure", Attachment.entity_id.in_([p.id for p in procedures]))
+                .order_by(Attachment.id))).scalars():
+            files.setdefault(att.entity_id, []).append(att)
+    for p in procedures:
+        _write(procedure_folder(p.id, p.title), _procedure_document(p, files.get(p.id, [])), PROCEDURE_FILE_NAME)
+    return len(procedures)
+
+
 async def write_pending() -> None:
     """Rewrite the files of the samples changed since the last call. Never
     raises: a failed backup mustn't fail the request that was saved."""
@@ -260,6 +306,11 @@ async def write_pending() -> None:
             if wanted:
                 ids |= set((await db.execute(select(StudySample.sample_id)
                                              .where(StudySample.study_id.in_(wanted)))).scalars())
+            wanted = [i for k, i in changed if k == "procedure_title"]
+            if wanted:
+                for model in (ProcessStep, Analysis):
+                    ids |= set((await db.execute(select(model.sample_id)
+                                                 .where(model.procedure_id.in_(wanted)))).scalars())
             await _write_samples(db, sorted(ids))
 
             study_ids = {i for kind, i in changed if kind == "study"}
@@ -271,24 +322,28 @@ async def write_pending() -> None:
                 study_ids |= set((await db.execute(select(StudySample.study_id)
                                                    .where(StudySample.sample_id.in_(list(ids))))).scalars())
             await _write_studies(db, sorted(study_ids))
+            await _write_procedures(db, sorted({i for kind, i in changed if kind == "procedure"}))
 
             for kind, folder in changed:
                 if kind == "gone":
                     (settings.UPLOAD_DIR / folder / FILE_NAME).unlink(missing_ok=True)
                 elif kind == "study_gone":
                     (settings.UPLOAD_DIR / folder / STUDY_FILE_NAME).unlink(missing_ok=True)
+                elif kind == "procedure_gone":
+                    (settings.UPLOAD_DIR / folder / PROCEDURE_FILE_NAME).unlink(missing_ok=True)
     except Exception:
         log.exception("Could not write sample backup files")
         _pending.update(changed)
 
 
-async def write_all() -> tuple[int, int]:
-    """Write the file of every sample and every study. Returns how many of each there were."""
+async def write_all() -> tuple[int, int, int]:
+    """Write the file of every sample, study and procedure. Returns how many of each there were."""
     async with AsyncSessionLocal() as db:
-        return await _write_samples(db, None), await _write_studies(db, None)
+        return await _write_samples(db, None), await _write_studies(db, None), await _write_procedures(db, None)
 
 
 if __name__ == "__main__":
     import asyncio
-    samples, studies = asyncio.run(write_all())
-    print(f"Wrote sample.json for {samples} samples and study.json for {studies} studies in {settings.UPLOAD_DIR}")
+    samples, studies, procedures = asyncio.run(write_all())
+    print(f"Wrote sample.json for {samples} samples, study.json for {studies} studies and "
+          f"procedure.json for {procedures} procedures in {settings.UPLOAD_DIR}")
