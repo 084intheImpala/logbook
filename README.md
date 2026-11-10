@@ -569,7 +569,15 @@ and files, and the procedure itself, written in one field in **Markdown**
 (`backend/markdown.py`, markdown-it-py): `1.` `2.` `3.` for numbered steps,
 `-` for a list, `##` for a heading (e.g. *Notes*), `**bold**`, tables; the
 **?** next to the field opens a short cheat sheet of what to type and what it
-gives. Raw HTML
+gives. **Insert figure** next to it lists the procedure's saved photos;
+clicking one puts `![name](/files/<id>)` in the text at the cursor, so the
+photo shows there (up to the page width) on the procedure's page and its
+printable sheet (photos added in the same save can be inserted after saving).
+**LaTeX maths**: `$2d\sin\theta = n\lambda$` within a line, `$$ … $$` on
+lines of its own (`mdit-py-plugins`' dollarmath marks it, KaTeX from a CDN
+draws it in the browser, `_katex.html`); a `$` followed by a space or a
+digit after the closing one isn't maths, so prices stay text, and `\$` is a
+plain dollar sign. Raw HTML
 is shown as text and `javascript:` links aren't made, so what someone writes
 can't run in a colleague's browser. The list shows every procedure you can
 see, by technique, or only yours (**Mine**), with how often each was followed.

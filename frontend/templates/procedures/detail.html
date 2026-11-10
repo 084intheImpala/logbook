@@ -70,6 +70,7 @@
 <section id="text" class="mb-8 bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
   {% if procedure.text %}
   <div class="markdown text-sm text-gray-800">{{ procedure.text|markdown }}</div>
+  {% include "_katex.html" %}
   {% else %}
   <p class="text-sm text-gray-400">{{ _("Nothing written yet.") }}</p>
   {% endif %}

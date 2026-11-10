@@ -39,6 +39,14 @@ PT = {
     "Nothing written yet.": "Ainda não há nada escrito.",
     "Markdown: 1. 2. 3. for numbered steps, - for a list, ## for a heading, **bold**. More under ?":
         "Markdown: 1. 2. 3. para passos numerados, - para uma lista, ## para um título, **negrito**. Mais em ?",
+    "Insert figure": "Inserir figura",
+    "Click a photo to put it in the text where the cursor is.": "Clique numa fotografia para a pôr no texto onde está o cursor.",
+    "No photos yet. Add them under Photos below and save; then they can be put in the text.":
+        "Ainda não há fotografias. Acrescente-as em Fotografias, abaixo, e guarde; depois podem ser postas no texto.",
+    "Insert figure puts a saved photo in the text.": "Inserir figura põe uma fotografia guardada no texto.",
+    "an equation in LaTeX, within the line": "uma equação em LaTeX, no meio da linha",
+    "an equation on its own line (\\$ for a plain dollar sign)": "uma equação numa linha à parte (\\$ para um cifrão)",
+    "a figure (a photo of this procedure)": "uma figura (uma fotografia deste procedimento)",
     # The ? next to the field: Markdown tips
     "Markdown tips": "Dicas de Markdown",
     "You type": "Escreve",

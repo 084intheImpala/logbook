@@ -85,11 +85,14 @@ async def list_procedures(request: Request, db: AsyncSession = Depends(get_db),
 
 
 async def _form(request, db, current_user, procedure, error=None, status_code=200, technique=""):
+    attachments = await _attachments(db, procedure.id) if procedure is not None and procedure.id else []
     return templates.TemplateResponse("procedures/form.html", {
         "request": request, "current_user": current_user, "procedure": procedure, "error": error,
         "visibilities": VISIBILITY, "techniques": await techniques(db),
         "technique": procedure.technique_key if procedure is not None and procedure.id else technique,
-        "attachments": await _attachments(db, procedure.id) if procedure is not None and procedure.id else [],
+        "attachments": attachments,
+        # The photos "Insert figure" can put in the text, as ![name](/files/<id>)
+        "figures": [a for a in attachments if _is_image(a)],
     }, status_code=status_code)
 
 

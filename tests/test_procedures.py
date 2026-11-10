@@ -176,3 +176,37 @@ def test_the_printable_procedure_and_portuguese(world):
     assert "Procedimentos" in client.get(f"/procedures/{proc_id}").text
     form = client.get("/procedures/new").text
     assert 'id="markdown-tips"' in form and "Dicas de Markdown" in form and "uma tabela" in form
+
+
+def test_an_uploaded_photo_can_be_put_in_the_text(world):
+    from PIL import Image
+    client = world.client(world.user("pf-figures"))
+    proc_id = _procedure(client, "Sputter clamp")
+    client.post("/lang", data={"lang": "en"})
+    assert "No photos yet." in client.get(f"/procedures/{proc_id}/edit").text
+    png = io.BytesIO()
+    Image.new("RGB", (8, 8), "red").save(png, "PNG")
+    client.post(f"/procedures/{proc_id}/edit", data={"title": "Sputter clamp", "visibility": "team"},
+                files={"photos": ("clamp setup.png", io.BytesIO(png.getvalue()), "image/png")})
+    form = client.get(f"/procedures/{proc_id}/edit").text
+    photo_id = int(re.search(r'class="figure-insert[^"]*" data-id="(\d+)"', form).group(1))
+    assert 'data-name="clamp setup"' in form and 'id="procedure-text"' in form
+
+    client.post(f"/procedures/{proc_id}/edit", data={"title": "Sputter clamp", "visibility": "team",
+                                                      "text": f"1. Fit the clamp\n\n![clamp setup](/files/{photo_id})"})
+    img = f'<img src="/files/{photo_id}" alt="clamp setup"'
+    assert img in client.get(f"/procedures/{proc_id}").text
+    assert img in client.get(f"/procedures/{proc_id}/print").text
+    assert client.get(f"/files/{photo_id}").status_code == 200
+
+
+def test_latex_maths_is_marked_for_katex(world):
+    client = world.client(world.user("pf-latex"))
+    text = "Bragg: $2d\\sin\\theta = n\\lambda$, it costs $5 and $10.\n\n`$x$` stays code\n\n$$\nt = \\frac{d}{r} < 1\n$$"
+    proc_id = _procedure(client, "Thickness", text=text)
+    for url in (f"/procedures/{proc_id}", f"/procedures/{proc_id}/print"):
+        page = client.get(url).text
+        assert '<span class="math inline">2d\\sin\\theta = n\\lambda</span>' in page
+        assert '<div class="math block">\nt = \\frac{d}{r} &lt; 1\n</div>' in page
+        assert "costs $5 and $10" in page and "<code>$x$</code>" in page
+        assert "katex.min.js" in page

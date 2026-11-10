@@ -1,0 +1,6 @@
+{#- Draws the LaTeX maths that backend/markdown.py marks (span.math.inline,
+    div.math.block) with KaTeX. Include once on a page that shows Markdown. -#}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+        onload="document.querySelectorAll('.markdown .math').forEach(el =&gt; katex.render(el.textContent.trim(), el, {displayMode: el.classList.contains('block'), throwOnError: false}))"></script>
+<style>.markdown .math.block { overflow-x: auto; overflow-y: hidden; margin: .5rem 0; }</style>

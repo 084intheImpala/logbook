@@ -57,6 +57,7 @@
     .markdown ol, .markdown ul { margin: 4px 0; padding-left: 22px; }
     .markdown li { margin: 2px 0; break-inside: avoid; }
     .markdown code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9pt; background: #f3f4f6; padding: 0 3px; border-radius: 2px; }
+    .markdown img { max-width: 100%; max-height: 120mm; break-inside: avoid; }
     .markdown table { border-collapse: collapse; margin: 6px 0; }
     .markdown th, .markdown td { border: 1px solid #d1d5db; padding: 2px 6px; text-align: left; }
     footer { margin-top: 12px; padding-top: 4px; border-top: 1px solid #d1d5db; font-size: 8pt; color: #6b7280; }
@@ -97,6 +98,7 @@
 
   {% if procedure.text %}
   <div class="markdown">{{ procedure.text|markdown }}</div>
+  {% include "_katex.html" %}
   {% else %}
   <p class="muted">{{ _("Nothing written yet.") }}</p>
   {% endif %}

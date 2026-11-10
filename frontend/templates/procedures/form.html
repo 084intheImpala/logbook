@@ -1,13 +1,6 @@
 {% extends "base.html" %}
 {% set saved = procedure and procedure.id %}
-{% block title %}{{ procedure.title if saved else _("New procedure") }} — Logbook<script>
-  // Close the Markdown tips when clicking anywhere else
-  document.addEventListener('click', e => {
-    const tips = document.getElementById('markdown-tips');
-    if (tips.open && !tips.contains(e.target)) tips.open = false;
-  });
-</script>
-{% endblock %}
+{% block title %}{{ procedure.title if saved else _("New procedure") }} — Logbook{% endblock %}
 {% block content %}
 {% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %}
 <div class="max-w-2xl">
@@ -69,6 +62,11 @@
                 <tr><td class="py-1 pr-3 font-mono whitespace-pre">*{{ _("careful") }}*</td><td class="py-1"><i>{{ _("careful") }}</i></td></tr>
                 <tr><td class="py-1 pr-3 font-mono whitespace-pre">`scan01.raw`</td><td class="py-1"><code class="bg-gray-100 px-1 rounded">scan01.raw</code></td></tr>
                 <tr><td class="py-1 pr-3 font-mono whitespace-pre">[{{ _("manual") }}](https://…)</td><td class="py-1">{{ _("a link") }}</td></tr>
+                <tr><td class="py-1 pr-3 font-mono whitespace-pre">$2d\sin\theta = n\lambda$</td><td class="py-1">{{ _("an equation in LaTeX, within the line") }}</td></tr>
+                <tr><td class="py-1 pr-3 font-mono whitespace-pre">$$
+t = \frac{d}{r}
+$$</td><td class="py-1">{{ _("an equation on its own line (\\$ for a plain dollar sign)") }}</td></tr>
+                <tr><td class="py-1 pr-3 font-mono whitespace-pre">![{{ _("Slit") }}](/files/12)</td><td class="py-1">{{ _("a figure (a photo of this procedure)") }}</td></tr>
                 <tr><td class="py-1 pr-3 font-mono whitespace-pre">| {{ _("Slit") }} | {{ _("Value") }} |
 |---|---|
 | Div | 1/2° |</td><td class="py-1">{{ _("a table") }}</td></tr>
@@ -77,10 +75,31 @@
             <p class="mt-2 text-gray-400">{{ _("Leave a blank line between paragraphs, and before a list or a heading.") }}</p>
           </div>
         </details>
+        <details id="figure-picker" class="relative ml-auto">
+          <summary class="list-none cursor-pointer text-xs text-blue-600 border border-gray-300 rounded-lg px-2 py-1 hover:bg-gray-50">🖼 {{ _("Insert figure") }}</summary>
+          <div class="absolute right-0 z-10 mt-2 w-80 max-w-[90vw] bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs text-gray-700">
+            {% if figures %}
+            <p class="text-gray-500 mb-2">{{ _("Click a photo to put it in the text where the cursor is.") }}</p>
+            <div class="grid grid-cols-3 gap-2 max-h-72 overflow-y-auto">
+              {% for att in figures %}
+              <button type="button" class="figure-insert group text-left" data-id="{{ att.id }}"
+                      data-name="{{ att.original_filename.rsplit('.', 1)[0] }}" title="{{ att.original_filename }}">
+                <img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" loading="lazy"
+                     class="h-20 w-full object-cover rounded border border-gray-200 group-hover:ring-2 group-hover:ring-blue-500">
+                <span class="block truncate text-[11px] text-gray-500 mt-0.5">{{ att.original_filename }}</span>
+              </button>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500">{{ _("No photos yet. Add them under Photos below and save; then they can be put in the text.") }}</p>
+            {% endif %}
+          </div>
+        </details>
       </div>
-      <textarea name="text" rows="16" class="{{ input_cls }} font-mono"
+      <textarea name="text" id="procedure-text" rows="16" class="{{ input_cls }} font-mono"
                 placeholder="1. {{ _("Mount the sample") }}&#10;2. {{ _("Align on the substrate peak (Si 004)") }}&#10;3. …&#10;&#10;## {{ _("Notes") }}&#10;- {{ _("If the peak is cut off, close the slit") }}">{{ procedure.text or '' if procedure else '' }}</textarea>
-      <p class="text-xs text-gray-400 mt-1">{{ _("Markdown: 1. 2. 3. for numbered steps, - for a list, ## for a heading, **bold**. More under ?") }}</p>
+      <p class="text-xs text-gray-400 mt-1">{{ _("Markdown: 1. 2. 3. for numbered steps, - for a list, ## for a heading, **bold**. More under ?") }}
+        {{ _("Insert figure puts a saved photo in the text.") }}</p>
     </div>
 
     <div class="flex flex-wrap gap-6 text-sm">
@@ -112,10 +131,24 @@
 </div>
 
 <script>
-  // Close the Markdown tips when clicking anywhere else
+  // Close the Markdown tips and the figure picker when clicking anywhere else
   document.addEventListener('click', e => {
-    const tips = document.getElementById('markdown-tips');
-    if (tips.open && !tips.contains(e.target)) tips.open = false;
+    for (const id of ['markdown-tips', 'figure-picker']) {
+      const box = document.getElementById(id);
+      if (box.open && !box.contains(e.target)) box.open = false;
+    }
   });
+
+  // Insert figure: ![name](/files/<id>) at the cursor, as a paragraph of its own
+  document.querySelectorAll('.figure-insert').forEach(btn => btn.addEventListener('click', () => {
+    const area = document.getElementById('procedure-text');
+    const start = area.selectionStart, end = area.selectionEnd, before = area.value.slice(0, start);
+    const name = btn.dataset.name.replace(/[\[\]]/g, '');
+    const lead = before === '' ? '' : before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
+    const tail = area.value.slice(end).startsWith('\n') ? '\n' : '\n\n';
+    area.setRangeText(`${lead}![${name}](/files/${btn.dataset.id})${tail}`, start, end, 'end');
+    area.focus();
+    document.getElementById('figure-picker').open = false;
+  }));
 </script>
 {% endblock %}
