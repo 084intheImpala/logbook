@@ -25,10 +25,11 @@ from backend.deposition_rate import DEPOSITION_TYPE_NAME, after_measurement
 from backend.i18n import t
 from backend.layers import stack as layer_stack
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES, load_family, load_sample_full
-from backend.models import Analysis, AnalysisType, Attachment, ProcessStep, ProcessStepType, Sample, User
+from backend.models import Analysis, AnalysisType, Attachment, Procedure, ProcessStep, ProcessStepType, Sample, User
 from backend.params import (describe, extra_params, located_lists, located_methods, params_to_text, parse_date, parse_form,
                             parse_params, schema_keys, varied_params, vary_choices)
 from backend.performers import apply_performer, tell_performer, users_for_form
+from backend.procedures import chosen_for_entry, for_entry_form
 from backend.templating import templates
 from backend.timeline import place_new
 from backend.utils import copy_attachment, save_upload
@@ -172,6 +173,8 @@ async def form_page(request: Request, db: AsyncSession, kind: Kind, sample, entr
         # A new entry's Where is filled in from the type chosen (its default_location), on the page
         "location": entry.location if entry else None,
         "users": await users_for_form(db),
+        # "Procedure followed": the page shows the chosen type's (and general ones)
+        "procedures": await for_entry_form(db, user, kind.name, entry.procedure_id if entry else None),
         "attachments": attachments,
         "run": run,
         "devices": sample.devices if kind is ANALYSIS else [],
@@ -234,6 +237,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
         "notes": form.get("notes", "").strip() or None,
         "location": location,
         "planned": bool(form.get("planned")),
+        "procedure_id": await chosen_for_entry(db, user, form.get("procedure_id", ""),
+                                               entry.procedure_id if entry else None),
     }
     if kind is STEP:
         on_step_id, fields["on_substrate"], fields["partial"] = await _placement(db, form, sample, entry, entry_type, user)
@@ -341,7 +346,8 @@ async def save(request: Request, db: AsyncSession, kind: Kind, sample, entry, us
 
 # ── Warning before overwriting the other samples of a run ────────────────────
 
-def _comparable(request: Request, type_name: str, schema, params, notes, location, performer, performed_at) -> dict:
+def _comparable(request: Request, type_name: str, schema, params, notes, location, performer, performed_at,
+                procedure: str = "") -> dict:
     """An entry's values as {translated label: text}, for comparing copies."""
     values = {t(request, "Type"): type_name}
     for row in describe(params, schema):
@@ -352,7 +358,8 @@ def _comparable(request: Request, type_name: str, schema, params, notes, locatio
             values[t(request, row["label"])] = row["value"]
     values |= {t(request, "Notes"): notes or "", t(request, "Where"): location or "",
                t(request, "Performed by"): performer or "",
-               t(request, "Date"): performed_at.isoformat() if performed_at else ""}
+               t(request, "Date"): performed_at.isoformat() if performed_at else "",
+               t(request, "Procedure followed"): procedure or ""}
     return values
 
 
@@ -371,16 +378,19 @@ async def overwrite_check(request: Request, db: AsyncSession, kind: Kind, sample
     performer_user = await db.get(User, int(performer)) if performer.isdigit() else None
     performer_name = (performer_user.display_name if performer_user
                       else form.get("performed_by", "").strip() if performer == "other" else "")
+    chosen = form.get("procedure_id", "")
+    procedure = await db.get(Procedure, int(chosen)) if chosen.isdigit() else None
     new = _comparable(request, entry_type.name, entry_type.parameter_schema, params,
                       form.get("notes", "").strip(), form.get("location", "").strip(), performer_name,
-                      parse_date(form.get("performed_at", "")))
+                      parse_date(form.get("performed_at", "")), procedure.title if procedure else "")
     conflicts = []
     for other, other_sample in await run_entries(db, kind, entry):
         if not can_edit_entry(user, other_sample, other):
             continue
         other_type = await db.get(kind.type_model, getattr(other, kind.type_field))
         old = _comparable(request, other_type.name, other_type.parameter_schema, other.parameters, other.notes,
-                          other.location, other.performer_name, other.performed_at)
+                          other.location, other.performer_name, other.performed_at,
+                          other.procedure.title if other.procedure else "")
         for label, value in old.items():
             if value and new.get(label, "") != value:
                 conflicts.append({"sample": other_sample.title, "field": label, "old": value,

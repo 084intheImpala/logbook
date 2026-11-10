@@ -184,3 +184,20 @@ async def load_sample(db: AsyncSession, sample_id: int, user: User | None, need:
     if not _CHECKS[need](user, sample):
         raise HTTPException(status_code=403, detail="You don't have access to this sample.")
     return sample
+
+
+# ── Things with co-owners (studies, procedures) ──────────────────────────────
+# Their co-owners (`owners`, each with a `user_id`) and admins may change
+# them. Others see them according to `visibility`: personal, only the
+# co-owners; team, also everyone in a co-owner's team; public, everyone.
+
+def is_co_owner(user: User | None, thing) -> bool:
+    return user is not None and (user.is_admin or any(o.user_id == user.id for o in thing.owners))
+
+
+def can_view_shared(user: User | None, thing) -> bool:
+    if user is None:
+        return False
+    if is_co_owner(user, thing) or thing.visibility == "public":
+        return True
+    return thing.visibility == "team" and bool(_teams(user) & {t for o in thing.owners for t in _teams(o.user)})

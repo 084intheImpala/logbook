@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ procedure.title }} — Logbook{% endblock %}
+{% block content %}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <div class="text-xs text-gray-400 mb-1"><a href="/procedures/" class="hover:underline">{{ _("Procedures") }}</a> /</div>
+    <h1 class="text-2xl font-bold text-gray-900">{{ procedure.title }}
+      <span class="align-middle ml-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded">{{ procedure.technique or _("General") }}</span>
+    </h1>
+    <div class="mt-1 text-sm text-gray-500">
+      {{ _("Co-owners") }}: {{ procedure.owners|map(attribute="user")|map(attribute="display_name")|join(", ") }}
+      · {{ _(visibilities[procedure.visibility]) if procedure.visibility in visibilities else procedure.visibility }}
+      {% if procedure.updated_at %}· {{ _("updated {date}", date=procedure.updated_at.strftime('%Y-%m-%d')) }}{% endif %}
+    </div>
+    {% if procedure.summary %}<p class="mt-2 text-sm text-gray-700 max-w-3xl whitespace-pre-line">{{ procedure.summary }}</p>{% endif %}
+  </div>
+  <div class="flex gap-2 shrink-0">
+    <a href="/procedures/{{ procedure.id }}/print" target="_blank"
+       title="{{ _("The procedure on a sheet, e.g. to keep next to the machine") }}"
+       class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">🖨 {{ _("Print / PDF") }}</a>
+    {% if is_owner %}
+    <a href="/procedures/{{ procedure.id }}/edit" class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Edit") }}</a>
+    <form method="post" action="/procedures/{{ procedure.id }}/delete"
+          onsubmit='return confirm({{ _("Delete this procedure? The steps and analyses that followed it stay as they are.")|tojson }})'>
+      <button class="text-sm border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">{{ _("Delete") }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if flash %}
+<div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ flash }}</div>
+{% endif %}
+{% if flash_error %}
+<div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ flash_error }}</div>
+{% endif %}
+
+{% if is_owner %}
+<details id="owners" class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+  <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">
+    {{ _("Co-owners") }} <span class="font-normal text-gray-400">· {{ procedure.owners|length }}</span>
+  </summary>
+  <div class="px-4 pb-4 space-y-3">
+    <p class="text-xs text-gray-400">{{ _("Every co-owner can change the procedure, including who its co-owners are.") }}</p>
+    <ul class="divide-y divide-gray-100 text-sm">
+      {% for o in procedure.owners %}
+      <li class="flex items-center gap-3 py-1.5">
+        <span class="flex-1">{{ o.user.display_name }} <span class="text-gray-400 text-xs">{{ o.user.username }}</span></span>
+        {% if procedure.owners|length > 1 %}
+        <form method="post" action="/procedures/{{ procedure.id }}/owners/{{ o.user_id }}/delete" class="inline">
+          <button class="text-xs text-red-500 hover:underline">{{ _("Remove") }}</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if owner_candidates %}
+    <form method="post" action="/procedures/{{ procedure.id }}/owners" class="flex items-center gap-2">
+      <select name="user_id" required class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+        <option value="">{{ _("Add a co-owner…") }}</option>
+        {% for u in owner_candidates %}<option value="{{ u.id }}">{{ u.display_name }} ({{ u.username }})</option>{% endfor %}
+      </select>
+      <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Add") }}</button>
+    </form>
+    {% endif %}
+  </div>
+</details>
+{% endif %}
+
+<section id="text" class="mb-8 bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
+  {% if procedure.text %}
+  <div class="markdown text-sm text-gray-800">{{ procedure.text|markdown }}</div>
+  {% else %}
+  <p class="text-sm text-gray-400">{{ _("Nothing written yet.") }}</p>
+  {% endif %}
+</section>
+
+{% if photos or files %}
+<section class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("Photos and files") }}</h2>
+  {% if photos %}
+  <div class="flex flex-wrap gap-2 mb-2">
+    {% for att in photos %}
+    <div class="relative group">
+      <a href="/files/{{ att.id }}" target="_blank" title="{{ att.original_filename }}">
+        <img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" loading="lazy"
+             class="h-28 w-28 object-cover rounded-lg border border-gray-200 hover:opacity-90">
+      </a>
+      {% if is_owner %}
+      <form method="post" action="/files/{{ att.id }}/delete" class="absolute top-1 right-1 hidden group-hover:block"
+            onsubmit='return confirm({{ _("Remove this photo?")|tojson }})'>
+        <button class="w-6 h-6 rounded-full bg-black/60 text-white text-sm leading-none hover:bg-red-600" title="{{ _("Remove photo") }}">×</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if files %}
+  <div class="flex flex-wrap gap-2">
+    {% for att in files %}
+    <span class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
+      <a href="/files/{{ att.id }}" class="text-blue-600 hover:underline">{{ att.original_filename }}</a>
+      {% if is_owner %}
+      <form method="post" action="/files/{{ att.id }}/delete" class="inline"
+            onsubmit='return confirm({{ _("Remove {name}?", name=att.original_filename)|tojson }})'>
+        <button class="text-gray-300 hover:text-red-400 ml-1" title="{{ _("Remove") }}">×</button>
+      </form>
+      {% endif %}
+    </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+<section id="uses" class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("Followed in") }} · {{ uses|length }}</h2>
+  {% if uses %}
+  <ul class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100 text-sm">
+    {% for u in uses %}
+    <li class="px-4 py-2 flex items-center gap-3">
+      <a href="/samples/{{ u.sample.id }}#{{ u.kind }}-{{ u.id }}" class="font-mono text-blue-600 hover:underline">{{ u.sample.title }}</a>
+      <span class="text-gray-700">{{ u.type }}</span>
+      <span class="text-gray-400 text-xs">{{ u.date.isoformat() if u.date else '' }}{% if u.planned %} · {{ _("Planned") }}{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="text-xs text-gray-400 mt-1">{{ _("Only the samples you can see are listed.") }}</p>
+  {% else %}
+  <p class="text-sm text-gray-400">{{ _("No step or analysis you can see says it followed this procedure yet. Choose it under Procedure followed on the step or analysis form.") }}</p>
+  {% endif %}
+</section>
+{% endblock %}

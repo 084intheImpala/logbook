@@ -8,7 +8,7 @@
   changes also go in the README's data model / `sample.json` table (bump `FORMAT` in `backend/sample_backup.py`).
 - Every user-visible string is translated: English in the code/templates, Portuguese in `backend/translations/`.
   In templates, don't put `"` inside a `_("...")` string.
-- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0021`).
+- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0022`).
 - Add tests in `tests/` for new behaviour. They run on a throwaway SQLite DB; never touch the real DB or `uploads/`.
   This machine isn't the DB host: say what needs running there (e.g. migrations).
 - Each new feature gets its own branch, always branched from `main`; commit on that branch. Only commit when asked.
@@ -61,5 +61,11 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   visibility personal/team/public over the co-owners' teams. The sample page has a Studies row; `sample.json` lists them.
   Printable (`/studies/{id}/print`, `studies/print.html`, data from `studies._page`); `study.json` in the study's
   folder (`utils.study_folder`, written by `sample_backup._write_studies`).
+- **Procedures** (`routers/procedures.py`, `procedures.py`, `models.Procedure`): how someone does a technique
+  (`text` in Markdown, rendered by `markdown.py` with the `|markdown` filter, raw HTML off; files as
+  `Attachment.entity_type` `procedure`), for a step or analysis type
+  or general; co-owners and visibility as studies (shared helpers `auth.is_co_owner` / `auth.can_view_shared`).
+  Steps and analyses have `procedure_id` ("Procedure followed" on the entry form, filtered by type in JS);
+  printable page; `procedure.json` in `uploads/procedures/<id>-<title>/`; `sample.json` entries name it.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).

@@ -50,6 +50,23 @@
       </select>
     </div>
 
+    <!-- Procedure followed: the chosen type's, and general ones -->
+    <div id="procedure-field">
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Procedure followed") }}</label>
+      <div class="flex items-center gap-3">
+        <select id="procedure-select" name="procedure_id" class="{{ input_cls }} bg-white">
+          <option value="">— {{ _("none recorded") }} —</option>
+          {% for p in procedures %}
+          <option value="{{ p.id }}" data-type="{{ p.type_id or '' }}" {% if entry and entry.procedure_id == p.id %}selected{% endif %}>
+            {{ p.title }} ({{ p.owners|map(attribute="user")|map(attribute="display_name")|join(", ") }})
+          </option>
+          {% endfor %}
+        </select>
+        <a id="procedure-new" href="/procedures/new" target="_blank" class="shrink-0 text-xs text-blue-600 hover:underline">+ {{ _("New procedure") }}</a>
+      </div>
+      <p class="text-xs text-gray-400 mt-1">{{ _("How it was done, from the Procedures tab: yours and the ones shared with you, for this type.") }}</p>
+    </div>
+
     {% if devices %}
     <!-- Device -->
     <div>
@@ -270,6 +287,22 @@
   form.addEventListener('change', e => {
     if (e.target.classList.contains('variant-select') || e.target.classList.contains('check-toggle')) sync();
   });
+
+  // "Procedure followed" offers the chosen type's procedures and general ones;
+  // one that no longer fits the type is unselected. "New procedure" starts one for the type.
+  const procedureSelect = document.getElementById('procedure-select');
+  function filterProcedures() {
+    [...procedureSelect.options].forEach(option => {
+      if (!option.value) return;
+      const fits = !option.dataset.type || option.dataset.type === typeSelect.value;
+      option.hidden = !fits;
+      if (!fits && option.selected) procedureSelect.value = '';
+    });
+    document.getElementById('procedure-new').href =
+      '/procedures/new' + (typeSelect.value ? '?technique={{ kind }}:' + typeSelect.value : '');
+  }
+  typeSelect.addEventListener('change', filterProcedures);
+  filterProcedures();
 
   // Equipment belongs to a place: its dropdown only offers what's at the
   // place chosen under Where (plus equipment with no place set), and, next to
