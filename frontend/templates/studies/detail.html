@@ -48,7 +48,7 @@
       · {{ _(visibilities[study.visibility]) if study.visibility in visibilities else study.visibility }}
       · {{ _("since {date}", date=study.created_at.strftime('%Y-%m-%d')) }}
     </div>
-    {% if study.description %}<p class="mt-2 text-sm text-gray-700 max-w-3xl whitespace-pre-line">{{ study.description }}</p>{% endif %}
+    {% if study.description %}<p class="mt-2 text-sm text-gray-700 max-w-3xl whitespace-pre-line break-words">{{ study.description }}</p>{% endif %}
   </div>
   <div class="flex gap-2 shrink-0">
     <a href="/studies/{{ study.id }}/print" target="_blank"
@@ -196,7 +196,7 @@
   <ul class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
     {% for r in references %}
     <li id="reference-{{ r.id }}" class="px-4 py-3 text-sm flex items-start gap-3">
-      <div class="flex-1 min-w-0">
+      <div class="flex-1 min-w-0 break-words">
         <a href="{{ r.link }}" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">{{ r.title or r.doi or r.url }}</a>
         {% if r.authors or r.journal or r.year %}
         <div class="text-xs text-gray-600">{{ [r.authors, r.journal, r.year]|select|join(" · ") }}</div>
@@ -244,7 +244,7 @@
     {% for row in notes %}{% set n = row.note %}
     <article id="note-{{ n.id }}" class="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
       <div class="flex items-start gap-3">
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 break-words">
           <div class="text-xs text-gray-400">
             {{ n.noted_on.isoformat() if n.noted_on else _("no date") }}{% if n.author %} · {{ n.author.display_name }}{% endif %}
           </div>
