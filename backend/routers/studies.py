@@ -12,17 +12,15 @@ from backend.auth import can_view, require_login
 from backend.config import settings
 from backend.database import get_db
 from backend.i18n import t
-from backend.models import (VISIBILITY, Attachment, ProcessStep, Sample, Study, StudyNote, StudyOwner, StudyReference, StudySample, User)
+from backend.models import (DEFAULT_STUDY_STATUS, STUDY_STATUS, VISIBILITY, Attachment, ProcessStep, Sample, Study, StudyNote, StudyOwner, StudyReference, StudySample, User)
 from backend.lineage import Family, load_samples_full_by_id, own_items
 from backend.params import parse_date
-from backend.studies import (can_view_study, is_study_owner, load_study, move_note, ordered_notes, place_note,
-                             visible_studies)
+from backend.studies import (NOTE_FILES, REFERENCE_FILES, can_view_study, is_study_owner, load_study, move_note,
+                             ordered_notes, place_note, visible_studies)
 from backend.templating import templates
 from backend.utils import chosen_files, delete_attachment, save_upload
 
 router = APIRouter(prefix="/studies", tags=["studies"])
-
-NOTE_FILES = "study_note"   # Attachment.entity_type of a note's files
 
 
 def _back(study: Study, anchor: str = "") -> RedirectResponse:
@@ -173,15 +171,19 @@ async def _addable_samples(db: AsyncSession, user: User, study: Study) -> list[S
 # ── List, new, edit, delete ──────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)
-async def list_studies(request: Request, db: AsyncSession = Depends(get_db),
+async def list_studies(request: Request, status: str = "", db: AsyncSession = Depends(get_db),
                        current_user: User = Depends(require_login)):
-    studies = await visible_studies(db, current_user)
+    """The studies the user can see, all or only those with one status (?status=)."""
+    every = await visible_studies(db, current_user)
+    status = status if status in STUDY_STATUS else ""
+    studies = [s for s in every if s.status == status] if status else every
     return templates.TemplateResponse("studies/list.html", {
-        "request": request, "current_user": current_user, "studies": studies,
+        "request": request, "current_user": current_user, "studies": studies, "status": status,
+        "status_counts": {k: sum(s.status == k for s in every) for k in STUDY_STATUS}, "total": len(every),
         "sample_counts": {s.id: sum(can_view(current_user, l.sample) for l in s.sample_links) for s in studies},
         "note_counts": dict((await db.execute(
             select(StudyNote.study_id, func.count()).group_by(StudyNote.study_id))).all()),
-        "visibilities": VISIBILITY,
+        "visibilities": VISIBILITY, "statuses": STUDY_STATUS,
         "flash": request.session.pop("flash", None),
     })
 
@@ -189,7 +191,7 @@ async def list_studies(request: Request, db: AsyncSession = Depends(get_db),
 def _form(request, current_user, study, error=None, status_code=200):
     return templates.TemplateResponse("studies/form.html", {
         "request": request, "current_user": current_user, "study": study, "error": error,
-        "visibilities": VISIBILITY,
+        "visibilities": VISIBILITY, "statuses": STUDY_STATUS,
     }, status_code=status_code)
 
 
@@ -200,10 +202,11 @@ async def new_study_form(request: Request, current_user: User = Depends(require_
 
 @router.post("/new")
 async def create_study(request: Request, title: str = Form(...), description: str = Form(""),
-                       visibility: str = Form("team"), db: AsyncSession = Depends(get_db),
-                       current_user: User = Depends(require_login)):
+                       visibility: str = Form("team"), status: str = Form(DEFAULT_STUDY_STATUS),
+                       db: AsyncSession = Depends(get_db), current_user: User = Depends(require_login)):
     study = Study(title=title.strip(), description=description.strip() or None, created_by_id=current_user.id,
-                  visibility=visibility if visibility in VISIBILITY else "team")
+                  visibility=visibility if visibility in VISIBILITY else "team",
+                  status=status if status in STUDY_STATUS else DEFAULT_STUDY_STATUS)
     if not study.title:
         return _form(request, current_user, study, t(request, "The study needs a title."), status_code=400)
     study.owners = [StudyOwner(user_id=current_user.id)]
@@ -220,7 +223,7 @@ async def edit_study_form(request: Request, study_id: int, db: AsyncSession = De
 
 @router.post("/{study_id}/edit")
 async def update_study(request: Request, study_id: int, title: str = Form(...), description: str = Form(""),
-                       visibility: str = Form("team"), db: AsyncSession = Depends(get_db),
+                       visibility: str = Form("team"), status: str = Form(""), db: AsyncSession = Depends(get_db),
                        current_user: User = Depends(require_login)):
     study = await load_study(db, study_id, current_user, "owner")
     if not title.strip():
@@ -228,6 +231,20 @@ async def update_study(request: Request, study_id: int, title: str = Form(...), 
     study.title, study.description = title.strip(), description.strip() or None
     if visibility in VISIBILITY:
         study.visibility = visibility
+    if status in STUDY_STATUS:
+        study.status = status
+    await db.commit()
+    return _back(study)
+
+
+@router.post("/{study_id}/status")
+async def set_status(study_id: int, status: str = Form(...), db: AsyncSession = Depends(get_db),
+                     current_user: User = Depends(require_login)):
+    """To do / ongoing / concluded, from the study's page."""
+    study = await load_study(db, study_id, current_user, "owner")
+    if status not in STUDY_STATUS:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    study.status = status
     await db.commit()
     return _back(study)
 
@@ -236,11 +253,12 @@ async def update_study(request: Request, study_id: int, title: str = Form(...), 
 async def delete_study(request: Request, study_id: int, db: AsyncSession = Depends(get_db),
                        current_user: User = Depends(require_login)):
     study = await load_study(db, study_id, current_user, "owner")
-    note_ids = (await db.execute(select(StudyNote.id).where(StudyNote.study_id == study_id))).scalars().all()
-    if note_ids:
-        for attachment in (await db.execute(select(Attachment).where(
-                Attachment.entity_type == NOTE_FILES, Attachment.entity_id.in_(note_ids)))).scalars().all():
-            await delete_attachment(attachment, db)
+    for kind, model in ((NOTE_FILES, StudyNote), (REFERENCE_FILES, StudyReference)):
+        ids = (await db.execute(select(model.id).where(model.study_id == study_id))).scalars().all()
+        if ids:
+            for attachment in (await db.execute(select(Attachment).where(
+                    Attachment.entity_type == kind, Attachment.entity_id.in_(ids)))).scalars().all():
+                await delete_attachment(attachment, db)
     title = study.title
     await db.delete(study)
     await db.commit()
@@ -264,6 +282,12 @@ async def _page(request: Request, db: AsyncSession, study_id: int, current_user:
                 .order_by(Attachment.uploaded_at))).scalars():
             attachments[a.entity_id].append(a)
     references = await _references(db, study_id)
+    reference_files: dict[int, list[Attachment]] = {r.id: [] for r in references}
+    if references:
+        for a in (await db.execute(select(Attachment).where(
+                Attachment.entity_type == REFERENCE_FILES, Attachment.entity_id.in_(list(reference_files)))
+                .order_by(Attachment.uploaded_at))).scalars():
+            reference_files[a.entity_id].append(a)
     about = dict(entries)
     for r in references:
         about[f"reference:{r.id}"] = {"label": "📄 " + _reference_label(r), "url": f"#reference-{r.id}"}
@@ -285,11 +309,11 @@ async def _page(request: Request, db: AsyncSession, study_id: int, current_user:
         "request": request, "current_user": current_user, "study": study, "is_owner": owner,
         "samples": samples, "hidden_samples": len(study.sample_links) - len(samples),
         "addable": await _addable_samples(db, current_user, study) if owner else [],
-        "references": references, "notes_on": notes_on,
+        "references": references, "notes_on": notes_on, "reference_files": reference_files,
         "notes": note_rows, "entries": entries, "today": date.today(),
         "owner_candidates": [u for u in (await db.execute(
             select(User).order_by(User.name, User.username))).scalars() if u.id not in taken] if owner else [],
-        "visibilities": VISIBILITY,
+        "visibilities": VISIBILITY, "statuses": STUDY_STATUS,
     }
 
 
@@ -407,9 +431,10 @@ async def remove_sample(study_id: int, sample_id: int, db: AsyncSession = Depend
 
 @router.post("/{study_id}/references")
 async def add_reference(request: Request, study_id: int, link: str = Form(...), title: str = Form(""),
-                        note: str = Form(""), db: AsyncSession = Depends(get_db),
-                        current_user: User = Depends(require_login)):
-    """Anyone who can see the study may add a paper (DOI) or link to it."""
+                        note: str = Form(""), files: list[UploadFile | str] = File([]),
+                        db: AsyncSession = Depends(get_db), current_user: User = Depends(require_login)):
+    """Anyone who can see the study may add a paper (DOI) or link to it, with
+    files (e.g. the PDF with their highlights)."""
     study = await load_study(db, study_id, current_user)
     doi, url = doi_lookup.parse(link)
     if not doi and not url:
@@ -426,6 +451,8 @@ async def add_reference(request: Request, study_id: int, link: str = Form(...), 
             request.session["flash_error"] = t(
                 request, "Couldn't look up {doi}; the reference was added without its title.", doi=doi)
     db.add(ref)
+    await db.flush()
+    await _save_files(db, current_user, REFERENCE_FILES, ref.id, [], files)
     await db.commit()
     return _back(study, f"#reference-{ref.id}")
 
@@ -444,10 +471,10 @@ async def _own_reference(db: AsyncSession, user: User, study_id: int, reference_
 @router.post("/{study_id}/references/{reference_id}/edit")
 async def update_reference(request: Request, study_id: int, reference_id: int, link: str = Form(...),
                            title: str = Form(""), authors: str = Form(""), journal: str = Form(""),
-                           year: str = Form(""), note: str = Form(""), db: AsyncSession = Depends(get_db),
-                           current_user: User = Depends(require_login)):
+                           year: str = Form(""), note: str = Form(""), files: list[UploadFile | str] = File([]),
+                           db: AsyncSession = Depends(get_db), current_user: User = Depends(require_login)):
     """Change a reference: its details as typed, or another DOI (looked up,
-    filling what was left empty)."""
+    filling what was left empty); add files to it."""
     study, ref = await _own_reference(db, current_user, study_id, reference_id)
     doi, url = doi_lookup.parse(link)
     if not doi and not url:
@@ -465,6 +492,7 @@ async def update_reference(request: Request, study_id: int, reference_id: int, l
             ref.journal, ref.year = ref.journal or paper.journal, ref.year or paper.year
         else:
             request.session["flash_error"] = t(request, "Couldn't look up {doi}.", doi=doi)
+    await _save_files(db, current_user, REFERENCE_FILES, ref.id, [], files)
     await db.commit()
     return _back(study, f"#reference-{ref.id}")
 
@@ -475,6 +503,9 @@ async def delete_reference(study_id: int, reference_id: int, db: AsyncSession = 
     study, ref = await _own_reference(db, current_user, study_id, reference_id)
     for n in (await db.execute(select(StudyNote).where(StudyNote.reference_id == ref.id))).scalars():
         n.reference_id = None     # the notes about it stay, about the study as a whole
+    for attachment in (await db.execute(select(Attachment).where(
+            Attachment.entity_type == REFERENCE_FILES, Attachment.entity_id == ref.id))).scalars().all():
+        await delete_attachment(attachment, db)
     await db.delete(ref)
     await db.commit()
     return _back(study, "#references")
@@ -482,15 +513,16 @@ async def delete_reference(study_id: int, reference_id: int, db: AsyncSession = 
 
 # ── Notes ────────────────────────────────────────────────────────────────────
 
-async def _save_files(db, current_user, note: StudyNote, photos, files):
+async def _save_files(db, current_user, entity_type: str, entity_id: int, photos, files):
+    """Save a note's (or a reference's) photos and files."""
     photos, files = chosen_files(photos), chosen_files(files)
     for f in photos + files:
         if f.size is not None and f.size > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
             raise HTTPException(status_code=413, detail=f"{f.filename} exceeds the {settings.MAX_UPLOAD_SIZE_MB} MB limit")
     for f in photos:
-        await save_upload(f, NOTE_FILES, note.id, db, uploaded_by=current_user.username, photo=True)
+        await save_upload(f, entity_type, entity_id, db, uploaded_by=current_user.username, photo=True)
     for f in files:
-        await save_upload(f, NOTE_FILES, note.id, db, uploaded_by=current_user.username)
+        await save_upload(f, entity_type, entity_id, db, uploaded_by=current_user.username)
 
 
 @router.post("/{study_id}/notes")
@@ -508,7 +540,7 @@ async def add_note(request: Request, study_id: int, noted_on: str = Form(""), ti
     db.add(note)
     await db.flush()
     await place_note(db, note)
-    await _save_files(db, current_user, note, photos, files)
+    await _save_files(db, current_user, NOTE_FILES, note.id, photos, files)
     await db.commit()
     return _back(study, f"#note-{note.id}")
 
@@ -540,7 +572,7 @@ async def update_note(request: Request, study_id: int, note_id: int, noted_on: s
     await _set_about(request, db, current_user, study, note, about)
     if redate:
         await place_note(db, note)
-    await _save_files(db, current_user, note, photos, files)
+    await _save_files(db, current_user, NOTE_FILES, note.id, photos, files)
     await db.commit()
     return _back(study, f"#note-{note.id}")
 

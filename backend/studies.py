@@ -17,6 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth import can_view_shared, is_co_owner
 from backend.models import Study, StudyNote, StudyOwner, StudySample, User
 
+NOTE_FILES = "study_note"            # Attachment.entity_type of a note's files
+REFERENCE_FILES = "study_reference"  # ... and of a reference's (e.g. the PDF with your highlights)
+
 
 def is_study_owner(user: User | None, study: Study) -> bool:
     return is_co_owner(user, study)

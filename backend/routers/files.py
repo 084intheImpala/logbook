@@ -1,18 +1,19 @@
 """Uploaded files. Attachments hang off a step, an analysis, a sample (e.g. a
-commercial sample's spec sheet), a library substrate, a study's note or a procedure, and
-follow that owner's access rules. (Notes' and procedures' files are added in their own routers.)"""
+commercial sample's spec sheet), a library substrate, a study's note or reference, or a
+procedure, and follow that owner's access rules. (Studies' and procedures' files are added in
+their own routers.)"""
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from backend.database import get_db
-from backend.models import Attachment, ProcessStep, Analysis, StudyNote, Substrate, User
+from backend.models import Attachment, ProcessStep, Analysis, StudyNote, StudyReference, Substrate, User
 from backend.config import settings
 from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry
 from backend.lineage import can_view_entry
 from backend.routers.substrates import can_edit_substrate
-from backend.studies import load_study
+from backend.studies import NOTE_FILES, REFERENCE_FILES, is_study_owner, load_study
 from backend.procedures import FILES as PROCEDURE_FILES, load_procedure
 from backend.utils import save_upload, delete_attachment, chosen_files, ensure_thumbnail
 
@@ -46,6 +47,13 @@ async def _note_study_id(db: AsyncSession, note_id: int) -> int:
     if study_id is None:
         raise HTTPException(status_code=404, detail="Note not found")
     return study_id
+
+
+async def _reference(db: AsyncSession, reference_id: int) -> StudyReference:
+    ref = await db.get(StudyReference, reference_id)
+    if ref is None:
+        raise HTTPException(status_code=404, detail="Reference not found")
+    return ref
 
 
 async def _substrate(db: AsyncSession, substrate_id: int) -> Substrate:
@@ -92,8 +100,11 @@ async def _readable_attachment(db: AsyncSession, attachment_id: int, user: User)
     if attachment.entity_type == "substrate":
         await _substrate(db, attachment.entity_id)   # library specs are visible to everyone
         return attachment
-    if attachment.entity_type == "study_note":
+    if attachment.entity_type == NOTE_FILES:
         await load_study(db, await _note_study_id(db, attachment.entity_id), user)
+        return attachment
+    if attachment.entity_type == REFERENCE_FILES:
+        await load_study(db, (await _reference(db, attachment.entity_id)).study_id, user)
         return attachment
     if attachment.entity_type == PROCEDURE_FILES:
         await load_procedure(db, attachment.entity_id, user)
@@ -153,9 +164,15 @@ async def delete_file(attachment_id: int, db: AsyncSession = Depends(get_db),
         if not can_edit_substrate(current_user, substrate):
             raise HTTPException(status_code=403, detail="You can't change this substrate's files.")
         back = f"/substrates/{substrate.id}"
-    elif attachment.entity_type == "study_note":
+    elif attachment.entity_type == NOTE_FILES:
         study = await load_study(db, await _note_study_id(db, attachment.entity_id), current_user, "owner")
         back = f"/studies/{study.id}#note-{attachment.entity_id}"
+    elif attachment.entity_type == REFERENCE_FILES:   # as for changing the reference
+        ref = await _reference(db, attachment.entity_id)
+        study = await load_study(db, ref.study_id, current_user)
+        if not (is_study_owner(current_user, study) or ref.added_by_id == current_user.id):
+            raise HTTPException(status_code=403, detail="Only the co-owners, or whoever added it, can change it.")
+        back = f"/studies/{study.id}#reference-{ref.id}"
     elif attachment.entity_type == PROCEDURE_FILES:
         procedure = await load_procedure(db, attachment.entity_id, current_user, "owner")
         back = f"/procedures/{procedure.id}"

@@ -26,7 +26,7 @@
         <ul class="max-h-80 overflow-y-auto divide-y divide-gray-100">
           {% for r in references %}
           <li><button type="button" class="reference-insert w-full text-left px-2 py-1 hover:bg-blue-50"
-                      data-label="{{ (r.title or r.doi or r.url)|truncate(70, True, '…') }}{% if r.year %} ({{ r.year }}){% endif %}" data-url="{{ r.link }}">
+                      data-label="{{ (r.title or r.doi or r.url)|truncate(70, True, '…') }}{% if r.year %} ({{ r.year }}){% endif %}" data-url="/studies/{{ study.id }}#reference-{{ r.id }}">
             📄 {{ r.title or r.doi or r.url }}{% if r.year %} <span class="text-gray-400">({{ r.year }})</span>{% endif %}</button></li>
           {% endfor %}
           {% for key, e in entries.items() %}

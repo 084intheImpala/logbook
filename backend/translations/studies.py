@@ -54,6 +54,14 @@ PT = {
     "{code} added to the study '{title}'.": "{code} adicionada ao estudo '{title}'.",
     "Add to a study…": "Adicionar a um estudo…",
 
+    # Status
+    "Status": "Estado",
+    "To do": "Por fazer",
+    "Ongoing": "Em curso",
+    "Concluded": "Concluído",
+    "All studies": "Todos os estudos",
+    "No studies with this status.": "Não há estudos com este estado.",
+
     # References
     "References": "Referências",
     "Add a paper or link": "Adicionar um artigo ou link",
@@ -70,6 +78,8 @@ PT = {
     "Authors": "Autores",
     "Journal": "Revista",
     "Notes about it": "Notas sobre ela",
+    "Files, e.g. the PDF with your highlights": "Ficheiros, ex.: o PDF com os seus sublinhados",
+    "Add files, e.g. the PDF with your highlights": "Adicionar ficheiros, ex.: o PDF com os seus sublinhados",
     "Couldn't look up {doi}.": "Não foi possível procurar {doi}.",
     "Couldn't look up {doi}; the reference was added without its title.":
         "Não foi possível procurar {doi}; a referência foi adicionada sem título.",

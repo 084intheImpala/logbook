@@ -507,7 +507,9 @@ inherited entries, and the CSV marks those rows in `inherited_from`.
 The **Studies** tab (`/studies`, `routers/studies.py`, permissions in
 `backend/studies.py`) is for work that spans several samples: an annealing
 series, a contact-metal comparison, a collaboration's batch. A study has a
-title, a description and three parts:
+title, a description, a **status** (*To do*, *Ongoing*, the default, or
+*Concluded*: set on its form, or by co-owners from the list next to its title;
+the Studies list shows it and filters by it) and three parts:
 
 - **Samples.** **+ Add samples** on the study's page lists every sample you
   can see that isn't in the study yet; type in its box to narrow the list
@@ -526,7 +528,10 @@ title, a description and three parts:
   reference**; co-owners and whoever added it can **Edit** it (DOI or link,
   title, authors, journal, year, and the note, e.g. to add to it after
   reading the paper; a new DOI is looked up, filling only what was left
-  empty) or remove it. A reference lists the notes that are about it.
+  empty) or remove it. A reference can have **files**, e.g. the PDF with your
+  highlights (added with it or under *Edit*; anyone who sees the study can
+  open them, and the people who can edit the reference can remove them; stored
+  with the notes' files). A reference lists the notes that are about it.
 - **Notes.** Dated notes for literature, thoughts and plans, with an
   optional title, photos and files. They are ordered like a timeline: a new
   or re-dated note goes after the others of its day, and ↑/↓ move it. A note
@@ -536,11 +541,12 @@ title, a description and three parts:
   steps and analyses; a piece that is itself in the study also offers the
   steps it inherited from the sample it was cut from. The text is Markdown,
   as in procedures (`backend/markdown.py`); **🔗 Insert reference** above it
-  puts a link at the cursor to one of the study's papers, or to any of the
+  puts a link at the cursor to one of the study's references (to its entry in
+  the study, with your note and files, not to the paper's website), or to any of the
   samples, pieces, steps and analyses the *About* list offers (searchable,
   e.g. `[TST-2026-001-A · Annealing](/samples/12#step-34)`). What concerns a single step (its parameters,
-  results, files) still belongs on the step. Note files are stored under
-  `uploads/studies/<id>-<title>/`.
+  results, files) still belongs on the step. Note and reference files are
+  stored under `uploads/studies/<id>-<title>/`.
 
 **Co-owners.** Whoever creates a study is its first co-owner and can add
 others (any user with an account). Every co-owner, and admins, can change
@@ -549,7 +555,7 @@ one. **Who can see it** works as for samples: *Personal*, only its
 co-owners; *Team*, also everyone in a co-owner's team (the default);
 *Public*, everyone logged in. The tables are `studies`, `study_owners`,
 `study_samples`, `study_references` and `study_notes` (migration `0020`;
-`study_notes.reference_id`, migration `0022`).
+`study_notes.reference_id`, migration `0022`; `studies.status`, migration `0023`).
 
 **Printing.** **🖨 Print / PDF** on a study's page opens it laid out for A4
 (`/studies/{id}/print`, `studies/print.html`), like a sample's printable
@@ -561,11 +567,11 @@ printout lists the studies it is in.
 **`study.json`.** Next to its notes' files, `uploads/studies/<id>-<title>/`
 (named when the study is created, and kept if it's renamed) has a
 `study.json`, written like `sample.json`: after every change and for every
-study at start-up. Keys: `format` (currently 2), `written_at`, `id`, `title`,
-`description`, `visibility`, `created_at`, `created_by`, `owners`
+study at start-up. Keys: `format` (currently 3), `written_at`, `id`, `title`,
+`description`, `visibility`, `status` (`todo`, `ongoing` or `concluded`), `created_at`, `created_by`, `owners`
 (`{username, name, initials}`), `samples` (`{id, code, label, added_at}`),
 `references` (`id`, `doi`, `url`, `title`, `authors`, `journal`, `year`, `note`,
-`added_by`, `created_at`) and `notes`, in order (`id`, `position`, `noted_on`,
+`added_by`, `created_at`, `files` as in `sample.json`) and `notes`, in order (`id`, `position`, `noted_on`,
 `title`, `text`, `author`, `created_at`, `files` as in `sample.json`, and
 `about`: `null`, `{kind: "reference", id}` (a reference's `id` in
 `references`), or `{sample, sample_id, kind, id}` where `kind` is `sample`,

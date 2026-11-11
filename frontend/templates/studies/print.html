@@ -96,6 +96,7 @@
 
   <dl class="facts">
     <dt>{{ _("Co-owners") }}</dt><dd>{{ study.owners|map(attribute="user")|map(attribute="display_name")|join(", ") }}</dd>
+    <dt>{{ _("Status") }}</dt><dd>{{ _(statuses[study.status]) if study.status in statuses else study.status }}</dd>
     <dt>{{ _("Visibility") }}</dt><dd>{{ _(visibilities[study.visibility]) if study.visibility in visibilities else study.visibility }}
       <span class="muted">· {{ _("since {date}", date=study.created_at.strftime('%Y-%m-%d')) }}</span></dd>
   </dl>
@@ -129,6 +130,7 @@
       {%- if r.journal %}. <i>{{ r.journal }}</i>{% endif %}{% if r.year %} ({{ r.year }}){% endif %}.
       <span class="mono small">{% if r.doi %}doi:{{ r.doi }}{% else %}{{ r.url }}{% endif %}</span>
       {% if r.note %}<div class="ref-note">{{ r.note }}</div>{% endif %}
+      {% if reference_files[r.id] %}<div class="small muted">{{ _("Files") }}: {{ reference_files[r.id]|map(attribute="original_filename")|join(", ") }}</div>{% endif %}
     </li>
     {% endfor %}
   </ol>

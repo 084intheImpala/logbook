@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ study.title }} — Logbook{% endblock %}
 {% block content %}
+{% from "studies/_status.html" import status_badge with context %}
 {% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %}
 {% macro attachment_list(photos, files, editable) %}
 {% if photos %}
@@ -42,7 +43,22 @@
 <div class="flex items-start justify-between mb-6">
   <div>
     <div class="text-xs text-gray-400 mb-1"><a href="/studies/" class="hover:underline">{{ _("Studies") }}</a> /</div>
-    <h1 class="text-2xl font-bold text-gray-900">{{ study.title }}</h1>
+    <div class="flex flex-wrap items-center gap-3">
+      <h1 class="text-2xl font-bold text-gray-900">{{ study.title }}</h1>
+      {% if is_owner %}
+      <form method="post" action="/studies/{{ study.id }}/status" class="study-status">
+        <select name="status" onchange="this.form.submit()" title="{{ _("Status") }}"
+                class="border border-gray-300 rounded-full px-2 py-0.5 text-xs bg-white">
+          {% for value, label in statuses.items() %}
+          <option value="{{ value }}" {% if study.status == value %}selected{% endif %}>{{ _(label) }}</option>
+          {% endfor %}
+        </select>
+        <noscript><button class="text-xs text-blue-600">{{ _("Save") }}</button></noscript>
+      </form>
+      {% else %}
+      {{ status_badge(study.status, statuses) }}
+      {% endif %}
+    </div>
     <div class="mt-1 text-sm text-gray-500">
       {{ _("Co-owners") }}: {{ study.owners|map(attribute="user")|map(attribute="display_name")|join(", ") }}
       · {{ _(visibilities[study.visibility]) if study.visibility in visibilities else study.visibility }}
@@ -194,7 +210,7 @@
   <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("References") }} · {{ references|length }}</h2>
   {% if references %}
   <ul class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
-    {% for r in references %}
+    {% for r in references %}{% set can_change = is_owner or r.added_by_id == current_user.id %}
     <li id="reference-{{ r.id }}" class="px-4 py-3 text-sm flex items-start gap-3">
       <div class="flex-1 min-w-0 break-words">
         <a href="{{ r.link }}" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">{{ r.title or r.doi or r.url }}</a>
@@ -203,16 +219,17 @@
         {% endif %}
         {% if r.doi %}<div class="text-xs text-gray-400 font-mono">doi:{{ r.doi }}</div>{% endif %}
         {% if r.note %}<p class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ r.note }}</p>{% endif %}
+        {{ attachment_list([], reference_files[r.id], can_change) }}
         {% if notes_on.get(r.id) %}
         <div class="text-xs mt-1">{{ _("Notes about it") }}:
           {% for n in notes_on[r.id] %}<a href="#note-{{ n.id }}" class="text-blue-600 hover:underline">{{ n.title or (n.noted_on.isoformat() if n.noted_on else _("no date")) }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
         </div>
         {% endif %}
         <div class="text-xs text-gray-400 mt-1">{{ _("Added by {name} on {date}", name=r.added_by.display_name if r.added_by else "—", date=r.created_at.strftime('%Y-%m-%d')) }}</div>
-        {% if is_owner or r.added_by_id == current_user.id %}
+        {% if can_change %}
         <details class="reference-edit mt-2">
           <summary class="list-none cursor-pointer text-xs text-gray-500 hover:underline">{{ _("Edit") }}</summary>
-          <form method="post" action="/studies/{{ study.id }}/references/{{ r.id }}/edit" class="mt-2 space-y-2">
+          <form method="post" action="/studies/{{ study.id }}/references/{{ r.id }}/edit" enctype="multipart/form-data" class="mt-2 space-y-2">
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("DOI or link") }} <span class="text-red-500">*</span></label>
               <input name="link" required value="{{ r.doi or r.url or '' }}" class="{{ input_cls }} font-mono">
@@ -239,12 +256,14 @@
               <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Why it's interesting") }}</label>
               <textarea name="note" rows="3" class="{{ input_cls }}">{{ r.note or '' }}</textarea>
             </div>
+            <label class="block text-xs text-gray-600">📎 {{ _("Add files, e.g. the PDF with your highlights") }}
+              <input type="file" name="files" multiple class="block text-xs mt-1"></label>
             <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-700">{{ _("Save") }}</button>
           </form>
         </details>
         {% endif %}
       </div>
-      {% if is_owner or r.added_by_id == current_user.id %}
+      {% if can_change %}
       <form method="post" action="/studies/{{ study.id }}/references/{{ r.id }}/delete"
             onsubmit='return confirm({{ _("Remove this reference?")|tojson }})'>
         <button class="text-xs text-red-500 hover:underline">{{ _("Remove") }}</button>
@@ -256,7 +275,7 @@
   {% endif %}
   <details class="mt-3 bg-white rounded-xl border border-gray-200 shadow-sm" {% if not references %}open{% endif %}>
     <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ _("Add a paper or link") }}</summary>
-    <form method="post" action="/studies/{{ study.id }}/references" class="px-4 pb-4 space-y-3">
+    <form method="post" action="/studies/{{ study.id }}/references" enctype="multipart/form-data" class="px-4 pb-4 space-y-3">
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("DOI or link") }} <span class="text-red-500">*</span></label>
         <input name="link" required class="{{ input_cls }} font-mono" placeholder="10.1063/5.0012345 {{ _("or") }} https://…">
@@ -270,6 +289,8 @@
         <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Why it's interesting") }}</label>
         <textarea name="note" rows="2" class="{{ input_cls }}"></textarea>
       </div>
+      <label class="block text-xs text-gray-600">📎 {{ _("Files, e.g. the PDF with your highlights") }}
+        <input type="file" name="files" multiple class="block text-xs mt-1"></label>
       <button class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add reference") }}</button>
     </form>
   </details>
