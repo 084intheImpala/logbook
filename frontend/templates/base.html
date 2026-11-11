@@ -20,6 +20,8 @@
   <style>
     [x-cloak] { display: none !important; }
     /* Text written in Markdown (procedures): Tailwind resets lists and headings */
+    /* Long links, DOIs and words wrap instead of widening the page */
+    .markdown { overflow-wrap: anywhere; }
     .markdown > * + * { margin-top: .5rem; }
     .markdown h1, .markdown h2, .markdown h3 { font-weight: 600; margin-top: 1rem; }
     .markdown h1 { font-size: 1.125rem; } .markdown h2 { font-size: 1rem; } .markdown h3 { font-size: .9rem; }
@@ -31,7 +33,7 @@
     .markdown pre { background: rgba(127,127,127,.12); padding: .5rem .75rem; border-radius: .375rem; overflow-x: auto; }
     .markdown img { max-width: 100%; max-height: 32rem; border-radius: .375rem; border: 1px solid rgba(127,127,127,.25); }
     .markdown blockquote { border-left: 3px solid rgba(127,127,127,.4); padding-left: .75rem; color: inherit; opacity: .85; }
-    .markdown table { border-collapse: collapse; }
+    .markdown table { border-collapse: collapse; display: block; max-width: 100%; overflow-x: auto; }
     .markdown th, .markdown td { border: 1px solid rgba(127,127,127,.35); padding: .25rem .5rem; text-align: left; }
     .step-badge { @apply inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold; }
 
@@ -248,7 +250,7 @@
     </script>
 
     <!-- Main content -->
-    <main class="ml-56 flex-1 p-8">
+    <main class="ml-56 flex-1 min-w-0 p-8">
       {% block content %}{% endblock %}
     </main>
   </div>

@@ -41,8 +41,11 @@
     ol.refs li { margin-bottom: 5px; break-inside: avoid; }
     .ref-title { font-weight: 600; }
     .ref-note { font-style: italic; color: #374151; white-space: pre-line; }
+    /* A long note may run over to the next page, but not split right after its heading */
     .note { border: 1px solid #d1d5db; border-left: 4px solid #7c3aed; border-radius: 4px;
-            padding: 5px 8px; margin: 0 0 6px; break-inside: avoid; }
+            padding: 5px 8px; margin: 0 0 6px; overflow-wrap: anywhere; }
+    .note-head { break-after: avoid; }
+    ol.refs, .description { overflow-wrap: anywhere; }
     .note-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
     .note-head .what { font-weight: 600; }
     .note-head .what .n { color: #9ca3af; font-weight: 400; margin-right: 4px; }
@@ -51,7 +54,10 @@
     .markdown p { margin: 3px 0; }
     .markdown ol, .markdown ul { margin: 3px 0; padding-left: 22px; }
     .markdown code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9pt; background: #f3f4f6; padding: 0 3px; border-radius: 2px; }
-    .markdown table { border-collapse: collapse; margin: 4px 0; }
+    .markdown table { border-collapse: collapse; margin: 4px 0; max-width: 100%; }
+    .markdown pre { white-space: pre-wrap; font-size: 8.5pt; }
+    .markdown img { max-width: 100%; max-height: 120mm; break-inside: avoid; }
+    .markdown .math.block { overflow: hidden; }
     .markdown th, .markdown td { border: 1px solid #d1d5db; padding: 2px 6px; text-align: left; }
     .markdown a { color: inherit; }
     .row { margin-top: 3px; }
