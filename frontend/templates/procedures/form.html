@@ -77,15 +77,15 @@ $$</td><td class="py-1">{{ _("an equation on its own line (\\$ for a plain dolla
         </details>
         <details id="figure-picker" class="relative ml-auto">
           <summary class="list-none cursor-pointer text-xs text-blue-600 border border-gray-300 rounded-lg px-2 py-1 hover:bg-gray-50">🖼 {{ _("Insert figure") }}</summary>
-          <div class="absolute right-0 z-10 mt-2 w-80 max-w-[90vw] bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs text-gray-700">
+          <div class="absolute right-0 z-10 mt-2 w-[40rem] max-w-[90vw] bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs text-gray-700">
             {% if figures %}
             <p class="text-gray-500 mb-2">{{ _("Click a photo to put it in the text where the cursor is.") }}</p>
-            <div class="grid grid-cols-3 gap-2 max-h-72 overflow-y-auto">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[32rem] overflow-y-auto">
               {% for att in figures %}
               <button type="button" class="figure-insert group text-left" data-id="{{ att.id }}"
                       data-name="{{ att.original_filename.rsplit('.', 1)[0] }}" title="{{ att.original_filename }}">
                 <img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" loading="lazy"
-                     class="h-20 w-full object-cover rounded border border-gray-200 group-hover:ring-2 group-hover:ring-blue-500">
+                     class="h-44 w-full object-contain bg-gray-50 rounded border border-gray-200 group-hover:ring-2 group-hover:ring-blue-500">
                 <span class="block truncate text-[11px] text-gray-500 mt-0.5">{{ att.original_filename }}</span>
               </button>
               {% endfor %}
