@@ -664,7 +664,9 @@ admin input, in three tiers:
 | **Coordinator** (of one team) | Has the **owner's rights on every sample owned by a member of their team**: view, edit, share, change visibility, delete, and hand to another member of the team (straight away, no confirmation). Answers proposals and access requests (below). On the **My team** page: adds people who have no team, removes members (not coordinators), creates accounts for new members (they join the team and get the usual welcome email) and resets members' passwords. |
 | **Member** | Their own samples, anything shared with them, what a sample's visibility shows them, and *proposing* entries on teammates' samples. |
 
-Admins manage teams under *Configurations → Teams*. **Send a message** (Configurations) emails everyone, one team's
+Admins manage teams under *Configurations → Teams*. When an admin creates an account
+(*Create new user*), they pick its **Team** and the new person is in it straight away (preselected when
+there is only one team; *— no team —* leaves them without one). **Send a message** (Configurations) emails everyone, one team's
 members or one person, each with their own copy; it needs email configured. People normally belong to
 one team; the data model allows several, and a coordinator's rights apply to
 each team they coordinate. Management actions (deleting or handing over

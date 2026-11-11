@@ -118,9 +118,18 @@
           <input name="email" type="email" required class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
                  placeholder="{{ _('credentials will be sent here') }}">
         </div>
-        <div class="col-span-2">
+        <div>
           <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Full name") }}</label>
           <input name="name" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">{{ _("Team") }}</label>
+          <select name="team_id" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white">
+            <option value="">{{ _("— no team —") }}</option>
+            {% for team in teams %}
+            <option value="{{ team.id }}" {% if teams|length == 1 %}selected{% endif %}>{{ team.name }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
       <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">

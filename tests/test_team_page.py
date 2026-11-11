@@ -119,3 +119,21 @@ def test_admin_message_can_go_to_a_team(world, monkeypatch):
     assert sorted(sent) == sorted([a.email, b.email]) and outsider.email not in sent
     assert admin.post("/admin/message", data={"to": "team:99999", "subject": "s", "body": "b"}).status_code == 404
     assert world.client(a).post("/admin/message", data={"to": f"team:{team.id}", "subject": "s", "body": "b"}).status_code == 403
+
+
+def test_an_admin_creates_an_account_straight_into_a_team(lab):
+    team, c = lab["team_b"], lab["clients"]["admin"]
+    assert 'name="team_id"' in c.get("/admin/").text
+    assert c.post("/admin/users/new", data={"username": "newcomer-b", "email": "newcomer-b@example.org",
+                                            "team_id": str(team.id)}).status_code == 303
+    assert c.post("/admin/users/new", data={"username": "newcomer-c", "email": "newcomer-c@example.org",
+                                            "team_id": ""}).status_code == 303
+    assert c.post("/admin/users/new", data={"username": "newcomer-d", "email": "newcomer-d@example.org",
+                                            "team_id": "999999"}).status_code == 404
+
+    async def find(name):
+        async with AsyncSessionLocal() as db:
+            return (await db.execute(select(User).where(User.username == name))).scalar_one_or_none()
+    members = memberships(team)
+    assert run(find("newcomer-b")).id in members and members[run(find("newcomer-b")).id] is False
+    assert run(find("newcomer-c")).id not in members and run(find("newcomer-d")) is None
