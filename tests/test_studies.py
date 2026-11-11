@@ -289,3 +289,167 @@ def test_the_printable_study(world):
 
     # The sample's own printout names its studies
     assert "Printed study" in client.get(f"/samples/{sample.id}/print").text
+
+
+def _cut(parent, suffix="A", owner=None, **extra):
+    """A Cut step at the end of the parent's timeline, and one piece."""
+    from sqlalchemy import select
+    from backend.database import AsyncSessionLocal
+    from backend.models import ProcessStep, ProcessStepType, Sample
+    from tests.loop import run
+
+    async def go():
+        async with AsyncSessionLocal() as db:
+            cut_type = (await db.execute(select(ProcessStepType.id).where(ProcessStepType.name == "Cut"))).scalar_one()
+            step = ProcessStep(sample_id=parent.id, step_type_id=cut_type, position=50)
+            db.add(step)
+            await db.flush()
+            piece = Sample(code=f"{parent.code}-{suffix}", owner_id=owner.id if owner else parent.owner_id,
+                           cut_step_id=step.id, **{"visibility": "personal"} | extra)
+            db.add(piece)
+            await db.commit()
+            return piece
+    return run(go())
+
+
+def test_several_samples_are_ticked_and_added_at_once(world):
+    owner, other = world.user("multi-owner"), world.user("multi-other")
+    client = world.client(owner)
+    study_id = _study(client)
+    first, second = world.sample(owner, label="Ni contact"), world.sample(owner, label="Pt contact", tags=["schottky"])
+    already, hidden = world.sample(owner), world.sample(other)
+    client.post(f"/studies/{study_id}/samples", data={"code": already.code})
+
+    # The list offers what can be added, searchable by name, tag and owner; not what's in or can't be seen
+    page = client.get(f"/studies/{study_id}").text
+    picker = page[page.index('id="sample-picker"'):page.index("</ul>", page.index('id="sample-picker"'))]
+    assert f'value="{first.id}"' in picker and f'value="{second.id}"' in picker
+    assert f'value="{already.id}"' not in picker and f'value="{hidden.id}"' not in picker
+    assert "pt contact" in picker and "schottky" in picker and owner.display_name.lower() in picker
+
+    r = client.post(f"/studies/{study_id}/samples",
+                    data={"sample_ids": [first.id, second.id, already.id, hidden.id, first.id]})
+    assert r.status_code == 303
+    page = client.get(f"/studies/{study_id}").text
+    assert f"{first.code}, {second.code}" in page                      # the message names them
+    for s in (first, second, already):
+        assert f'href="/samples/{s.id}"' in page
+    assert f'href="/samples/{hidden.id}"' not in page
+    picker = page[page.index('id="add-samples"'):page.index("</details>", page.index('id="add-samples"'))]
+    assert f'value="{first.id}"' not in picker and f'value="{second.id}"' not in picker   # no longer offered
+
+    client.post(f"/studies/{study_id}/samples", data={})
+    assert "Selecione primeiro as amostras" in client.get(f"/studies/{study_id}").text
+
+
+def test_a_note_can_be_about_a_piece_cut_from_a_sample_of_the_study(world):
+    owner, other = world.user("piece-owner"), world.user("piece-other")
+    client = world.client(owner)
+    study_id = _study(client)
+    parent = world.sample(owner)
+    before_cut, _ = world.step(parent, "polished")                 # inherited by the pieces
+    piece = _cut(parent, "A")
+    on_piece, _ = world.step(piece, "annealed piece")
+    piece_of_piece = _cut(piece, "1")
+    on_piece_of_piece, _ = world.step(piece_of_piece, "contacts")
+    hidden_piece = _cut(parent, "B", owner=other)                  # someone else's, personal
+    on_hidden, _ = world.step(hidden_piece, "secret")
+    client.post(f"/studies/{study_id}/samples", data={"sample_ids": [parent.id]})
+
+    page = client.get(f"/studies/{study_id}").text
+    for key in (f"step:{before_cut}", f"sample:{piece.id}", f"step:{on_piece}", f"sample:{piece_of_piece.id}",
+                f"step:{on_piece_of_piece}"):
+        assert f'value="{key}"' in page, key
+    assert f'value="sample:{hidden_piece.id}"' not in page and f'value="step:{on_hidden}"' not in page
+    # Pieces come under their parent, each piece's steps under it
+    assert (page.index(f'value="step:{before_cut}"') < page.index(f'value="sample:{piece.id}"')
+            < page.index(f'value="step:{on_piece}"') < page.index(f'value="sample:{piece_of_piece.id}"'))
+
+    r = client.post(f"/studies/{study_id}/notes", data={"text": "Annealing the piece helped",
+                                                        "about": f"step:{on_piece_of_piece}"})
+    assert r.status_code == 303
+    page = client.get(f"/studies/{study_id}").text
+    assert f'href="/samples/{piece_of_piece.id}#step-{on_piece_of_piece}"' in page
+    data = _study_json(study_id)
+    assert data["notes"][0]["about"] == {"sample": piece_of_piece.code, "sample_id": piece_of_piece.id,
+                                         "kind": "step", "id": on_piece_of_piece}
+    # Not a piece you can't see
+    assert client.post(f"/studies/{study_id}/notes",
+                       data={"text": "x", "about": f"step:{on_hidden}"}).status_code == 400
+
+
+def test_a_piece_in_a_study_offers_the_steps_it_inherited(world):
+    owner = world.user("inherit-owner")
+    client = world.client(owner)
+    study_id = _study(client)
+    parent = world.sample(owner)
+    deposited, _ = world.step(parent, "deposited")
+    piece = _cut(parent, "A")
+    client.post(f"/studies/{study_id}/samples", data={"sample_ids": [piece.id]})
+    page = client.get(f"/studies/{study_id}").text
+    assert f'value="step:{deposited}"' in page
+    client.post(f"/studies/{study_id}/notes", data={"text": "The film came from here", "about": f"step:{deposited}"})
+    assert f'href="/samples/{parent.id}#step-{deposited}"' in client.get(f"/studies/{study_id}").text
+
+
+def test_pieces_cut_with_the_cut_form_and_their_steps_are_offered(world):
+    """The same as above, through the real Cut and Add step forms."""
+    from sqlalchemy import select
+    from backend.database import AsyncSessionLocal
+    from backend.models import ProcessStep, ProcessStepType, Sample
+    from tests.loop import run
+
+    owner = world.user("realcut-owner")
+    client = world.client(owner)
+    study_id = _study(client)
+    parent = world.sample(owner)
+    client.post(f"/studies/{study_id}/samples", data={"sample_ids": [parent.id]})
+    r = client.post(f"/samples/{parent.id}/cut", data={"piece_labels": ["left", "right"], "piece_dimensions": ["", ""]})
+    assert r.status_code == 303, r.text
+
+    async def pieces():
+        async with AsyncSessionLocal() as db:
+            cut = (await db.execute(select(ProcessStep.id).where(ProcessStep.sample_id == parent.id))).scalar_one()
+            return (await db.execute(select(Sample).where(Sample.cut_step_id == cut).order_by(Sample.code))).scalars().all()
+
+    async def annealing_id():
+        async with AsyncSessionLocal() as db:
+            return (await db.execute(select(ProcessStepType.id).where(ProcessStepType.name == "Annealing"))).scalar_one()
+
+    left, right = run(pieces())
+    assert client.post(f"/samples/{left.id}/steps/new", data={"type_id": run(annealing_id())}).status_code == 303
+
+    async def step_on_left():
+        async with AsyncSessionLocal() as db:
+            return (await db.execute(select(ProcessStep.id).where(ProcessStep.sample_id == left.id))).scalar_one()
+
+    page = client.get(f"/studies/{study_id}").text
+    assert f'value="sample:{left.id}"' in page and f'value="sample:{right.id}"' in page
+    assert f'value="step:{run(step_on_left())}"' in page
+
+
+def test_references_can_be_put_in_a_note_s_text(world, monkeypatch):
+    owner = world.user("inline-owner")
+    client = world.client(owner)
+    study_id = _study(client)
+    parent = world.sample(owner)
+    piece = _cut(parent, "A")
+    on_piece, _ = world.step(piece, "etched piece")
+    client.post(f"/studies/{study_id}/samples", data={"sample_ids": [parent.id]})
+    client.post(f"/studies/{study_id}/references", data={"link": "https://example.org/paper", "title": "A good paper"})
+
+    # The picker offers the papers, the samples, their pieces and the pieces' steps, each with its link
+    page = client.get(f"/studies/{study_id}").text
+    picker = page[page.index("reference-picker"):page.index("note-text")]
+    assert 'data-url="https://example.org/paper"' in picker and "A good paper" in picker
+    assert f'data-url="/samples/{piece.id}"' in picker
+    assert f'data-url="/samples/{piece.id}#step-{on_piece}"' in picker
+
+    text = f"Etching [the piece](/samples/{piece.id}#step-{on_piece}) like [A good paper](https://example.org/paper) says **works**"
+    client.post(f"/studies/{study_id}/notes", data={"text": text})
+    page = client.get(f"/studies/{study_id}").text
+    assert f'<a href="/samples/{piece.id}#step-{on_piece}">the piece</a>' in page
+    assert "<strong>works</strong>" in page
+    assert f'<a href="/samples/{piece.id}#step-{on_piece}">the piece</a>' in client.get(f"/studies/{study_id}/print").text
+    note_id = re.search(r'id="note-(\d+)"', page).group(1)
+    assert 'reference-picker' in client.get(f"/studies/{study_id}/notes/{note_id}/edit").text   # also when editing

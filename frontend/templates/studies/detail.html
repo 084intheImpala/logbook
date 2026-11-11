@@ -128,13 +128,64 @@
   <p class="text-xs text-gray-400 mt-1">{{ _("and 1 sample you can't see") if hidden_samples == 1 else _("and {n} samples you can't see", n=hidden_samples) }}</p>
   {% endif %}
   {% if is_owner %}
-  <form method="post" action="/studies/{{ study.id }}/samples" class="flex items-center gap-2 mt-3">
-    <input name="code" list="addable-samples" required placeholder="{{ _("Sample ID") }}"
-           class="border border-gray-300 rounded px-2 py-1 text-sm font-mono w-48">
-    <datalist id="addable-samples">{% for s in addable %}<option value="{{ s.code }}">{{ s.label or '' }}</option>{% endfor %}</datalist>
-    <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Add sample") }}</button>
-    <span class="text-xs text-gray-400">{{ _("any sample you can see; also from a sample's page") }}</span>
-  </form>
+  <details id="add-samples" class="mt-3 bg-white rounded-xl border border-gray-200 shadow-sm" {% if not samples %}open{% endif %}>
+    <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ _("Add samples") }}</summary>
+    {% if addable %}
+    <form method="post" action="/studies/{{ study.id }}/samples" class="px-4 pb-4 space-y-2">
+      <input type="search" id="sample-filter" autocomplete="off" class="{{ input_cls }}"
+             placeholder="{{ _("Type to narrow the list: ID, name, owner, tag, material…") }}">
+      <div class="flex items-center gap-3 text-xs text-gray-500">
+        <span id="sample-count"></span>
+        <button type="button" id="tick-shown" class="text-blue-600 hover:underline">{{ _("Tick all shown") }}</button>
+        <button type="button" id="untick-all" class="text-blue-600 hover:underline">{{ _("Untick all") }}</button>
+      </div>
+      <ul id="sample-picker" class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100 text-sm">
+        {% for s in addable %}
+        <li data-search="{{ [s.code, s.label, s.researcher, _(s.type_label), s.film_material, s.substrate_material, (s.tags or [])|join(' '), (s.previous_codes or [])|join(' ')]|select|join(' ')|lower }}">
+          <label class="flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-blue-50">
+            <input type="checkbox" name="sample_ids" value="{{ s.id }}">
+            <span class="font-mono text-blue-700 w-44 shrink-0">{{ s.title }}</span>
+            <span class="flex-1 min-w-0 truncate text-gray-700">{{ s.label or '' }}</span>
+            <span class="text-xs text-gray-400 shrink-0">{{ [s.film_material, s.researcher]|select|join(" · ") }}</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      <p id="sample-none" class="hidden text-sm text-gray-400">{{ _("No sample matches. Only samples you can see and that aren't in the study yet are listed.") }}</p>
+      <div class="flex items-center gap-3">
+        <button class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add ticked samples") }}</button>
+        <span id="ticked-count" class="text-xs text-gray-500"></span>
+      </div>
+      <p class="text-xs text-gray-400">{{ _("Lists every sample you can see that isn't in the study yet. You can also add a sample from its own page.") }}</p>
+    </form>
+    <script>
+    (() => {
+      const filter = document.getElementById("sample-filter");
+      const rows = [...document.querySelectorAll("#sample-picker li")];
+      const shownText = {{ _("{n} of {total} shown")|tojson }}, tickedText = {{ _("{n} ticked")|tojson }};
+      const visible = () => rows.filter(r => !r.hidden);
+      function update() {
+        const words = filter.value.toLowerCase().split(/\s+/).filter(Boolean);
+        rows.forEach(r => r.hidden = !words.every(w => r.dataset.search.includes(w)));
+        const n = visible().length;
+        document.getElementById("sample-count").textContent = shownText.replace("{n}", n).replace("{total}", rows.length);
+        document.getElementById("sample-none").classList.toggle("hidden", n > 0);
+        const ticked = rows.filter(r => r.querySelector("input").checked).length;
+        document.getElementById("ticked-count").textContent = ticked ? tickedText.replace("{n}", ticked) : "";
+      }
+      filter.addEventListener("input", update);
+      // Enter in the search box narrows the list; it doesn't send the form
+      filter.addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault(); });
+      document.getElementById("sample-picker").addEventListener("change", update);
+      document.getElementById("tick-shown").onclick = () => { visible().forEach(r => r.querySelector("input").checked = true); update(); };
+      document.getElementById("untick-all").onclick = () => { rows.forEach(r => r.querySelector("input").checked = false); update(); };
+      update();
+    })();
+    </script>
+    {% else %}
+    <p class="px-4 pb-4 text-sm text-gray-400">{{ _("Every sample you can see is already in this study.") }}</p>
+    {% endif %}
+  </details>
   {% endif %}
 </section>
 
@@ -222,11 +273,12 @@
         </div>
         {% endif %}
       </div>
-      {% if n.text %}<p class="mt-2 text-sm text-gray-700 whitespace-pre-line">{{ n.text }}</p>{% endif %}
+      {% if n.text %}<div class="markdown mt-2 text-sm text-gray-700">{{ n.text|markdown }}</div>{% endif %}
       {{ attachment_list(row.photos, row.files, is_owner) }}
     </article>
     {% endfor %}
   </div>
+  {% include "_katex.html" %}
   {% else %}
   <p class="text-sm text-gray-400">{{ _("No notes yet.") }}</p>
   {% endif %}

@@ -208,15 +208,16 @@ async def _write_samples(db, sample_ids: list[int] | None) -> int:
     return len(samples)
 
 
-def _study_document(study: Study, notes_files: dict[int, list[Attachment]]) -> dict:
+def _study_document(study: Study, notes_files: dict[int, list[Attachment]], codes: dict[int, str]) -> dict:
     def about(note: StudyNote) -> dict | None:
         if not note.sample_id:
             return None
         kind, entry_id = (("step", note.step_id) if note.step_id else ("analysis", note.analysis_id)
                           if note.analysis_id else ("sample", None))
-        sample = next((l.sample for l in study.sample_links if l.sample_id == note.sample_id), None)
-        # A step or analysis by its id in the sample's sample.json `timeline`
-        return {"sample": sample.code if sample else None, "sample_id": note.sample_id, "kind": kind, "id": entry_id}
+        # A step or analysis by its id in that sample's sample.json `timeline`
+        # (the sample is one of the study's, a piece cut from one, or the
+        # sample a piece inherited the step from)
+        return {"sample": codes.get(note.sample_id), "sample_id": note.sample_id, "kind": kind, "id": entry_id}
 
     return {
         "format": STUDY_FORMAT,
@@ -250,8 +251,11 @@ async def _write_studies(db, study_ids: list[int] | None) -> int:
                 Attachment.entity_type == "study_note", Attachment.entity_id.in_(note_ids))
                 .order_by(Attachment.id))).scalars():
             files.setdefault(att.entity_id, []).append(att)
+    note_sample_ids = {n.sample_id for st in studies for n in st.notes if n.sample_id}
+    codes = dict((await db.execute(select(Sample.id, Sample.code).where(Sample.id.in_(note_sample_ids)))).all()) \
+        if note_sample_ids else {}
     for st in studies:
-        _write(study_folder(st.id, st.title), _study_document(st, files), STUDY_FILE_NAME)
+        _write(study_folder(st.id, st.title), _study_document(st, files, codes), STUDY_FILE_NAME)
     return len(studies)
 
 

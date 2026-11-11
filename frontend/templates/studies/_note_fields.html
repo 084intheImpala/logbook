@@ -1,5 +1,5 @@
 {# The fields of a study note, for adding one (study page) and editing one (note_form.html).
-   Needs: note (or None), entries (key → label), about (selected key), today. #}
+   Needs: note (or None), entries (key → {label, url, depth}), references, about (selected key), today. #}
 {% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %}
 <div class="grid grid-cols-[10rem_1fr] gap-4">
   <div>
@@ -14,19 +14,64 @@
   </div>
 </div>
 <div>
-  <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Note") }}</label>
-  <textarea name="text" rows="5" class="{{ input_cls }}"
+  <div class="flex items-center gap-2 mb-1">
+    <label class="text-xs font-medium text-gray-600">{{ _("Note") }}</label>
+    {% if entries or references %}
+    <details class="reference-picker relative ml-auto">
+      <summary class="list-none cursor-pointer text-xs text-blue-600 border border-gray-300 rounded-lg px-2 py-1 hover:bg-gray-50">🔗 {{ _("Insert reference") }}</summary>
+      <div class="absolute right-0 z-10 mt-2 w-[36rem] max-w-[90vw] bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs text-gray-700">
+        <p class="text-gray-500 mb-2">{{ _("Click one to put a link to it in the text where the cursor is.") }}</p>
+        <input type="search" autocomplete="off" class="reference-filter w-full border border-gray-300 rounded px-2 py-1 mb-2"
+               placeholder="{{ _("Type to narrow the list") }}">
+        <ul class="max-h-80 overflow-y-auto divide-y divide-gray-100">
+          {% for r in references %}
+          <li><button type="button" class="reference-insert w-full text-left px-2 py-1 hover:bg-blue-50"
+                      data-label="{{ (r.title or r.doi or r.url)|truncate(70, True, '…') }}{% if r.year %} ({{ r.year }}){% endif %}" data-url="{{ r.link }}">
+            📄 {{ r.title or r.doi or r.url }}{% if r.year %} <span class="text-gray-400">({{ r.year }})</span>{% endif %}</button></li>
+          {% endfor %}
+          {% for key, e in entries.items() %}
+          <li><button type="button" class="reference-insert w-full text-left px-2 py-1 hover:bg-blue-50 {{ 'font-medium' if key.startswith('sample:') else 'text-gray-600' }}"
+                      style="padding-left: {{ 0.5 + 1.25 * e.depth }}rem" data-label="{{ e.label }}" data-url="{{ e.url }}">{{ e.label }}</button></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </details>
+    {% endif %}
+  </div>
+  <textarea name="text" rows="5" class="note-text {{ input_cls }}"
             placeholder="{{ _("What you read, thought or plan to do") }}">{{ note.text or '' if note else '' }}</textarea>
+  <p class="text-xs text-gray-400 mt-1">{{ _("Markdown, as in procedures: **bold**, - for a list, $…$ for an equation. Insert reference links to a paper, sample, piece, step or analysis.") }}</p>
 </div>
+<script>
+(() => {
+  const here = document.currentScript.parentElement;
+  const area = here.querySelector('.note-text'), picker = here.querySelector('.reference-picker');
+  if (!picker) return;
+  const filter = picker.querySelector('.reference-filter');
+  const items = [...picker.querySelectorAll('li')];
+  filter.addEventListener('input', () => {
+    const words = filter.value.toLowerCase().split(/\s+/).filter(Boolean);
+    items.forEach(li => li.hidden = !words.every(w => li.textContent.toLowerCase().includes(w)));
+  });
+  filter.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  picker.querySelectorAll('.reference-insert').forEach(btn => btn.addEventListener('click', () => {
+    const label = btn.dataset.label.replace(/[\[\]]/g, '');
+    area.setRangeText(`[${label}](${btn.dataset.url.replace(/[()\s]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'))})`,
+                      area.selectionStart, area.selectionEnd, 'end');
+    area.focus();
+    picker.open = false;
+  }));
+})();
+</script>
 <div>
   <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("About") }}</label>
   <select name="about" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
     <option value="">{{ _("— the study as a whole —") }}</option>
-    {% for key, label in entries.items() %}
-    <option value="{{ key }}" {% if key == about %}selected{% endif %}>{% if not key.startswith("sample:") %}&nbsp;&nbsp;&nbsp;{% endif %}{{ label }}</option>
+    {% for key, e in entries.items() %}
+    <option value="{{ key }}" {% if key == about %}selected{% endif %}>{{ ("&nbsp;" * 4 * e.depth)|safe }}{{ e.label }}</option>
     {% endfor %}
   </select>
-  <p class="text-xs text-gray-400 mt-1">{{ _("Optionally, one of the study's samples, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.") }}</p>
+  <p class="text-xs text-gray-400 mt-1">{{ _("Optionally, one of the study's samples or a piece cut from one, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.") }}</p>
 </div>
 <div class="flex flex-wrap gap-6 text-sm">
   <label class="text-gray-600">📷 {{ _("Photos") }} <input type="file" name="photos" accept="image/*" multiple class="block text-xs mt-1"></label>

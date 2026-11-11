@@ -90,6 +90,15 @@ async def load_samples_full(db: AsyncSession) -> list[Sample]:
     return list(result.scalars())
 
 
+async def load_samples_full_by_id(db: AsyncSession, sample_ids) -> list[Sample]:
+    """The given samples, with their steps and analyses loaded."""
+    ids = list(sample_ids)
+    if not ids:
+        return []
+    result = await db.execute(select(Sample).options(*_full_options()).where(Sample.id.in_(ids)))
+    return list(result.scalars())
+
+
 async def load_sample_full(db: AsyncSession, sample_id: int) -> Sample | None:
     result = await db.execute(select(Sample).options(*_full_options()).where(Sample.id == sample_id))
     return result.scalar_one_or_none()

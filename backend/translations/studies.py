@@ -31,9 +31,20 @@ PT = {
     "A study needs at least one co-owner.": "Um estudo precisa de pelo menos um coproprietário.",
 
     # Samples
-    "Sample ID": "ID da amostra",
-    "Add sample": "Adicionar amostra",
-    "any sample you can see; also from a sample's page": "qualquer amostra que possa ver; também a partir da página da amostra",
+    "Add samples": "Adicionar amostras",
+    "Type to narrow the list: ID, name, owner, tag, material…": "Escreva para filtrar a lista: ID, nome, responsável, etiqueta, material…",
+    "Tick all shown": "Selecionar todas as mostradas",
+    "Untick all": "Desmarcar todas",
+    "{n} of {total} shown": "{n} de {total} mostradas",
+    "{n} ticked": "{n} selecionadas",
+    "Add ticked samples": "Adicionar as amostras selecionadas",
+    "No sample matches. Only samples you can see and that aren't in the study yet are listed.":
+        "Nenhuma amostra corresponde. Só são listadas amostras que possa ver e que ainda não estão no estudo.",
+    "Lists every sample you can see that isn't in the study yet. You can also add a sample from its own page.":
+        "Lista todas as amostras que pode ver e que ainda não estão no estudo. Também pode adicionar uma amostra a partir da sua página.",
+    "Every sample you can see is already in this study.": "Todas as amostras que pode ver já estão neste estudo.",
+    "Added to the study: {codes}.": "Adicionadas ao estudo: {codes}.",
+    "Tick the samples to add first.": "Selecione primeiro as amostras a adicionar.",
     "Take out of the study": "Retirar do estudo",
     "Take {code} out of this study?": "Retirar {code} deste estudo?",
     "and 1 sample you can't see": "e 1 amostra que não pode ver",
@@ -70,9 +81,14 @@ PT = {
     "— the study as a whole —": "— o estudo como um todo —",
     "optional, e.g. Literature: contact metals on Ga2O3": "opcional, ex.: Literatura: metais de contacto em Ga2O3",
     "What you read, thought or plan to do": "O que leu, pensou ou planeia fazer",
-    "Optionally, one of the study's samples, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.":
-        "Opcionalmente, uma das amostras do estudo, ou um dos seus passos ou análises: a nota fica com uma ligação para ele. Os detalhes de um passo pertencem ao próprio passo.",
+    "Optionally, one of the study's samples or a piece cut from one, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.":
+        "Opcionalmente, uma das amostras do estudo ou um pedaço cortado de uma delas, ou um dos seus passos ou análises: a nota fica com uma ligação para ele. Os detalhes de um passo pertencem ao próprio passo.",
     "(planned)": "(planeado)",
+    "Insert reference": "Inserir referência",
+    "Click one to put a link to it in the text where the cursor is.": "Clique num para pôr uma ligação para ele no texto, onde está o cursor.",
+    "Type to narrow the list": "Escreva para filtrar a lista",
+    "Markdown, as in procedures: **bold**, - for a list, $…$ for an equation. Insert reference links to a paper, sample, piece, step or analysis.":
+        "Markdown, como nos procedimentos: **negrito**, - para uma lista, $…$ para uma equação. Inserir referência põe uma ligação para um artigo, amostra, pedaço, passo ou análise.",
     "Delete this note and its files?": "Eliminar esta nota e os seus ficheiros?",
     "The note is empty.": "A nota está vazia.",
     "Already attached": "Já anexados",

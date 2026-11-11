@@ -509,9 +509,12 @@ The **Studies** tab (`/studies`, `routers/studies.py`, permissions in
 series, a contact-metal comparison, a collaboration's batch. A study has a
 title, a description and three parts:
 
-- **Samples.** Add one by its ID on the study's page (the field suggests the
-  samples you can see), or with **Add to a study…** in the *Studies* row on a
-  sample's page, which also lists the studies the sample is in. Only samples
+- **Samples.** **+ Add samples** on the study's page lists every sample you
+  can see that isn't in the study yet; type in its box to narrow the list
+  (by ID, name, owner, type, tag, film or substrate material; every word
+  typed must match), tick as many as you like (**Tick all shown** ticks the
+  ones left after narrowing) and **Add ticked samples**. Or use
+  **Add to a study…** in the *Studies* row on a sample's page, which also lists the studies the sample is in. Only samples
   you can see can be added, and a study's page lists only the samples the
   viewer can see ("and 2 samples you can't see" for the rest). A sample can be
   in several studies; deleting a sample takes it out of them.
@@ -525,7 +528,14 @@ title, a description and three parts:
   optional title, photos and files. They are ordered like a timeline: a new
   or re-dated note goes after the others of its day, and ↑/↓ move it. A note
   can be **about** one of the study's samples, or one of their steps or
-  analyses, and links to it. What concerns a single step (its parameters,
+  analyses, and links to it. The list also offers, under each sample, the
+  pieces cut from it (and pieces of those) that you can see, with their own
+  steps and analyses; a piece that is itself in the study also offers the
+  steps it inherited from the sample it was cut from. The text is Markdown,
+  as in procedures (`backend/markdown.py`); **🔗 Insert reference** above it
+  puts a link at the cursor to one of the study's papers, or to any of the
+  samples, pieces, steps and analyses the *About* list offers (searchable,
+  e.g. `[TST-2026-001-A · Annealing](/samples/12#step-34)`). What concerns a single step (its parameters,
   results, files) still belongs on the step. Note files are stored under
   `uploads/studies/<id>-<title>/`.
 
@@ -555,7 +565,9 @@ study at start-up. Keys: `format` (currently 1), `written_at`, `id`, `title`,
 `title`, `text`, `author`, `created_at`, `files` as in `sample.json`, and
 `about`: `null`, or `{sample, sample_id, kind, id}` where `kind` is `sample`,
 `step` or `analysis` and `id` is the entry's `id` in that sample's
-`sample.json` timeline). Deleting a study removes its `study.json`; its
+`sample.json` timeline; `sample` is where the entry is recorded, so it can be a
+piece cut from one of the study's samples, or the sample a piece inherited the
+step from). Deleting a study removes its `study.json`; its
 files go to the trash.
 
 ## Procedures

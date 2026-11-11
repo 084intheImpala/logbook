@@ -47,7 +47,13 @@
     .note-head .what { font-weight: 600; }
     .note-head .what .n { color: #9ca3af; font-weight: 400; margin-right: 4px; }
     .note-head .when { font-size: 8.5pt; color: #4b5563; white-space: nowrap; }
-    .text { margin-top: 3px; white-space: pre-line; }
+    .text { margin-top: 3px; }
+    .markdown p { margin: 3px 0; }
+    .markdown ol, .markdown ul { margin: 3px 0; padding-left: 22px; }
+    .markdown code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9pt; background: #f3f4f6; padding: 0 3px; border-radius: 2px; }
+    .markdown table { border-collapse: collapse; margin: 4px 0; }
+    .markdown th, .markdown td { border: 1px solid #d1d5db; padding: 2px 6px; text-align: left; }
+    .markdown a { color: inherit; }
     .row { margin-top: 3px; }
     .photos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
     .photos img { width: 24mm; height: 24mm; object-fit: cover; border: 1px solid #d1d5db; border-radius: 2px; }
@@ -132,7 +138,7 @@
       <div class="when">{{ n.noted_on.isoformat() if n.noted_on else _("no date") }}{% if n.author %} · {{ n.author.display_name }}{% endif %}</div>
     </div>
     {% if row.about %}<div class="row small">{{ _("About") }}: {{ row.about }}</div>{% endif %}
-    {% if n.text %}<div class="text">{{ n.text }}</div>{% endif %}
+    {% if n.text %}<div class="text markdown">{{ n.text|markdown }}</div>{% endif %}
     {% if row.photos %}
     <div class="photos">{% for att in row.photos %}<img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" title="{{ att.original_filename }}">{% endfor %}</div>
     {% endif %}
@@ -147,5 +153,6 @@
 
   <footer>{{ study.title }} · {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d %H:%M')) }} {{ _("by {name}", name=current_user.display_name) }} · {{ _("photos shown as previews; the files themselves are in the logbook") }}</footer>
 </div>
+{% include "_katex.html" %}
 </body>
 </html>
