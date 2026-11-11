@@ -67,6 +67,10 @@ PT = {
     "Added by {name} on {date}": "Adicionada por {name} em {date}",
     "Remove this reference?": "Remover esta referência?",
     "Give a DOI or a link.": "Indique um DOI ou um link.",
+    "Authors": "Autores",
+    "Journal": "Revista",
+    "Notes about it": "Notas sobre ela",
+    "Couldn't look up {doi}.": "Não foi possível procurar {doi}.",
     "Couldn't look up {doi}; the reference was added without its title.":
         "Não foi possível procurar {doi}; a referência foi adicionada sem título.",
 
@@ -81,8 +85,8 @@ PT = {
     "— the study as a whole —": "— o estudo como um todo —",
     "optional, e.g. Literature: contact metals on Ga2O3": "opcional, ex.: Literatura: metais de contacto em Ga2O3",
     "What you read, thought or plan to do": "O que leu, pensou ou planeia fazer",
-    "Optionally, one of the study's samples or a piece cut from one, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.":
-        "Opcionalmente, uma das amostras do estudo ou um pedaço cortado de uma delas, ou um dos seus passos ou análises: a nota fica com uma ligação para ele. Os detalhes de um passo pertencem ao próprio passo.",
+    "Optionally, one of the study's references, one of its samples or a piece cut from one, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.":
+        "Opcionalmente, uma das referências do estudo, uma das suas amostras ou um pedaço cortado de uma delas, ou um dos seus passos ou análises: a nota fica com uma ligação para ele. Os detalhes de um passo pertencem ao próprio passo.",
     "(planned)": "(planeado)",
     "Insert reference": "Inserir referência",
     "Click one to put a link to it in the text where the cursor is.": "Clique num para pôr uma ligação para ele no texto, onde está o cursor.",

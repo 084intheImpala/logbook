@@ -39,7 +39,7 @@ FILE_NAME = "sample.json"
 FORMAT = 9   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries
 
 STUDY_FILE_NAME = "study.json"
-STUDY_FORMAT = 1
+STUDY_FORMAT = 2   # 2: references have an id; a note can be about one
 PROCEDURE_FILE_NAME = "procedure.json"
 PROCEDURE_FORMAT = 1
 
@@ -210,6 +210,8 @@ async def _write_samples(db, sample_ids: list[int] | None) -> int:
 
 def _study_document(study: Study, notes_files: dict[int, list[Attachment]], codes: dict[int, str]) -> dict:
     def about(note: StudyNote) -> dict | None:
+        if note.reference_id:   # by its id in `references`
+            return {"kind": "reference", "id": note.reference_id}
         if not note.sample_id:
             return None
         kind, entry_id = (("step", note.step_id) if note.step_id else ("analysis", note.analysis_id)
@@ -227,7 +229,7 @@ def _study_document(study: Study, notes_files: dict[int, list[Attachment]], code
         "owners": [_person(o.user) for o in study.owners],
         "samples": [{"id": l.sample.id, "code": l.sample.code, "label": l.sample.label, "added_at": l.created_at}
                     for l in study.sample_links if l.sample is not None],
-        "references": [{"doi": r.doi, "url": r.url, "title": r.title, "authors": r.authors, "journal": r.journal,
+        "references": [{"id": r.id, "doi": r.doi, "url": r.url, "title": r.title, "authors": r.authors, "journal": r.journal,
                         "year": r.year, "note": r.note, "added_by": _person(r.added_by), "created_at": r.created_at}
                        for r in study.references],
         "notes": [{"id": n.id, "position": n.position, "noted_on": n.noted_on, "title": n.title, "text": n.text,

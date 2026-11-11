@@ -203,7 +203,46 @@
         {% endif %}
         {% if r.doi %}<div class="text-xs text-gray-400 font-mono">doi:{{ r.doi }}</div>{% endif %}
         {% if r.note %}<p class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ r.note }}</p>{% endif %}
+        {% if notes_on.get(r.id) %}
+        <div class="text-xs mt-1">{{ _("Notes about it") }}:
+          {% for n in notes_on[r.id] %}<a href="#note-{{ n.id }}" class="text-blue-600 hover:underline">{{ n.title or (n.noted_on.isoformat() if n.noted_on else _("no date")) }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+        </div>
+        {% endif %}
         <div class="text-xs text-gray-400 mt-1">{{ _("Added by {name} on {date}", name=r.added_by.display_name if r.added_by else "—", date=r.created_at.strftime('%Y-%m-%d')) }}</div>
+        {% if is_owner or r.added_by_id == current_user.id %}
+        <details class="reference-edit mt-2">
+          <summary class="list-none cursor-pointer text-xs text-gray-500 hover:underline">{{ _("Edit") }}</summary>
+          <form method="post" action="/studies/{{ study.id }}/references/{{ r.id }}/edit" class="mt-2 space-y-2">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("DOI or link") }} <span class="text-red-500">*</span></label>
+              <input name="link" required value="{{ r.doi or r.url or '' }}" class="{{ input_cls }} font-mono">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Title") }}</label>
+              <input name="title" maxlength="500" value="{{ r.title or '' }}" class="{{ input_cls }}">
+            </div>
+            <div class="grid grid-cols-[1fr_1fr_6rem] gap-2">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Authors") }}</label>
+                <input name="authors" maxlength="500" value="{{ r.authors or '' }}" class="{{ input_cls }}">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Journal") }}</label>
+                <input name="journal" maxlength="300" value="{{ r.journal or '' }}" class="{{ input_cls }}">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Year") }}</label>
+                <input name="year" inputmode="numeric" value="{{ r.year or '' }}" class="{{ input_cls }}">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Why it's interesting") }}</label>
+              <textarea name="note" rows="3" class="{{ input_cls }}">{{ r.note or '' }}</textarea>
+            </div>
+            <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-700">{{ _("Save") }}</button>
+          </form>
+        </details>
+        {% endif %}
       </div>
       {% if is_owner or r.added_by_id == current_user.id %}
       <form method="post" action="/studies/{{ study.id }}/references/{{ r.id }}/delete"

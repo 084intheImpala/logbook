@@ -523,12 +523,15 @@ title, a description and three parts:
   journal and year are looked up at doi.org (`backend/doi.py`); if that fails
   (no internet on the host, unknown DOI) the reference is kept with the DOI
   and whatever title was typed. **Anyone who can see the study can add a
-  reference**; co-owners and whoever added it can remove it.
+  reference**; co-owners and whoever added it can **Edit** it (DOI or link,
+  title, authors, journal, year, and the note, e.g. to add to it after
+  reading the paper; a new DOI is looked up, filling only what was left
+  empty) or remove it. A reference lists the notes that are about it.
 - **Notes.** Dated notes for literature, thoughts and plans, with an
   optional title, photos and files. They are ordered like a timeline: a new
   or re-dated note goes after the others of its day, and ↑/↓ move it. A note
-  can be **about** one of the study's samples, or one of their steps or
-  analyses, and links to it. The list also offers, under each sample, the
+  can be **about** one of the study's references, one of its samples, or
+  one of their steps or analyses, and links to it. The list also offers, under each sample, the
   pieces cut from it (and pieces of those) that you can see, with their own
   steps and analyses; a piece that is itself in the study also offers the
   steps it inherited from the sample it was cut from. The text is Markdown,
@@ -545,7 +548,8 @@ everything: details, samples, notes, co-owners. A study always keeps at least
 one. **Who can see it** works as for samples: *Personal*, only its
 co-owners; *Team*, also everyone in a co-owner's team (the default);
 *Public*, everyone logged in. The tables are `studies`, `study_owners`,
-`study_samples`, `study_references` and `study_notes` (migration `0020`).
+`study_samples`, `study_references` and `study_notes` (migration `0020`;
+`study_notes.reference_id`, migration `0022`).
 
 **Printing.** **🖨 Print / PDF** on a study's page opens it laid out for A4
 (`/studies/{id}/print`, `studies/print.html`), like a sample's printable
@@ -557,13 +561,14 @@ printout lists the studies it is in.
 **`study.json`.** Next to its notes' files, `uploads/studies/<id>-<title>/`
 (named when the study is created, and kept if it's renamed) has a
 `study.json`, written like `sample.json`: after every change and for every
-study at start-up. Keys: `format` (currently 1), `written_at`, `id`, `title`,
+study at start-up. Keys: `format` (currently 2), `written_at`, `id`, `title`,
 `description`, `visibility`, `created_at`, `created_by`, `owners`
 (`{username, name, initials}`), `samples` (`{id, code, label, added_at}`),
-`references` (`doi`, `url`, `title`, `authors`, `journal`, `year`, `note`,
+`references` (`id`, `doi`, `url`, `title`, `authors`, `journal`, `year`, `note`,
 `added_by`, `created_at`) and `notes`, in order (`id`, `position`, `noted_on`,
 `title`, `text`, `author`, `created_at`, `files` as in `sample.json`, and
-`about`: `null`, or `{sample, sample_id, kind, id}` where `kind` is `sample`,
+`about`: `null`, `{kind: "reference", id}` (a reference's `id` in
+`references`), or `{sample, sample_id, kind, id}` where `kind` is `sample`,
 `step` or `analysis` and `id` is the entry's `id` in that sample's
 `sample.json` timeline; `sample` is where the entry is recorded, so it can be a
 piece cut from one of the study's samples, or the sample a piece inherited the

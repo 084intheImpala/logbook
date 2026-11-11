@@ -112,11 +112,17 @@ async def _references(db: AsyncSession, study_id: int) -> list[StudyReference]:
 
 
 def _about_key(note: StudyNote) -> str | None:
+    if note.reference_id:
+        return f"reference:{note.reference_id}"
     if note.step_id:
         return f"step:{note.step_id}"
     if note.analysis_id:
         return f"analysis:{note.analysis_id}"
     return f"sample:{note.sample_id}" if note.sample_id else None
+
+
+def _reference_label(ref: StudyReference) -> str:
+    return (ref.title or ref.doi or ref.url or "?") + (f" ({ref.year})" if ref.year else "")
 
 
 def _visible_samples(user: User, study: Study) -> list[Sample]:
@@ -125,14 +131,21 @@ def _visible_samples(user: User, study: Study) -> list[Sample]:
 
 async def _set_about(request: Request, db: AsyncSession, user: User, study: Study, note: StudyNote, about: str):
     """Point the note at one of the choices _entries offers `user` (a sample
-    of the study or a piece cut from one, or a step or analysis of them); an
-    empty `about` points it at nothing."""
-    note.sample_id = note.step_id = note.analysis_id = None
+    of the study or a piece cut from one, or a step or analysis of them), or
+    at one of the study's references ("reference:<id>"); an empty `about`
+    points it at nothing."""
+    note.sample_id = note.step_id = note.analysis_id = note.reference_id = None
     if not about:
         return
     kind, _, raw = about.partition(":")
-    if kind not in ("sample", "step", "analysis") or not raw.isdigit():
+    if kind not in ("sample", "step", "analysis", "reference") or not raw.isdigit():
         raise HTTPException(status_code=400, detail="Invalid entry")
+    if kind == "reference":
+        ref = await db.get(StudyReference, int(raw))
+        if ref is None or ref.study_id != study.id:
+            raise HTTPException(status_code=400, detail="That isn't one of this study's references.")
+        note.reference_id = ref.id
+        return
     choice = (await _entries(request, db, user, _visible_samples(user, study))).get(about)
     if choice is None:
         raise HTTPException(status_code=400, detail="That isn't in one of this study's samples you can see.")
@@ -250,13 +263,20 @@ async def _page(request: Request, db: AsyncSession, study_id: int, current_user:
                 Attachment.entity_type == NOTE_FILES, Attachment.entity_id.in_(list(attachments)))
                 .order_by(Attachment.uploaded_at))).scalars():
             attachments[a.entity_id].append(a)
+    references = await _references(db, study_id)
+    about = dict(entries)
+    for r in references:
+        about[f"reference:{r.id}"] = {"label": "📄 " + _reference_label(r), "url": f"#reference-{r.id}"}
     note_rows = []
+    notes_on: dict[int, list[StudyNote]] = {}     # reference id → the notes about it
     for i, n in enumerate(notes):
         key = _about_key(n)
+        if n.reference_id:
+            notes_on.setdefault(n.reference_id, []).append(n)
         note_rows.append({
             "note": n, "first": i == 0, "last": i == len(notes) - 1,
-            "about": entries[key]["label"] if key in entries else None,
-            "about_url": entries[key]["url"] if key in entries else None,
+            "about": about[key]["label"] if key in about else None,
+            "about_url": about[key]["url"] if key in about else None,
             "photos": [a for a in attachments[n.id] if _is_image(a)],
             "files": [a for a in attachments[n.id] if not _is_image(a)],
         })
@@ -265,7 +285,7 @@ async def _page(request: Request, db: AsyncSession, study_id: int, current_user:
         "request": request, "current_user": current_user, "study": study, "is_owner": owner,
         "samples": samples, "hidden_samples": len(study.sample_links) - len(samples),
         "addable": await _addable_samples(db, current_user, study) if owner else [],
-        "references": await _references(db, study_id),
+        "references": references, "notes_on": notes_on,
         "notes": note_rows, "entries": entries, "today": date.today(),
         "owner_candidates": [u for u in (await db.execute(
             select(User).order_by(User.name, User.username))).scalars() if u.id not in taken] if owner else [],
@@ -410,15 +430,51 @@ async def add_reference(request: Request, study_id: int, link: str = Form(...), 
     return _back(study, f"#reference-{ref.id}")
 
 
-@router.post("/{study_id}/references/{reference_id}/delete")
-async def delete_reference(study_id: int, reference_id: int, db: AsyncSession = Depends(get_db),
-                           current_user: User = Depends(require_login)):
-    study = await load_study(db, study_id, current_user)
+async def _own_reference(db: AsyncSession, user: User, study_id: int, reference_id: int) -> tuple[Study, StudyReference]:
+    """The reference, if `user` may change it: the study's co-owners, or whoever added it."""
+    study = await load_study(db, study_id, user)
     ref = await db.get(StudyReference, reference_id)
     if ref is None or ref.study_id != study.id:
         raise HTTPException(status_code=404, detail="Reference not found")
-    if not (is_study_owner(current_user, study) or ref.added_by_id == current_user.id):
-        raise HTTPException(status_code=403, detail="Only the co-owners, or whoever added it, can remove it.")
+    if not (is_study_owner(user, study) or ref.added_by_id == user.id):
+        raise HTTPException(status_code=403, detail="Only the co-owners, or whoever added it, can change it.")
+    return study, ref
+
+
+@router.post("/{study_id}/references/{reference_id}/edit")
+async def update_reference(request: Request, study_id: int, reference_id: int, link: str = Form(...),
+                           title: str = Form(""), authors: str = Form(""), journal: str = Form(""),
+                           year: str = Form(""), note: str = Form(""), db: AsyncSession = Depends(get_db),
+                           current_user: User = Depends(require_login)):
+    """Change a reference: its details as typed, or another DOI (looked up,
+    filling what was left empty)."""
+    study, ref = await _own_reference(db, current_user, study_id, reference_id)
+    doi, url = doi_lookup.parse(link)
+    if not doi and not url:
+        request.session["flash_error"] = t(request, "Give a DOI or a link.")
+        return _back(study, f"#reference-{ref.id}")
+    new_doi = doi and doi != ref.doi
+    ref.doi, ref.url = doi, url
+    ref.title, ref.authors, ref.journal = title.strip() or None, authors.strip() or None, journal.strip() or None
+    ref.year = int(year) if year.strip().isdigit() else None
+    ref.note = note.strip() or None
+    if new_doi:
+        paper = await doi_lookup.lookup(doi)
+        if paper is not None:
+            ref.title, ref.authors = ref.title or paper.title, ref.authors or paper.authors
+            ref.journal, ref.year = ref.journal or paper.journal, ref.year or paper.year
+        else:
+            request.session["flash_error"] = t(request, "Couldn't look up {doi}.", doi=doi)
+    await db.commit()
+    return _back(study, f"#reference-{ref.id}")
+
+
+@router.post("/{study_id}/references/{reference_id}/delete")
+async def delete_reference(study_id: int, reference_id: int, db: AsyncSession = Depends(get_db),
+                           current_user: User = Depends(require_login)):
+    study, ref = await _own_reference(db, current_user, study_id, reference_id)
+    for n in (await db.execute(select(StudyNote).where(StudyNote.reference_id == ref.id))).scalars():
+        n.reference_id = None     # the notes about it stay, about the study as a whole
     await db.delete(ref)
     await db.commit()
     return _back(study, "#references")
