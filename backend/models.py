@@ -550,7 +550,8 @@ class StudyReference(Base):
 class StudyNote(Base):
     """A dated note in a study: literature, thoughts, plans. Ordered like a
     sample's timeline (`position`, placed by date, then moved freely). It can
-    point at a sample of the study, or at one of its steps or analyses."""
+    point at a sample of the study, or at one of its steps or analyses, or at
+    one of the study's references."""
     __tablename__ = "study_notes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -562,6 +563,8 @@ class StudyNote(Base):
     sample_id: Mapped[int | None] = mapped_column(ForeignKey("samples.id", ondelete="SET NULL"))
     step_id: Mapped[int | None] = mapped_column(ForeignKey("process_steps.id", ondelete="SET NULL"))
     analysis_id: Mapped[int | None] = mapped_column(ForeignKey("analyses.id", ondelete="SET NULL"))
+    # Or about one of the study's references (instead of a sample)
+    reference_id: Mapped[int | None] = mapped_column(ForeignKey("study_references.id", ondelete="SET NULL"))
     author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

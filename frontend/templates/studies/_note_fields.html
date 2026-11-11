@@ -67,11 +67,22 @@
   <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("About") }}</label>
   <select name="about" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
     <option value="">{{ _("— the study as a whole —") }}</option>
-    {% for key, e in entries.items() %}
-    <option value="{{ key }}" {% if key == about %}selected{% endif %}>{{ ("&nbsp;" * 4 * e.depth)|safe }}{{ e.label }}</option>
-    {% endfor %}
+    {% if references %}
+    <optgroup label="{{ _("References") }}">
+      {% for r in references %}
+      <option value="reference:{{ r.id }}" {% if 'reference:' ~ r.id == about %}selected{% endif %}>📄 {{ (r.title or r.doi or r.url)|truncate(90, True, '…') }}{% if r.year %} ({{ r.year }}){% endif %}</option>
+      {% endfor %}
+    </optgroup>
+    {% endif %}
+    {% if entries %}
+    <optgroup label="{{ _("Samples") }}">
+      {% for key, e in entries.items() %}
+      <option value="{{ key }}" {% if key == about %}selected{% endif %}>{{ ("&nbsp;" * 4 * e.depth)|safe }}{{ e.label }}</option>
+      {% endfor %}
+    </optgroup>
+    {% endif %}
   </select>
-  <p class="text-xs text-gray-400 mt-1">{{ _("Optionally, one of the study's samples or a piece cut from one, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.") }}</p>
+  <p class="text-xs text-gray-400 mt-1">{{ _("Optionally, one of the study's references, one of its samples or a piece cut from one, or one of their steps or analyses: the note links to it. Details of a step belong on the step itself.") }}</p>
 </div>
 <div class="flex flex-wrap gap-6 text-sm">
   <label class="text-gray-600">📷 {{ _("Photos") }} <input type="file" name="photos" accept="image/*" multiple class="block text-xs mt-1"></label>

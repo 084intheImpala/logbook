@@ -237,7 +237,7 @@ def test_study_json_is_kept_next_to_the_notes_files(world):
     client = world.client(owner)
     study_id = _study(client, "Backup study")
     data = _study_json(study_id)
-    assert data["format"] == 1 and data["title"] == "Backup study" and data["owners"][0]["username"] == owner.username
+    assert data["format"] == 2 and data["title"] == "Backup study" and data["owners"][0]["username"] == owner.username
 
     sample = world.sample(owner, label="film A")
     step_id, _ = world.step(sample, "annealed")
@@ -453,3 +453,69 @@ def test_references_can_be_put_in_a_note_s_text(world, monkeypatch):
     assert f'<a href="/samples/{piece.id}#step-{on_piece}">the piece</a>' in client.get(f"/studies/{study_id}/print").text
     note_id = re.search(r'id="note-(\d+)"', page).group(1)
     assert 'reference-picker' in client.get(f"/studies/{study_id}/notes/{note_id}/edit").text   # also when editing
+
+
+def test_a_reference_can_be_edited_by_its_adder_or_a_co_owner(world, monkeypatch):
+    owner, mate, other = world.user("refedit-owner"), world.user("refedit-mate"), world.user("refedit-other")
+    world.team("refedit-team", members=[owner, mate, other])
+    study_id = _study(world.client(owner))
+    mate_c = world.client(mate)
+    mate_c.post(f"/studies/{study_id}/references", data={"link": "example.org/paper", "title": "A page"})
+    ref_id = int(re.search(r'id="reference-(\d+)"', mate_c.get(f"/studies/{study_id}").text).group(1))
+    edit = f"/studies/{study_id}/references/{ref_id}/edit"
+    assert f'action="{edit}"' in mate_c.get(f"/studies/{study_id}").text
+    assert f'action="{edit}"' not in world.client(other).get(f"/studies/{study_id}").text
+
+    form = {"link": "example.org/paper", "title": "A page", "authors": "Silva", "journal": "", "year": "2024",
+            "note": "Read it later: fig. 3 matters"}
+    assert world.client(other).post(edit, data=form).status_code == 403
+    assert mate_c.post(edit, data=form).status_code == 303
+    page = world.client(owner).get(f"/studies/{study_id}").text
+    assert "Read it later: fig. 3 matters" in page and "Silva" in page and "2024" in page
+    assert world.client(owner).post(edit, data=form | {"note": "by the owner"}).status_code == 303
+    assert "by the owner" in mate_c.get(f"/studies/{study_id}").text
+
+    # A new DOI is looked up and fills what was left empty
+    monkeypatch.setattr(doi, "_fetch_csl", lambda d: {
+        "title": "Looked-up title", "container-title": "Appl. Phys. Lett.",
+        "author": [{"given": "Ana", "family": "Costa"}], "issued": {"date-parts": [[2021]]}})
+    mate_c.post(edit, data={"link": "10.1063/5.0099999", "title": "", "authors": "", "journal": "", "year": "",
+                            "note": "kept"})
+    page = mate_c.get(f"/studies/{study_id}").text
+    assert "Looked-up title" in page and "Appl. Phys. Lett." in page and 'href="https://doi.org/10.1063/5.0099999"' in page
+    assert mate_c.post(edit, data={"link": " "}).status_code == 303   # no DOI or link: unchanged
+    assert "Looked-up title" in mate_c.get(f"/studies/{study_id}").text
+
+
+def test_a_note_can_be_about_a_reference(world):
+    owner = world.user("refnote-owner")
+    client = world.client(owner)
+    study_id = _study(client)
+    client.post(f"/studies/{study_id}/references", data={"link": "example.org/paper", "title": "A good paper"})
+    page = client.get(f"/studies/{study_id}").text
+    ref_id = int(re.search(r'id="reference-(\d+)"', page).group(1))
+    assert f'value="reference:{ref_id}"' in page        # offered in About
+
+    client.post(f"/studies/{study_id}/notes", data={"title": "Their method", "text": "try it", "about": f"reference:{ref_id}"})
+    page = client.get(f"/studies/{study_id}").text
+    note_id = int(re.search(r'id="note-(\d+)"', page).group(1))
+    assert f'<a href="#reference-{ref_id}" class="text-blue-600 hover:underline">📄 A good paper</a>' in page
+    assert f'href="#note-{note_id}"' in page             # the reference lists the note
+    assert "📄 A good paper" in client.get(f"/studies/{study_id}/print").text
+    edit_page = client.get(f"/studies/{study_id}/notes/{note_id}/edit").text
+    assert f'value="reference:{ref_id}" selected' in edit_page
+    assert _study_json(study_id)["notes"][0]["about"] == {"kind": "reference", "id": ref_id}
+    assert _study_json(study_id)["references"][0]["id"] == ref_id
+
+    # Another study's reference can't be picked
+    other = _study(client, "Other")
+    client.post(f"/studies/{other}/references", data={"link": "example.org/other"})
+    other_ref = int(re.search(r'id="reference-(\d+)"', client.get(f"/studies/{other}").text).group(1))
+    assert client.post(f"/studies/{study_id}/notes/{note_id}/edit",
+                       data={"text": "x", "about": f"reference:{other_ref}"}).status_code == 400
+
+    # Removing the reference keeps the note, about the study as a whole
+    client.post(f"/studies/{study_id}/references/{ref_id}/delete")
+    page = client.get(f"/studies/{study_id}").text
+    assert "Their method" in page and "📄 A good paper" not in page
+    assert _study_json(study_id)["notes"][0]["about"] is None
