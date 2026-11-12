@@ -26,13 +26,13 @@ from sqlalchemy import select
 
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.models import Analysis, Attachment, ProcessStep, Procedure, Sample, StudyNote, Substrate
+from backend.models import Analysis, Attachment, ProcessStep, Procedure, Sample, StudyNote, StudyReference, Substrate
 from backend.sample_backup import write_all
 from backend.trash import move_to_trash
 from backend.utils import file_sha256
 
 OWNERS = {"sample": Sample, "step": ProcessStep, "analysis": Analysis, "substrate": Substrate, "study_note": StudyNote,
-          "procedure": Procedure}
+          "study_reference": StudyReference, "procedure": Procedure}
 
 
 class Found(NamedTuple):

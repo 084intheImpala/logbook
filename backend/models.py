@@ -75,6 +75,9 @@ SAMPLE_TYPE_HELP = {
 # their members' samples whatever the setting.
 VISIBILITY = {"personal": "Personal", "team": "Team", "public": "Public"}
 DEFAULT_VISIBILITY = "team"   # what a new sample starts at
+# Where a study stands (Study.status)
+STUDY_STATUS = {"todo": "To do", "ongoing": "Ongoing", "concluded": "Concluded"}
+DEFAULT_STUDY_STATUS = "ongoing"
 POLISHING = {"single": "Single side", "double": "Double side", "none": "Unpolished"}
 
 
@@ -479,6 +482,8 @@ class Study(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     visibility: Mapped[str] = mapped_column(String(10), default=DEFAULT_VISIBILITY, server_default=DEFAULT_VISIBILITY, nullable=False)
+    status: Mapped[str] = mapped_column(String(10), default=DEFAULT_STUDY_STATUS, server_default=DEFAULT_STUDY_STATUS,
+                                        nullable=False)   # a key of STUDY_STATUS
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

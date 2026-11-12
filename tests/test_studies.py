@@ -250,7 +250,7 @@ def test_study_json_is_kept_next_to_the_notes_files(world):
     client = world.client(owner)
     study_id = _study(client, "Backup study")
     data = _study_json(study_id)
-    assert data["format"] == 2 and data["title"] == "Backup study" and data["owners"][0]["username"] == owner.username
+    assert data["format"] == 3 and data["title"] == "Backup study" and data["owners"][0]["username"] == owner.username
 
     sample = world.sample(owner, label="film A")
     step_id, _ = world.step(sample, "annealed")
@@ -454,7 +454,10 @@ def test_references_can_be_put_in_a_note_s_text(world, monkeypatch):
     # The picker offers the papers, the samples, their pieces and the pieces' steps, each with its link
     page = client.get(f"/studies/{study_id}").text
     picker = page[page.index("reference-picker"):page.index("note-text")]
-    assert 'data-url="https://example.org/paper"' in picker and "A good paper" in picker
+    ref_id = int(re.search(r'id="reference-(\d+)"', page).group(1))
+    # A paper links to its entry in the study (with your note and files), not to its website
+    assert f'data-url="/studies/{study_id}#reference-{ref_id}"' in picker and "A good paper" in picker
+    assert 'data-url="https://example.org/paper"' not in picker
     assert f'data-url="/samples/{piece.id}"' in picker
     assert f'data-url="/samples/{piece.id}#step-{on_piece}"' in picker
 
@@ -532,3 +535,68 @@ def test_a_note_can_be_about_a_reference(world):
     page = client.get(f"/studies/{study_id}").text
     assert "Their method" in page and "📄 A good paper" not in page
     assert _study_json(study_id)["notes"][0]["about"] is None
+
+
+def test_a_reference_can_have_files(world):
+    owner, mate, adder, stranger = (world.user(f"reffile-{n}") for n in ("owner", "mate", "adder", "stranger"))
+    world.team("reffile-team", members=[owner, mate, adder])
+    client = world.client(owner)
+    study_id = _study(client, "Ref files")
+    r = world.client(adder).post(f"/studies/{study_id}/references", data={"link": "example.org/paper", "title": "Paper"},
+                                 files={"files": ("highlights.pdf", io.BytesIO(b"%PDF-1.4 marked"), "application/pdf")})
+    assert r.status_code == 303
+    page = client.get(f"/studies/{study_id}").text
+    ref_id = int(re.search(r'id="reference-(\d+)"', page).group(1))
+    file_id = int(re.search(r'href="/files/(\d+)"', page).group(1))
+    assert "highlights.pdf" in page and "highlights.pdf" in client.get(f"/studies/{study_id}/print").text
+    assert world.client(mate).get(f"/files/{file_id}").content == b"%PDF-1.4 marked"   # anyone who sees the study
+    assert world.client(stranger).get(f"/files/{file_id}").status_code == 403
+    assert (settings.UPLOAD_DIR / f"studies/{study_id}-Ref-files/highlights.pdf").is_file()
+    [ref] = _study_json(study_id)["references"]
+    assert ref["files"][0]["original_name"] == "highlights.pdf"
+
+    # More added when editing; only the co-owners or whoever added it can remove them
+    world.client(adder).post(f"/studies/{study_id}/references/{ref_id}/edit", data={"link": "example.org/paper", "title": "Paper"},
+                             files={"files": ("notes.txt", io.BytesIO(b"p. 4"), "text/plain")})
+    assert "notes.txt" in client.get(f"/studies/{study_id}").text
+    assert world.client(mate).post(f"/files/{file_id}/delete").status_code == 403
+    assert world.client(adder).post(f"/files/{file_id}/delete").status_code == 303
+    assert client.get(f"/files/{file_id}").status_code == 404
+
+    # Removing the reference removes its files
+    other_id = int(re.search(r'href="/files/(\d+)"', client.get(f"/studies/{study_id}").text).group(1))
+    client.post(f"/studies/{study_id}/references/{ref_id}/delete")
+    assert client.get(f"/files/{other_id}").status_code == 404
+
+
+def test_a_study_is_to_do_ongoing_or_concluded(world):
+    owner, mate = world.user("status-owner"), world.user("status-mate")
+    world.team("status-team", members=[owner, mate])
+    client = world.client(owner)
+    ongoing = _study(client, "Running one")
+    r = client.post("/studies/new", data={"title": "Someday", "visibility": "team", "status": "todo"})
+    todo = int(re.search(r"/studies/(\d+)", r.headers["location"]).group(1))
+    assert "Em curso" in client.get(f"/studies/{ongoing}").text      # the default
+
+    # (pages are in Portuguese by default)
+    # Co-owners change it from the study's page; viewers only see it
+    assert client.post(f"/studies/{ongoing}/status", data={"status": "concluded"}).status_code == 303
+    assert world.client(mate).post(f"/studies/{ongoing}/status", data={"status": "todo"}).status_code == 403
+    assert client.post(f"/studies/{ongoing}/status", data={"status": "nonsense"}).status_code == 400
+    mate_page = world.client(mate).get(f"/studies/{ongoing}").text
+    assert "Concluído" in mate_page and 'action="/studies/%d/status"' % ongoing not in mate_page
+    assert _study_json(ongoing)["status"] == "concluded"
+    assert "Concluído" in client.get(f"/studies/{ongoing}/print").text
+
+    # The edit form keeps it, and can change it
+    client.post(f"/studies/{todo}/edit", data={"title": "Someday", "visibility": "team"})
+    assert _study_json(todo)["status"] == "todo"
+    client.post(f"/studies/{todo}/edit", data={"title": "Someday", "visibility": "team", "status": "ongoing"})
+    assert _study_json(todo)["status"] == "ongoing"
+
+    # The list filters by it
+    listed = client.get("/studies/?status=concluded").text
+    assert "Running one" in listed and "Someday" not in listed
+    listed = client.get("/studies/?status=todo").text
+    assert "Running one" not in listed and "Não há estudos com este estado." in listed
+    assert "Running one" in client.get("/studies/").text and "Someday" in client.get("/studies/").text

@@ -765,6 +765,10 @@ sugestões, para ficar sempre escrita da mesma maneira.
 O separador \menu{Estudos} serve para o trabalho que abrange várias
 amostras: uma série de recozimentos, uma comparação de metais de contacto,
 um lote de uma colaboração. Um estudo tem título, descrição e três partes.
+Tem também um \emph{estado}: \ui{Por fazer}, \ui{Em curso} (o habitual) ou
+\ui{Concluído}. Escolhe-se ao criar ou editar o estudo, ou na lista ao lado
+do título, na página do estudo (só os coproprietários); a lista de estudos
+mostra-o e pode filtrar-se por ele.
 
 \paragraph{Amostras.} Na página do estudo, \ui{+ Adicionar amostras} mostra
 todas as amostras que pode ver e que ainda não estão no estudo. Escreva na
@@ -789,8 +793,10 @@ título que escreveu. \emph{Qualquer pessoa que veja o estudo pode acrescentar
 uma referência}; os coproprietários e quem a acrescentou podem alterá-la em
 \ui{Editar} (DOI ou link, título, autores, revista, ano e a nota, por exemplo
 para lhe acrescentar algo depois de ler o artigo; um DOI novo é procurado,
-preenchendo só o que ficou vazio) ou removê-la. Cada referência mostra as
-notas que são sobre ela.
+preenchendo só o que ficou vazio) ou removê-la. Uma referência pode ter
+\emph{ficheiros}, por exemplo o PDF com os seus sublinhados (acrescentados
+com ela ou em \ui{Editar}); quem vê o estudo pode abri-los, e quem pode editar
+a referência pode removê-los. Cada referência mostra as notas que são sobre ela.
 
 \paragraph{Notas.} Notas datadas para literatura, ideias e planos, com
 título opcional, fotografias e ficheiros. Ordenam-se como uma cronologia:
@@ -807,7 +813,9 @@ O texto de uma nota é escrito em Markdown, como nos procedimentos
 (Secção~\ref{sec:procedures}). \ui{Inserir referência}, por cima do texto,
 mostra os artigos do estudo e todas as amostras, pedaços, passos e análises
 que a lista \ui{Sobre} oferece (escreva para filtrar); clicar num põe no
-texto, onde está o cursor, uma ligação para ele, por exemplo
+texto, onde está o cursor, uma ligação para ele (para um artigo, a ligação vai
+para a sua entrada no estudo, com a sua nota e ficheiros, e não para o site da
+revista), por exemplo
 \texttt{[TST-2026-001-A · Recozimento](/samples/12\#step-34)}. Pode mudar o
 texto entre parênteses retos à vontade. O que diz respeito a um único passo (parâmetros,
 resultados, ficheiros) continua a pertencer ao próprio passo.
@@ -941,7 +949,9 @@ As \menu{Configurações} têm três partes.
 
 \begin{description}
   \item[Utilizadores] Criar contas (a palavra-passe temporária é enviada
-    por email, ou mostrada no ecrã se o email não estiver configurado),
+    por email, ou mostrada no ecrã se o email não estiver configurado; em
+    \ui{Equipa} escolhe-se a equipa onde a pessoa entra logo, já escolhida
+    quando só há uma),
     repor palavras-passe, tornar ou deixar de ser administrador, alterar o
     nome ou as iniciais de alguém, eliminar utilizadores.
   \item[Tipos de passo de processo / Tipos de análise] Acrescentar, editar

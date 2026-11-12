@@ -27,6 +27,14 @@
                 class="{{ input_cls }}">{{ study.description or '' if study else '' }}</textarea>
     </div>
     <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Status") }}</label>
+      <select name="status" class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+        {% for value, label in statuses.items() %}
+        <option value="{{ value }}" {% if (study.status if study and study.status else 'ongoing') == value %}selected{% endif %}>{{ _(label) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">{{ _("Who can see it") }}</label>
       <select name="visibility" class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
         {% for value, label in visibilities.items() %}
