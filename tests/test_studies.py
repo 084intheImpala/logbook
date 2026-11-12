@@ -40,6 +40,19 @@ def test_visibility_personal_team_public(world):
     assert mate_c.post(f"/studies/{team}/notes", data={"text": "hi"}).status_code == 403
 
 
+def test_a_coordinator_sees_members_studies_even_personal_ones(world):
+    member, boss, other_boss = world.user("sc-member"), world.user("sc-boss"), world.user("sc-other-boss")
+    world.team("sc-team", members=[member], coordinators=[boss])
+    world.team("sc-other", coordinators=[other_boss])
+    study_id = _study(world.client(member), "Member's private study", "personal")
+    boss_c = world.client(boss)
+    assert boss_c.get(f"/studies/{study_id}").status_code == 200
+    assert "Member&#39;s private study" in boss_c.get("/studies/").text
+    assert world.client(other_boss).get(f"/studies/{study_id}").status_code == 403
+    # Seeing isn't owning
+    assert boss_c.post(f"/studies/{study_id}/edit", data={"title": "mine now"}).status_code == 403
+
+
 def test_co_owners_have_full_rights_and_the_last_one_stays(world):
     a, b = world.user("co-a"), world.user("co-b")
     ca, cb = world.client(a), world.client(b)
