@@ -48,6 +48,7 @@ PT = {
         "Como coordenador gere os membros da sua equipa e tem os direitos do responsável nas amostras deles. Os administradores nomeiam coordenadores e criam equipas.",
     "Remove {username} from the team? Their samples stay theirs.": "Remover {username} da equipa? As amostras continuam a ser dele.",
     "Add someone who has no team": "Adicionar alguém sem equipa",
+    "— no team —": "— sem equipa —",
     "Create an account for a new member": "Criar uma conta para um novo membro",
     "Email (credentials are sent here)": "Email (as credenciais são enviadas para aqui)",
     "Create user": "Criar utilizador",

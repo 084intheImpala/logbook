@@ -39,7 +39,7 @@ FILE_NAME = "sample.json"
 FORMAT = 9   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries
 
 STUDY_FILE_NAME = "study.json"
-STUDY_FORMAT = 2   # 2: references have an id; a note can be about one
+STUDY_FORMAT = 3   # 2: references have an id; a note can be about one; 3: status, and files on references
 PROCEDURE_FILE_NAME = "procedure.json"
 PROCEDURE_FORMAT = 1
 
@@ -88,7 +88,8 @@ def _note_other(obj):
         _pending.add(("study", obj.study_id))
     elif isinstance(obj, ProcedureOwner):
         _pending.add(("procedure", obj.procedure_id))
-    elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis", "study_note", "procedure"):
+    elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis", "study_note", "study_reference",
+                                                                  "procedure"):
         _pending.add((obj.entity_type, obj.entity_id))
 
 
@@ -208,7 +209,8 @@ async def _write_samples(db, sample_ids: list[int] | None) -> int:
     return len(samples)
 
 
-def _study_document(study: Study, notes_files: dict[int, list[Attachment]], codes: dict[int, str]) -> dict:
+def _study_document(study: Study, notes_files: dict[int, list[Attachment]], codes: dict[int, str],
+                    reference_files: dict[int, list[Attachment]]) -> dict:
     def about(note: StudyNote) -> dict | None:
         if note.reference_id:   # by its id in `references`
             return {"kind": "reference", "id": note.reference_id}
@@ -225,12 +227,14 @@ def _study_document(study: Study, notes_files: dict[int, list[Attachment]], code
         "format": STUDY_FORMAT,
         "written_at": datetime.now().replace(microsecond=0),
         "id": study.id, "title": study.title, "description": study.description, "visibility": study.visibility,
+        "status": study.status,   # todo | ongoing | concluded
         "created_at": study.created_at, "created_by": _person(study.created_by),
         "owners": [_person(o.user) for o in study.owners],
         "samples": [{"id": l.sample.id, "code": l.sample.code, "label": l.sample.label, "added_at": l.created_at}
                     for l in study.sample_links if l.sample is not None],
         "references": [{"id": r.id, "doi": r.doi, "url": r.url, "title": r.title, "authors": r.authors, "journal": r.journal,
-                        "year": r.year, "note": r.note, "added_by": _person(r.added_by), "created_at": r.created_at}
+                        "year": r.year, "note": r.note, "added_by": _person(r.added_by), "created_at": r.created_at,
+                        "files": [_attachment(a) for a in reference_files.get(r.id, [])]}
                        for r in study.references],
         "notes": [{"id": n.id, "position": n.position, "noted_on": n.noted_on, "title": n.title, "text": n.text,
                    "about": about(n), "author": _person(n.author), "created_at": n.created_at,
@@ -247,17 +251,19 @@ async def _write_studies(db, study_ids: list[int] | None) -> int:
         query = query.where(Study.id.in_(study_ids))
     studies = list((await db.execute(query)).scalars())
     note_ids = [n.id for st in studies for n in st.notes]
+    ref_ids = [r.id for st in studies for r in st.references]
     files: dict[int, list[Attachment]] = {}
-    if note_ids:
-        for att in (await db.execute(select(Attachment).where(
-                Attachment.entity_type == "study_note", Attachment.entity_id.in_(note_ids))
-                .order_by(Attachment.id))).scalars():
-            files.setdefault(att.entity_id, []).append(att)
+    ref_files: dict[int, list[Attachment]] = {}
+    for kind, ids, into in (("study_note", note_ids, files), ("study_reference", ref_ids, ref_files)):
+        if ids:
+            for att in (await db.execute(select(Attachment).where(
+                    Attachment.entity_type == kind, Attachment.entity_id.in_(ids)).order_by(Attachment.id))).scalars():
+                into.setdefault(att.entity_id, []).append(att)
     note_sample_ids = {n.sample_id for st in studies for n in st.notes if n.sample_id}
     codes = dict((await db.execute(select(Sample.id, Sample.code).where(Sample.id.in_(note_sample_ids)))).all()) \
         if note_sample_ids else {}
     for st in studies:
-        _write(study_folder(st.id, st.title), _study_document(st, files, codes), STUDY_FILE_NAME)
+        _write(study_folder(st.id, st.title), _study_document(st, files, codes, ref_files), STUDY_FILE_NAME)
     return len(studies)
 
 
@@ -320,10 +326,11 @@ async def write_pending() -> None:
             await _write_samples(db, sorted(ids))
 
             study_ids = {i for kind, i in changed if kind == "study"}
-            wanted = [i for k, i in changed if k == "study_note"]
-            if wanted:
-                study_ids |= set((await db.execute(select(StudyNote.study_id)
-                                                   .where(StudyNote.id.in_(wanted)))).scalars())
+            for kind, model in (("study_note", StudyNote), ("study_reference", StudyReference)):
+                wanted = [i for k, i in changed if k == kind]
+                if wanted:
+                    study_ids |= set((await db.execute(select(model.study_id)
+                                                       .where(model.id.in_(wanted)))).scalars())
             if ids:   # a sample's ID or label is in its studies' files
                 study_ids |= set((await db.execute(select(StudySample.study_id)
                                                    .where(StudySample.sample_id.in_(list(ids))))).scalars())

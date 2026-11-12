@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend import images
-from backend.models import Attachment, Analysis, AnalysisType, ProcessStep, ProcessStepType, Procedure, Sample, Study, StudyNote, Substrate
+from backend.models import Attachment, Analysis, AnalysisType, ProcessStep, ProcessStepType, Procedure, Sample, Study, StudyNote, StudyReference, Substrate
 from backend.config import settings
 from backend.trash import move_to_trash
 
@@ -132,7 +132,7 @@ async def upload_folder(db: AsyncSession, entity_type: str, entity_id: int, fall
     analysis or substrate: the sample's ID, plus <date>_<technique> for a step
     or analysis (the entry's date, or `fallback_day` if it has none), e.g.
     ASS-2026-001/2026-10-22_XRD-HRXRD. Substrates: substrates/<name>; a
-    study's notes: studies/<id>-<title>; a procedure: procedures/<id>-<title>
+    study's notes and references: studies/<id>-<title>; a procedure: procedures/<id>-<title>
     (see record_folder)."""
     if entity_type == "substrate":
         name = (await db.execute(select(Substrate.name).where(Substrate.id == entity_id))).scalar_one_or_none()
@@ -140,9 +140,10 @@ async def upload_folder(db: AsyncSession, entity_type: str, entity_id: int, fall
     if entity_type == "procedure":
         title = (await db.execute(select(Procedure.title).where(Procedure.id == entity_id))).scalar_one_or_none()
         return procedure_folder(entity_id, title or "")
-    if entity_type == "study_note":
-        row = (await db.execute(select(Study.id, Study.title).join(StudyNote, StudyNote.study_id == Study.id)
-                                .where(StudyNote.id == entity_id))).first()
+    if entity_type in ("study_note", "study_reference"):
+        model = StudyNote if entity_type == "study_note" else StudyReference
+        row = (await db.execute(select(Study.id, Study.title).join(model, model.study_id == Study.id)
+                                .where(model.id == entity_id))).first()
         return study_folder(*row) if row else "studies/unsorted"
     if entity_type == "sample":
         sample_id, entry_folder = entity_id, None

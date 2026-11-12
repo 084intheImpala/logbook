@@ -1,0 +1,6 @@
+{# A study's status as a small coloured badge. Needs: statuses (STUDY_STATUS). #}
+{% macro status_badge(status, statuses) %}
+{%- set colours = {"todo": "bg-amber-50 text-amber-700 border-amber-200", "ongoing": "bg-blue-50 text-blue-700 border-blue-200",
+                   "concluded": "bg-green-50 text-green-700 border-green-200"} -%}
+<span class="inline-block whitespace-nowrap border rounded-full px-2 py-0.5 text-xs font-medium {{ colours.get(status, 'bg-gray-50 text-gray-600 border-gray-200') }}">{{ _(statuses[status]) if status in statuses else status }}</span>
+{%- endmacro %}
