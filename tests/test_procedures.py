@@ -76,6 +76,17 @@ def test_visibility_and_co_owners(world):
     assert "Shared recipe" in mate_c.get("/procedures/?mine=1").text and "Team recipe" not in mate_c.get("/procedures/?mine=1").text
 
 
+def test_a_coordinator_does_not_see_members_personal_procedures(world):
+    member, boss = world.user("pc-member"), world.user("pc-boss")
+    world.team("pc-team", members=[member], coordinators=[boss])
+    client = world.client(member)
+    personal = _procedure(client, "My own notes", visibility="personal")
+    team = _procedure(client, "Team notes")
+    boss_c = world.client(boss)
+    assert boss_c.get(f"/procedures/{personal}").status_code == 403
+    assert boss_c.get(f"/procedures/{team}").status_code == 200
+
+
 def test_an_entry_records_the_procedure_it_followed(world):
     owner, other = world.user("pe-owner"), world.user("pe-other")
     client = world.client(owner)

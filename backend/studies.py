@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth import can_view_shared, is_co_owner
+from backend.auth import can_view_shared, coordinates_user, is_co_owner
 from backend.models import Study, StudyNote, StudyOwner, StudySample, User
 
 
@@ -23,7 +23,9 @@ def is_study_owner(user: User | None, study: Study) -> bool:
 
 
 def can_view_study(user: User | None, study: Study) -> bool:
-    return can_view_shared(user, study)
+    """As `can_view_shared`, and a coordinator also sees every study a member of
+    their team co-owns, even a personal one (procedures stay personal)."""
+    return can_view_shared(user, study) or any(coordinates_user(user, o.user) for o in study.owners)
 
 
 async def load_study(db: AsyncSession, study_id: int, user: User, need: str = "view") -> Study:

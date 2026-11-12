@@ -547,7 +547,9 @@ others (any user with an account). Every co-owner, and admins, can change
 everything: details, samples, notes, co-owners. A study always keeps at least
 one. **Who can see it** works as for samples: *Personal*, only its
 co-owners; *Team*, also everyone in a co-owner's team (the default);
-*Public*, everyone logged in. The tables are `studies`, `study_owners`,
+*Public*, everyone logged in. A **coordinator** sees every study a member of
+their team co-owns, even a personal one, but can't change it unless they are
+a co-owner. The tables are `studies`, `study_owners`,
 `study_samples`, `study_references` and `study_notes` (migration `0020`;
 `study_notes.reference_id`, migration `0022`).
 
@@ -601,7 +603,9 @@ see, by technique, or only yours (**Mine**), with how often each was followed.
 
 **Co-owners and visibility** work as for studies: whoever writes it is its
 first co-owner and can add others; co-owners and admins can change it;
-*Personal*, *Team* (the default: the co-owners' teams) or *Public*.
+*Personal*, *Team* (the default: the co-owners' teams) or *Public*. Unlike
+studies, a personal procedure stays hidden from the team's coordinators too:
+it is the writer's own notes.
 
 **Procedure followed.** The step and analysis forms have a **Procedure
 followed** field offering the procedures you can see for the chosen type,
@@ -655,7 +659,7 @@ admin input, in three tiers:
 | | Can do |
 |---|---|
 | **Admin** | Everything. Only admins create, rename and delete teams, appoint and remove **coordinators**, move people between teams, change sample IDs, edit entry types and dropdown lists, and make other admins. |
-| **Coordinator** (of one team) | Has the **owner's rights on every sample owned by a member of their team**: view, edit, share, change visibility, delete, and hand to another member of the team (straight away, no confirmation). Answers proposals and access requests (below). On the **My team** page: adds people who have no team, removes members (not coordinators), creates accounts for new members (they join the team and get the usual welcome email) and resets members' passwords. |
+| **Coordinator** (of one team) | Has the **owner's rights on every sample owned by a member of their team**: view, edit, share, change visibility, delete, and hand to another member of the team (straight away, no confirmation). Sees their members' studies, even personal ones (not their personal procedures). Answers proposals and access requests (below). On the **My team** page: adds people who have no team, removes members (not coordinators), creates accounts for new members (they join the team and get the usual welcome email) and resets members' passwords. |
 | **Member** | Their own samples, anything shared with them, what a sample's visibility shows them, and *proposing* entries on teammates' samples. |
 
 Admins manage teams under *Configurations → Teams*. **Send a message** (Configurations) emails everyone, one team's
