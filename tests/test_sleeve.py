@@ -140,3 +140,31 @@ def test_a_sample_s_tick_box_names_the_samples_it_was_cut_from(world):
         assert ancestors(html, a) == str(mother.id)
         assert sorted(ancestors(html, a1).split()) == sorted([str(mother.id), str(a.id)])
     assert "withPieces" in client.get("/samples/").text
+
+
+def test_the_sheet_has_a_title_field_that_names_it(world):
+    owner = world.user("sleeve-titled")
+    sample = world.sample(owner, label="titled one")
+    client = world.client(owner)
+    html = client.get(f"/samples/sleeve?ids={sample.id}").text
+    assert 'id="sleeve-title"' in html and 'value=""' in html and "Título" in html
+    html = client.get(f"/samples/sleeve?ids={sample.id}&title=Sleeve+12").text
+    assert 'id="sleeve-title" value="Sleeve 12"' in html
+    assert '<h1 id="sheet-title"' in html and ">Sleeve 12</h1>" in html
+    assert "<title>Sleeve 12 — Logbook</title>" in html
+
+
+def test_a_big_sleeve_has_every_sample_and_any_over_the_limit_are_reported(world, monkeypatch):
+    from backend.routers import sleeve
+    owner = world.user("sleeve-big")
+    samples = [world.sample(owner, label=f"big {i}") for i in range(92)]
+    client = world.client(owner)
+    query = "&".join(f"ids={s.id}" for s in samples)
+    html = client.get(f"/samples/sleeve?{query}").text
+    assert "92 amostras" in html and all(s.code in html for s in samples)
+    assert "ficaram de fora" not in html
+
+    monkeypatch.setattr(sleeve, "MAX_SAMPLES", 90)
+    html = client.get(f"/samples/sleeve?{query}").text
+    assert "90 amostras" in html
+    assert "Só as primeiras 90 amostras estão nesta folha; 2 ficaram de fora." in html

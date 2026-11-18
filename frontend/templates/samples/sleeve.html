@@ -19,12 +19,13 @@
                background: #fff; color: #374151; text-decoration: none; cursor: pointer; }
     .toolbar button { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
     .toolbar label { color: #374151; }
-    .toolbar .hint { color: #6b7280; font-size: 9pt; }
+    .toolbar input[type=text] { font: inherit; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 16em; }
+    .toolbar .warn { color: #b45309; font-weight: 600; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .muted { color: #6b7280; }
     header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;
                  border-bottom: 2px solid #111827; padding-bottom: 4px; margin-bottom: 6px; }
-    h1 { margin: 0; font-size: 15pt; line-height: 1.15; outline: none; min-width: 40mm; }
+    h1 { margin: 0; font-size: 15pt; line-height: 1.15; min-width: 40mm; }
     h1:empty::before { content: attr(data-placeholder); color: #9ca3af; }
     @media print { h1:empty::before { content: ""; } }
     .meta { text-align: right; color: #6b7280; white-space: nowrap; }
@@ -74,12 +75,16 @@
   <button type="button" onclick="window.print()">{{ _("Print / save as PDF") }}</button>
   <a href="/samples/">{{ _("Back to the samples") }}</a>
   <label><input type="checkbox" id="show-timelines" checked> {{ _("Timelines") }}</label>
-  <span class="hint">{{ _("Click the heading to name the sleeve.") }}</span>
+  <label>{{ _("Title") }}: <input type="text" id="sleeve-title" value="{{ title }}" placeholder="{{ _("Sleeve") }}"
+         autocomplete="off"></label>
+  {% if left_out %}
+  <span class="warn">{{ _("Only the first {max} samples are on this sheet; {n} left out.", max=max_samples, n=left_out) }}</span>
+  {% endif %}
 </div>
 
 <div class="sheet" id="sheet">
   <header class="top">
-    <h1 contenteditable="true" spellcheck="false" data-placeholder="{{ _("Sleeve") }}">{{ title }}</h1>
+    <h1 id="sheet-title" data-placeholder="{{ _("Sleeve") }}">{{ title }}</h1>
     <div class="meta">
       {{ _("1 sample") if count == 1 else _("{n} samples", n=count) }}
       · {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d')) }}
@@ -158,6 +163,20 @@
   };
   box.addEventListener('change', apply);
   apply();
+
+  // The title field names the sheet (heading, tab, saved PDF) and goes in the address as title=,
+  // so a reload or a bookmark keeps it
+  const titleBox = document.getElementById('sleeve-title');
+  const heading = document.getElementById('sheet-title');
+  const pageTitle = document.title.replace(/^.* — /, '');
+  titleBox.addEventListener('input', () => {
+    const t = titleBox.value.trim();
+    heading.textContent = t;
+    document.title = (t || titleBox.placeholder) + ' — ' + pageTitle;
+    const url = new URL(location.href);
+    if (t) url.searchParams.set('title', t); else url.searchParams.delete('title');
+    history.replaceState(null, '', url);
+  });
 </script>
 </body>
 </html>

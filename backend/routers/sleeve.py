@@ -20,7 +20,7 @@ from backend.templating import templates
 
 router = APIRouter(prefix="/samples/sleeve", tags=["sleeve"])
 
-MAX_SAMPLES = 60       # more than any sleeve holds
+MAX_SAMPLES = 300      # only a guard against a runaway request; any left out are reported on the sheet
 MAX_ENTRIES = 8        # timeline lines per sample; the rest are counted
 MAX_VALUES = 5         # parameter values per line (an implantation's ion, energy, fluence…)
 # Values shown on top of the first MAX_VALUES, per step type: what matters most on a sleeve
@@ -94,7 +94,9 @@ async def sleeve_sheet(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
-    ids = list(dict.fromkeys(ids))[:MAX_SAMPLES]
+    ids = list(dict.fromkeys(ids))
+    left_out = max(0, len(ids) - MAX_SAMPLES)
+    ids = ids[:MAX_SAMPLES]
     if not ids:
         return RedirectResponse("/samples/", status_code=303)
     blocks = []
@@ -115,6 +117,6 @@ async def sleeve_sheet(
         b["entries"], b["more"] = entries[:MAX_ENTRIES], max(0, len(entries) - MAX_ENTRIES)
     return templates.TemplateResponse("samples/sleeve.html", {
         "request": request, "current_user": current_user, "sections": _sections(_groups(blocks)),
-        "count": len(blocks), "title": title.strip(),
+        "count": len(blocks), "title": title.strip(), "left_out": left_out, "max_samples": MAX_SAMPLES,
         "printed_at": datetime.now().replace(microsecond=0),
     })

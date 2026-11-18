@@ -7,7 +7,8 @@ PT = {
     "select all shown": "selecionar todas as visíveis",
     "Back to the samples": "Voltar às amostras",
     "Timelines": "Cronologias",
-    "Click the heading to name the sleeve.": "Clique no título para dar um nome à manga.",
+    "Only the first {max} samples are on this sheet; {n} left out.":
+        "Só as primeiras {max} amostras estão nesta folha; {n} ficaram de fora.",
     "1 sample": "1 amostra",
     "cut from {code}": "cortada de {code}",
     "Mother sample": "Amostra-mãe",

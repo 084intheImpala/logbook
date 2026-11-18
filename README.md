@@ -1103,10 +1103,12 @@ layers drawing, thicknesses where known), tags, the first entries of the
 timeline (date, type and up to five parameter values in full, e.g. an
 implantation's ion, energy and fluence or an anneal's temperature and time,
 wrapping across the block's full width, and a Deposition's gas flow too;
-planned entries left out). Click the
-heading to name the sleeve before printing (or pass `title=`); the
+planned entries left out). Type a name for the sleeve in the **Title** field
+at the top before printing (it's kept in the address as `title=`, so a reload
+keeps it); the
 **Timelines** tick box hides the timelines for a shorter sheet. About eight
-samples fit on a page; more flow onto the next. Like the printable record,
+samples fit on a page; more flow onto the next, up to 300 a sheet
+(`MAX_SAMPLES`; if more are ticked, a notice says how many were left out). Like the printable record,
 each block shows what you can see: without access, the summary only.
 `GET /samples/sleeve?ids=…` (`routers/sleeve.py`, built from the sample
 page's data), `samples/sleeve.html`; `ALSO_SHOWN` there names values always shown for a
