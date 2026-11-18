@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Delete samples") }} — Logbook{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="/samples/" class="text-sm text-gray-500 hover:underline">← {{ _("Samples") }}</a>
+  <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ _("Delete samples") }}</h1>
+</div>
+
+{% if deletable %}
+<div class="mb-6 bg-white rounded-xl border border-red-200 shadow-sm p-4">
+  <p class="text-sm text-gray-700 mb-3">
+    {{ _("This deletes 1 sample, with its entries and files:") if deletable|length == 1 else _("This deletes {n} samples, with their entries and files:", n=deletable|length) }}
+    <span class="text-gray-500">{{ _("Files that another sample also uses stay. It can't be undone.") }}</span></p>
+  <ul class="text-sm space-y-0.5 mb-4">
+    {% for s in deletable %}
+    <li><a href="/samples/{{ s.id }}" class="font-mono text-blue-600 hover:underline">{{ s.title }}</a>
+      {% if s.label %}<span class="text-gray-600">{{ s.label }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="/samples/delete-selected" class="flex items-center gap-3">
+    {% for s in deletable %}<input type="hidden" name="ids" value="{{ s.id }}">{% endfor %}
+    <button class="bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-700">
+      {{ _("Delete 1 sample") if deletable|length == 1 else _("Delete {n} samples", n=deletable|length) }}</button>
+    <a href="/samples/" class="text-sm text-gray-500 hover:underline">{{ _("Cancel") }}</a>
+  </form>
+</div>
+{% else %}
+<div class="mb-6 bg-gray-50 border border-gray-200 text-gray-700 text-sm px-4 py-3 rounded-lg">
+  {{ _("None of the ticked samples can be deleted.") }}
+  <a href="/samples/" class="text-blue-600 hover:underline">{{ _("Back to the samples") }}</a>
+</div>
+{% endif %}
+
+{% if refused %}
+<div class="mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
+  <div class="font-medium mb-1">{{ _("These stay:") }}</div>
+  <ul class="space-y-0.5">
+    {% for s, why in refused %}
+    <li><span class="font-mono">{{ s.title }}</span>{% if s.label %} {{ s.label }}{% endif %} —
+      {% if why == "not_owner" %}{{ _("only its owner (or an admin, or a coordinator of the owner's team) can delete it") }}
+      {% else %}{{ _("pieces cut from it stay (they inherit its history): tick them too, or delete them first") }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

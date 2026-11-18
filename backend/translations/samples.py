@@ -151,4 +151,22 @@ PT = {
     "manage": "gerir",
     "Make devices when the process that produces them is done: a 'Devices made' step goes on the timeline. Steps after it, such as annealing, still apply to all the devices. Pick a device when adding an analysis to say which one it was measured on.":
         "Crie os dispositivos quando o processo que os produz estiver concluído: um passo 'Devices made' fica na cronologia. Os passos seguintes, como o recozimento, continuam a aplicar-se a todos os dispositivos. Ao adicionar uma análise, escolha o dispositivo em que foi medida.",
+    # deleting several samples (ticked on the list)
+    "Delete selected": "Eliminar as selecionadas",
+    "Delete samples": "Eliminar amostras",
+    "This deletes 1 sample, with its entries and files:": "Isto elimina 1 amostra, com as suas entradas e ficheiros:",
+    "This deletes {n} samples, with their entries and files:": "Isto elimina {n} amostras, com as suas entradas e ficheiros:",
+    "Files that another sample also uses stay. It can't be undone.":
+        "Os ficheiros que outra amostra também usa ficam. Não se pode desfazer.",
+    "Delete 1 sample": "Eliminar 1 amostra",
+    "Delete {n} samples": "Eliminar {n} amostras",
+    "None of the ticked samples can be deleted.": "Nenhuma das amostras selecionadas pode ser eliminada.",
+    "Back to the samples": "Voltar às amostras",
+    "These stay:": "Estas ficam:",
+    "only its owner (or an admin, or a coordinator of the owner's team) can delete it":
+        "só o dono (ou um administrador, ou um coordenador da equipa do dono) a pode eliminar",
+    "pieces cut from it stay (they inherit its history): tick them too, or delete them first":
+        "ficam pedaços cortados dela (herdam a sua história): selecione-os também, ou elimine-os primeiro",
+    "Deleted 1 sample.": "Eliminada 1 amostra.",
+    "Deleted {n} samples.": "Eliminadas {n} amostras.",
 }

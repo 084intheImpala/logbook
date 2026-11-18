@@ -1,6 +1,6 @@
 import logging
 from datetime import date, datetime
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete as sa_delete, func, select
@@ -104,6 +104,59 @@ async def list_samples(
         "can_view": can_view,
         "current_user": current_user,
     })
+
+
+# ── Deleting several samples (ticked on the list) ─────────────────────────────
+
+
+async def _deletion_plan(db: AsyncSession, ids: list[int], user) -> tuple[list[Sample], list[tuple[Sample, str]]]:
+    """Which of the ticked samples can go, in an order that deletes pieces before the sample they were cut
+    from, and which can't (with why). The rules are a single delete's: owner rights, and a sample whose
+    pieces stay can't go (they inherit its history), so all of its pieces must be ticked and deletable too."""
+    samples = {s.id: s for s in (await db.execute(select(Sample).where(Sample.id.in_(ids)))).scalars()}
+    descendants = {sid: {p.id for p in await pieces_of(db, sid)} for sid in samples}
+    reason: dict[int, str] = {sid: "not_owner" for sid, s in samples.items() if not is_owner(user, s)}
+    changed = True
+    while changed:   # a sample is held back by any piece that stays
+        changed = False
+        for sid in samples:
+            if sid not in reason and not descendants[sid] <= (set(samples) - set(reason)):
+                reason[sid], changed = "pieces", True
+    ok = [s for sid, s in samples.items() if sid not in reason]
+    ok.sort(key=lambda s: -len([a for a in samples if s.id in descendants[a]]))   # deepest pieces first
+    refused = [(samples[sid], why) for sid, why in reason.items()]
+    return ok, sorted(refused, key=lambda r: r[0].code or "")
+
+
+@router.get("/delete-selected", response_class=HTMLResponse)
+async def delete_selected_form(
+    request: Request,
+    ids: list[int] = Query([]),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    """Asks before deleting the samples ticked on the list (nothing is deleted here)."""
+    ok, refused = await _deletion_plan(db, list(dict.fromkeys(ids)), current_user)
+    return templates.TemplateResponse("samples/delete_selected.html", {
+        "request": request, "current_user": current_user,
+        "deletable": sorted(ok, key=lambda s: s.code or ""), "refused": refused})
+
+
+@router.post("/delete-selected")
+async def delete_selected(
+    request: Request,
+    ids: list[str] = Form([]),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    wanted = list(dict.fromkeys(int(i) for i in ids if i.isdigit()))
+    ok, _refused = await _deletion_plan(db, wanted, current_user)
+    for sample in ok:
+        await _delete_one(db, sample, current_user)
+    await db.commit()
+    request.session["flash"] = (t(request, "Deleted 1 sample.") if len(ok) == 1 else
+                                t(request, "Deleted {n} samples.", n=len(ok)))
+    return RedirectResponse("/samples/", status_code=303)
 
 
 async def _form_context(db: AsyncSession, request: Request, current_user, sample, editing: bool, error=None):
@@ -675,17 +728,23 @@ async def delete_sample(
             t(request, "Can't delete: {n} pieces were cut from this sample and inherit its history. "
                        "Delete the pieces first.", n=len(pieces)))
         return RedirectResponse(f"/samples/{sample_id}", status_code=303)
-    log_activity(db, current_user, "sample_deleted", sample.title, sample.owner_id)
-    # Its files (and its entries') go to the trash, unless another sample's entry shares them
-    await delete_attachments_of(
-        db, sample_ids=[sample_id],
-        step_ids=(await db.execute(select(ProcessStep.id).where(ProcessStep.sample_id == sample_id))).scalars().all(),
-        analysis_ids=(await db.execute(select(Analysis.id).where(Analysis.sample_id == sample_id))).scalars().all())
-    # The database drops it from its studies too (ON DELETE CASCADE); done here as well for SQLite
-    await db.execute(sa_delete(StudySample).where(StudySample.sample_id == sample_id))
-    await db.delete(sample)
+    await _delete_one(db, sample, current_user)
     await db.commit()
     return RedirectResponse("/samples/", status_code=303)
+
+
+async def _delete_one(db: AsyncSession, sample: Sample, current_user):
+    """Delete a sample that has no pieces (left): logged, its files and its entries' go to the trash
+    unless another sample's entry shares them, and it leaves its studies."""
+    log_activity(db, current_user, "sample_deleted", sample.title, sample.owner_id)
+    await delete_attachments_of(
+        db, sample_ids=[sample.id],
+        step_ids=(await db.execute(select(ProcessStep.id).where(ProcessStep.sample_id == sample.id))).scalars().all(),
+        analysis_ids=(await db.execute(select(Analysis.id).where(Analysis.sample_id == sample.id))).scalars().all())
+    # The database drops it from its studies too (ON DELETE CASCADE); done here as well for SQLite
+    await db.execute(sa_delete(StudySample).where(StudySample.sample_id == sample.id))
+    await db.delete(sample)
+    await db.flush()
 
 
 # ── Cutting into pieces ───────────────────────────────────────────────────────

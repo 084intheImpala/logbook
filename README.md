@@ -499,6 +499,17 @@ belongs to the parent only. Moving the Cut step on the parent's timeline
 changes what the pieces inherit. A sample can't be deleted while it has
 pieces, and neither can a Cut step that pieces were cut at.
 
+**Deleting several samples.** Tick them on the **Samples** list (the same
+boxes as the [sleeve sheet](#sleeve-sheet-several-samples-on-one-page):
+ticking a sample ticks its pieces) and click **Delete selected**. A page
+lists what will be deleted, and which of the ticked samples stay and why;
+nothing is deleted until you confirm there (`routers/samples.py`,
+`delete_selected`). The rules are a single delete's: you need the owner's
+rights on each sample, and a sample goes only together with all the pieces
+cut from it (they're deleted first), so a sample whose pieces aren't ticked,
+or can't be deleted, stays. Each deleted sample is logged in the Activity
+log, and its files go to the trash unless another sample also uses them.
+
 Access to a piece includes its inherited history (entries and files from
 before the cut), even without access to the parent. Search matches pieces on
 inherited entries, and the CSV marks those rows in `inherited_from`.
