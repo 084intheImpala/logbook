@@ -27,6 +27,14 @@ docker compose exec app python -m backend.create_admin
 
 That's it. Tables and seed data are created automatically on first run.
 
+`backend/` and `frontend/` are mounted into the container and uvicorn runs
+with `--reload`, so a `git pull` takes effect by itself: pages straight away,
+Python code once uvicorn notices the change. Through a bind mount from a
+Windows drive (WSL) it can't be told about changes, so `WATCHFILES_FORCE_POLLING`
+makes it look every so often. If new code still doesn't seem to run (e.g. a new
+page answers "Input should be a valid integer"), `docker compose restart app`.
+Rebuild (`docker compose up -d --build`) only when `requirements.txt` changes.
+
 > **Note:** `docker-compose.yml` is set up for **Docker running inside WSL2 with
 > mirrored networking** (see below). On any other setup, make the changes in
 > [Running on other environments](#running-on-other-environments) first.

@@ -20,6 +20,9 @@ services:
     environment:
       # Host networking: reach Postgres through its published port on localhost
       DATABASE_URL: postgresql+asyncpg://logbook:logbook@localhost:5432/logbook
+      # --reload doesn't hear file changes through a bind mount from a Windows drive (WSL): look for them
+      # instead, so a `git pull` reloads the Python code too (templates are read afresh anyway)
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ./uploads:/app/uploads
       - ./backend:/app/backend
