@@ -15,5 +15,4 @@ PT = {
     "substrate": "substrato",
     "+ {n} more": "+ {n} mais",
     "Summary only": "Só o resumo",
-    "Scan a code to open the sample in the logbook.": "Leia um código para abrir a amostra no logbook.",
 }

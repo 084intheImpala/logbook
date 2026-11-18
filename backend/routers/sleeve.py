@@ -1,6 +1,5 @@
 """Sleeve sheet: several samples on one printable page, a compact block each
-(ID, label, type, researcher, substrate, film stack, short timeline and a QR
-code to the sample's page), to file with samples kept together in a sleeve.
+(ID, label, type, researcher, substrate, film stack, short timeline), to file with samples kept together in a sleeve.
 Pieces are grouped under their mother sample (the first ancestor), in ID order;
 what a piece inherits from a sample on the sheet is left to that sample's block.
 
@@ -9,7 +8,6 @@ Picked with the tick boxes on the Samples list or the search results;
 """
 from datetime import datetime
 
-import segno
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,12 +23,8 @@ router = APIRouter(prefix="/samples/sleeve", tags=["sleeve"])
 MAX_SAMPLES = 60       # more than any sleeve holds
 MAX_ENTRIES = 8        # timeline lines per sample; the rest are counted
 MAX_VALUES = 5         # parameter values per line (an implantation's ion, energy, fluence…)
-
-
-def qr_svg(url: str) -> str:
-    """An inline SVG QR code for `url` (scales with its box: no width/height)."""
-    svg = segno.make(url, error="m").svg_inline(scale=1, border=0, omitsize=True)
-    return svg.replace("<svg ", '<svg class="qr" ', 1)
+# Values shown on top of the first MAX_VALUES, per step type: what matters most on a sleeve
+ALSO_SHOWN = {"Deposition": ["gas_flow"]}
 
 
 def _layers(page: dict) -> list[dict]:
@@ -43,14 +37,18 @@ def _layers(page: dict) -> list[dict]:
 
 
 def _entries(page: dict) -> list[dict]:
-    """Done entries the viewer may see, oldest first, with their first few parameter values."""
+    """Done entries the viewer may see, oldest first, with their first few parameter values
+    (and those in ALSO_SHOWN for their type)."""
     out = []
     for e in page["timeline"]:
         if e["planned"] or not e["visible"]:
             continue
-        values = [p["value"] for p in e["params"] if "value" in p and not p["long"] and p["value"]]
+        shown = [p for p in e["params"] if "value" in p and not p["long"] and p["value"]]
+        also = ALSO_SHOWN.get(e["type_name"], [])
+        values = [p["value"] for i, p in enumerate(shown) if i < MAX_VALUES or p["key"] in also]
         out.append({"date": e["performed_at"], "type": e["type_name"], "kind": e["kind"],
-                    "summary": " · ".join(v.replace(" ", "\u00a0") for v in values[:MAX_VALUES]), "inherited": e["inherited"],
+                    "summary": " · ".join(v.replace(" ", "\u00a0") for v in values),   # a value never splits from its unit
+                    "inherited": e["inherited"],
                     "source": e["source"].title, "source_id": e["source"].id, "device": e["device"]})
     return out
 
@@ -88,10 +86,9 @@ async def sleeve_sheet(
             continue
         page = await _page(request, db, sample_id, current_user)
         entries = _entries(page) if page["can_view"] or any(e["visible"] for e in page["timeline"]) else []
-        url = str(request.url_for("sample_detail", sample_id=sample_id))
         blocks.append({
             "sample": page["sample"], "parent": page["parent"], "root": page["root"], "can_view": page["can_view"],
-            "layers": _layers(page), "entries": entries, "url": url, "qr": qr_svg(url),
+            "layers": _layers(page), "entries": entries,
         })
     # No doubled lines: an entry a piece inherits from a sample that has its own
     # block on the sheet is shown there only, so a piece lists what came after its cut.

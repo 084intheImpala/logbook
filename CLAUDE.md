@@ -55,8 +55,7 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
 - **Printable record** (`/samples/{id}/print`, `samples/print.html`): the sample page's data (`samples._page`)
   laid out for A4, printed or saved as PDF by the browser; photo previews, file names only.
 - **Sleeve sheet** (`routers/sleeve.py`, `samples/sleeve.html`, `_sleeve_button.html`): tick samples on the list or
-  search page → `/samples/sleeve?ids=…`, one A4 page, a block each (summary, film stack, short timeline, QR code
-  by `segno`), built from `samples._page`.
+  search page → `/samples/sleeve?ids=…`, one A4 page, a block each (summary, film stack, short timeline), built from `samples._page`.
 - **Studies** (`routers/studies.py`, permissions and note order in `studies.py`, `models.Study*`): several samples
   (only ones the user can see; listed per viewer), references (DOI looked up at doi.org by `doi.py`, stubbed in
   tests; anyone who sees the study may add one), dated ordered notes that can point at a sample/step/analysis, with

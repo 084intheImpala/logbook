@@ -1061,15 +1061,15 @@ project sample's project), the film stack from top to substrate (as in the
 layers drawing, thicknesses where known), tags, the first entries of the
 timeline (date, type and up to five parameter values in full, e.g. an
 implantation's ion, energy and fluence or an anneal's temperature and time,
-wrapping across the block's full width; planned entries left out)
-and a **QR code** that opens the sample's page in the logbook. Click the
+wrapping across the block's full width, and a Deposition's gas flow too;
+planned entries left out). Click the
 heading to name the sleeve before printing (or pass `title=`); the
 **Timelines** tick box hides the timelines for a shorter sheet. About eight
 samples fit on a page; more flow onto the next. Like the printable record,
 each block shows what you can see: without access, the summary only.
 `GET /samples/sleeve?ids=…` (`routers/sleeve.py`, built from the sample
-page's data), `samples/sleeve.html`; the QR codes are drawn by the `segno`
-package.
+page's data), `samples/sleeve.html`; `ALSO_SHOWN` there names values always shown for a
+step type.
 
 ### One step or analysis on several samples
 

@@ -1,5 +1,4 @@
 """The sleeve sheet: several samples on one printable page (/samples/sleeve, routers/sleeve.py)."""
-from backend.routers.sleeve import qr_svg
 from tests.test_deposition_rate import _deposit
 
 
@@ -26,7 +25,7 @@ def test_the_sheet_has_a_block_per_sample_with_its_stack_timeline_and_qr_code(wo
     assert sub.name in html
     assert "Ga2O3 200 nm" in html                                     # the film stack
     assert "2026-03-02" in html and "Deposition" in html              # the timeline
-    assert html.count('<svg class="qr"') == 2
+    assert "<svg" not in html                                          # no QR codes
     assert "window.print()" in html and "<form" not in html
 
 
@@ -43,11 +42,6 @@ def test_no_samples_goes_back_to_the_list_and_unknown_ids_are_skipped(world):
     client = world.client(world.user("sleeve-empty"))
     assert client.get("/samples/sleeve").status_code == 303
     assert client.get("/samples/sleeve?ids=999999").status_code == 200
-
-
-def test_the_qr_code_is_an_svg():
-    svg = qr_svg("http://lab.example/samples/1")
-    assert svg.startswith('<svg class="qr"') and "<path" in svg
 
 
 def test_pieces_are_grouped_under_their_mother_sample(world):
@@ -115,3 +109,15 @@ def test_a_timeline_line_shows_the_key_values_in_full(world):
     assert "150\u00a0keV" in html and "ions/cm²" in html            # energy and fluence, unit kept with its value
     assert "900\u00a0°C" in html and "120\u00a0s" in html          # anneal temperature and time
     assert "text-overflow: ellipsis" not in html                    # wrapped, never cut short
+
+
+def test_a_deposition_line_shows_the_gas_flow(world):
+    from tests.test_deposition_rate import _deposit
+    owner = world.user("sleeve-flow")
+    client = world.client(owner)
+    sample = world.sample(owner, label="sputtered")
+    _deposit(client, sample, "2026-03-02", technique="Sputtering", target="Ga2O3", atmosphere="Ar",
+             base_pressure="2", working_pressure="3", power="100", gas_flow="20")
+    html = client.get(f"/samples/sleeve?ids={sample.id}").text
+    assert "Sputtering" in html and "100\u00a0W" not in html     # past the first five values…
+    assert "20\u00a0sccm" in html                                # …but the flow is always shown

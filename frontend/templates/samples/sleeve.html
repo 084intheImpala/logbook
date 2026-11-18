@@ -44,7 +44,6 @@
     .block { min-width: 0; border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; }
     .block .top { display: flex; gap: 2.5mm; }
     .block .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-    .qr { width: 18mm; height: 18mm; flex: none; }
     .code { font-size: 11.5pt; font-weight: 700; }
     .badge { font-size: 7pt; font-weight: 600; border: 1px solid #9ca3af; border-radius: 3px; padding: 0 3px; margin-left: 3px;
              vertical-align: middle; color: #4b5563; }
@@ -54,7 +53,7 @@
     .stack { margin-top: 2px; }
     .stack .film + .film::before { content: " / "; color: #9ca3af; }
     ol.entries { list-style: none; margin: 3px 0 0; padding: 2px 0 0; border-top: 1px solid #e5e7eb; }
-    /* the timeline runs the block's full width, under the QR code; long values wrap, never cut */
+    /* long values wrap, never cut */
     ol.entries li { display: flex; gap: 6px; }
     ol.entries .d { color: #4b5563; width: 16mm; flex: none; font-variant-numeric: tabular-nums; }
     ol.entries .x { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -63,7 +62,6 @@
     ol.entries .inherited { color: #6b7280; }
     ol.entries .inherited .t { font-weight: 400; }
     .no-timelines ol.entries, .no-timelines .more { display: none; }
-    footer { margin-top: 6px; padding-top: 3px; border-top: 1px solid #d1d5db; font-size: 7.5pt; color: #6b7280; }
     @media print {
       body { background: #fff; }
       .toolbar { display: none; }
@@ -135,7 +133,6 @@
         <div class="line muted">🔒 {{ _("Summary only") }}</div>
         {% endif %}
       </div>
-      {{ b.qr|safe }}
       </div>
         {% if b.entries %}
         <ol class="entries">
@@ -154,7 +151,6 @@
     {% endfor %}
   </div>
 
-  <footer>{{ _("Scan a code to open the sample in the logbook.") }}</footer>
 </div>
 <script>
   // Timelines on or off, remembered on this browser
