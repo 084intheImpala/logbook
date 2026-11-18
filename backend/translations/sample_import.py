@@ -38,6 +38,8 @@ PT = {
         "Uma Deposição pode ter ref, e uma posterior on (uma ref, ou substrate) e partial, para o seu lugar no empilhamento de filmes.",
     "Files: paths inside the zip, relative to the .json file.":
         "Ficheiros: caminhos dentro do zip, relativos ao ficheiro .json.",
+    "Studies: studies, a list of study titles (studies you co-own); the sample or piece is added to them.":
+        "Estudos: studies, uma lista de títulos de estudos (de que seja coautor); a amostra ou peça é acrescentada a eles.",
 
     # Where a problem is
     "sample {n}": "amostra {n}",
@@ -93,6 +95,11 @@ PT = {
     'the team name "{team}" can\'t be used for sample IDs (it needs 2 to 6 letters or digits)':
         'o nome da equipa "{team}" não pode ser usado nos IDs das amostras (precisa de 2 a 6 letras ou algarismos)',
     '"tags" must be a list of words': '"tags" tem de ser uma lista de palavras',
+    '"studies" must be a list of study titles': '"studies" tem de ser uma lista de títulos de estudos',
+    'no study "{title}" that you co-own (samples can be added only to those)':
+        'não há nenhum estudo "{title}" de que seja coautor (só se podem acrescentar amostras a esses)',
+    'several of your studies are called "{title}"; rename one first':
+        'vários dos seus estudos chamam-se "{title}"; mude primeiro o nome a um deles',
     '"timeline" must be a list': '"timeline" tem de ser uma lista',
     '"kind" must be "step", "analysis" or "cut"': '"kind" tem de ser "step", "analysis" ou "cut"',
     'no process step type "{name}"': 'não há tipo de passo "{name}"',

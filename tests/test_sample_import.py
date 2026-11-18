@@ -8,8 +8,9 @@ from datetime import date
 from sqlalchemy import select
 
 from backend.database import AsyncSessionLocal
-from backend.models import Analysis, Attachment, ProcessStep, Sample
+from backend.models import Analysis, Attachment, ProcessStep, Sample, StudySample
 from tests.loop import run
+from tests.test_studies import _study
 
 
 def _upload(client, payload, name="old.json"):
@@ -214,3 +215,46 @@ def test_a_zip_brings_the_photos_and_files(world):
     xrd = _entries(sample.id)[1]
     [scan] = _attachments("analysis", xrd.id)
     assert scan.original_filename == "scan.xy" and sample.code in scan.stored_filename
+
+
+def _study_links(study_id: int) -> list[int]:
+    async def get():
+        async with AsyncSessionLocal() as db:
+            return sorted((await db.execute(
+                select(StudySample.sample_id).where(StudySample.study_id == study_id))).scalars())
+    return run(get())
+
+
+def test_samples_and_pieces_can_be_added_to_studies_the_importer_co_owns(world):
+    user = world.user("importer-study")
+    client = world.client(user)
+    sub = world.substrate()
+    series = _study(client, "Annealing series")
+    other = _study(client, "Other study")
+    item = _sample(sub, label="studied", studies=["annealing SERIES", "Annealing series"])
+    item["timeline"].append({"kind": "cut", "pieces": [{"label": "kept", "studies": ["Other study"]},
+                                                      {"label": "plain"}]})
+    page = _upload(client, item)
+    assert "Annealing series" in page.text and "Other study" in page.text   # shown in the preview
+    assert not _study_links(series) and not _study_links(other)          # the check adds nothing
+    _confirm(client, page)
+    [sample] = _samples(label="studied")
+    [kept] = _samples(label="kept")
+    assert _study_links(series) == [sample.id]                           # once, though named twice
+    assert _study_links(other) == [kept.id]                              # the piece only
+    assert sample.code in client.get(f"/studies/{series}").text
+
+
+def test_a_study_the_importer_doesnt_co_own_is_an_error(world):
+    owner, mate = world.user("st-imp-owner"), world.user("st-imp-mate")
+    world.team("st-imp-team", members=[owner, mate])
+    theirs = _study(world.client(owner), "Their team study")   # the mate can see it, but not add to it
+    client = world.client(mate)
+    sub = world.substrate()
+    page = _upload(client, [_sample(sub, label="to their study", studies=["Their team study"]),
+                            _sample(sub, label="to no study", studies=["No such study"])])
+    assert "Their team study" in page.text and "No such study" in page.text
+    assert "action=\"/samples/import/" not in page.text.replace("/samples/import/check", "")
+    assert not _samples(label="to their study") and not _study_links(theirs)
+    bad = _upload(client, _sample(sub, label="bad studies", studies="Their team study"))
+    assert "studies" in bad.text and "action=\"/samples/import/" not in bad.text.replace("/samples/import/check", "")

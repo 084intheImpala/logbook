@@ -11,6 +11,7 @@ samples"); in short:
      "substrate": "Si (100) 2in",    # by name, from the Substrates library
      "film_material": "ZnO", "substrate_dimensions": "10x10 mm", "tags": ["old"],
      "description": "...", "visibility": "team", "files": ["photos/overview.jpg"],
+     "studies": ["Annealing series"],  # added to these studies (by title; ones you co-own)
      "timeline": [
        {"kind": "step", "type": "Deposition", "performed_at": "2021-03-04", "performed_by": "asousa",
         "location": "CTN", "parameters": {"target": "ZnO", "thickness": 100}, "notes": "...",
@@ -24,7 +25,9 @@ Samples get IDs as usual (<initials>-<year>-<n>): the owner's initials, the
 project's code for a project sample, or the team's name for a team's sample.
 Within one import they are numbered in date order. Someone else's samples are
 created on their behalf and wait for them to confirm (as on the New sample
-form); a team's belong to the team (its members have owner rights).
+form); a team's belong to the team (its members have owner rights). A sample
+or piece can be added to studies the importer co-owns, as from the study's
+page (the importer can always see what they import, which adding needs).
 
 Everything is checked first (run_import with dry_run=True, rolled back by the
 caller): an import with any error changes nothing.
@@ -47,20 +50,21 @@ from backend.choices import FILM_LIST, LOCATION_LIST, canonical, remember
 from backend.deposition_rate import DEPOSITION_TYPE_NAME
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import (DEFAULT_VISIBILITY, SAMPLE_TYPES, VISIBILITY, Analysis, AnalysisType, Procedure,
-                            ProcessStep, ProcessStepType, Project, Sample, Substrate, Team, User)
+                            ProcessStep, ProcessStepType, Project, Sample, StudySample, Substrate, Team, User)
 from backend.params import (_coerce, located_lists, located_methods, normalize_duration, option_list,
                             with_equipment)
 from backend.sample_ids import INITIALS_RE, PROJECT_CODE_RE, next_code, piece_codes
 from backend.seed import PROCESS_STEP_TYPES
+from backend.studies import owned_studies
 from backend.utils import save_upload
 
 MAX_BUNDLE = 2 * 1024 ** 3   # what a zip may unpack to
 
 SAMPLE_KEYS = {"label", "sample_type", "owner", "team", "year", "substrate", "project", "substrate_dimensions",
                "film_material", "external_id", "description", "tags", "visibility", "is_reference", "files",
-               "timeline"}
+               "studies", "timeline"}
 PIECE_KEYS = {"label", "owner", "team", "substrate_dimensions", "description", "tags", "is_reference", "files",
-              "timeline"}
+              "studies", "timeline"}
 ENTRY_KEYS = {"kind", "type", "performed_at", "performed_by", "location", "parameters", "notes", "files",
               "procedure", "ref", "on", "partial"}
 CUT_KEYS = {"kind", "performed_at", "performed_by", "location", "method", "notes", "files", "pieces"}
@@ -155,6 +159,7 @@ class Lookups:
         self.step_types = {t.name.lower(): t for t in (await db.execute(select(ProcessStepType))).scalars()}
         self.analysis_types = {t.name.lower(): t for t in (await db.execute(select(AnalysisType))).scalars()}
         self.procedures = [p for p in (await db.execute(select(Procedure))).scalars() if can_view_shared(user, p)]
+        self.studies = await owned_studies(db, user)   # samples can be added only to these, as on the study page
         return self
 
     def user(self, text: str) -> User | None:
@@ -179,6 +184,9 @@ class Lookups:
     def project(self, text: str) -> Project | None:
         return next((p for p in self.projects
                      if text.strip().lower() in ((p.code or "").lower(), p.name.lower())), None)
+
+    def study(self, title: str) -> list:
+        return [s for s in self.studies if s.title.strip().lower() == title.strip().lower()]
 
     def procedure(self, text: str) -> list[Procedure]:
         return [p for p in self.procedures if p.title.lower() == text.strip().lower()]
@@ -430,6 +438,7 @@ class Importer:
             c.error(where, '"year" must be a year such as 2021')
             year = None
         tags = self._tags(where, item)
+        studies = self._studies(where, item)
         files = c.files(where, item, self.bundle, base)
         if not isinstance(item.get("is_reference", False), bool):
             c.error(where, '"is_reference" must be true or false')
@@ -454,8 +463,28 @@ class Importer:
         return {"where": where, "owner": owner, "prefix": prefix, "first_date": first,
                 "year": year or (first.year if first else date.today().year),
                 "sample_type": sample_type, "fields": fields, "substrate": substrate, "project": project,
-                "visibility": visibility, "tags": tags, "files": files,
+                "visibility": visibility, "tags": tags, "studies": studies, "files": files,
                 "is_reference": bool(item.get("is_reference")), "timeline": timeline}
+
+    def _studies(self, where: str, item: dict) -> list:
+        """The studies named by title in "studies" (ones the importer co-owns)."""
+        titles = item.get("studies")
+        if titles is None:
+            return []
+        if not isinstance(titles, list) or not all(isinstance(t, str) and t.strip() for t in titles):
+            self.check.error(where, '"studies" must be a list of study titles')
+            return []
+        found = []
+        for title in dict.fromkeys(t.strip() for t in titles):
+            matches = self.look.study(title)
+            if not matches:
+                self.check.error(where, 'no study "{title}" that you co-own (samples can be added only to those)',
+                                 title=title)
+            elif len(matches) > 1:
+                self.check.error(where, 'several of your studies are called "{title}"; rename one first', title=title)
+            elif matches[0] not in found:
+                found.append(matches[0])
+        return found
 
     def _tags(self, where: str, item: dict) -> list[str] | None:
         tags = item.get("tags")
@@ -576,6 +605,7 @@ class Importer:
                 "where": here, "owner": piece_owner, "label": c.text(here, piece, "label", 100),
                 "substrate_dimensions": c.text(here, piece, "substrate_dimensions", 100),
                 "description": c.text(here, piece, "description"), "tags": self._tags(here, piece),
+                "studies": self._studies(here, piece),
                 "is_reference": piece.get("is_reference") is True, "files": c.files(here, piece, self.bundle, base),
                 # pieces can put layers on the parent's depositions before the cut, not on each other's
                 "timeline": self._timeline(here, piece, base, dict(refs), piece_owner)})
@@ -612,7 +642,12 @@ class Importer:
     async def _fill(self, sample: Sample, p: dict, owner: _Owner) -> dict:
         summary = {"code": sample.code, "label": sample.label, "owner": owner.name(self.tr),
                    "pending": sample.requested_by_id is not None, "entries": 0,
-                   "files": len(p["files"]), "pieces": [], "id": sample.id}
+                   "files": len(p["files"]), "pieces": [], "id": sample.id,
+                   "studies": [s.title for s in p["studies"]]}
+        if not self.dry_run:
+            # as from the study's page; the sample is new, so it isn't in any study yet
+            self.db.add_all(StudySample(study_id=s.id, sample_id=sample.id, added_by_id=self.user.id)
+                            for s in p["studies"])
         for position, e in enumerate(p["timeline"], 1):
             summary["entries"] += 1
             summary["files"] += len(e["files"])

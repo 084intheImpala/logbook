@@ -522,7 +522,7 @@ Unknown fields are errors, so typos don't get lost.
   "label": "ZnO on Si", "sample_type": "thin_film", "team": "WBS", "year": 2019,
   "substrate": "Si (100)", "film_material": "ZnO", "substrate_dimensions": "10x10 mm",
   "tags": ["old"], "description": "From the 2019 notebook, p. 12",
-  "visibility": "team", "files": ["photos/overview.jpg"],
+  "visibility": "team", "files": ["photos/overview.jpg"], "studies": ["ZnO annealing"],
   "timeline": [
     {"kind": "step", "type": "Deposition", "performed_at": "2019-03-04", "performed_by": "asousa",
      "location": "CTN", "parameters": {"target": "ZnO", "thickness": 100, "duration": "12:30"},
@@ -547,6 +547,7 @@ Unknown fields are errors, so typos don't get lost.
 | `project` | A project sample's project, by code or name; a project sample also needs a `description`. |
 | `label`, `film_material`, `substrate_dimensions`, `external_id`, `description`, `tags`, `visibility`, `is_reference` | As on the sample form. `visibility` is `personal`, `team` (default) or `public`. |
 | `files` | Paths inside the zip, relative to the `.json` file; attached to the sample. |
+| `studies` | Titles of [studies](#studies) to add the sample to, as from the study's page: only studies you co-own (any if you're an admin). A title that matches none of them, or several, is an error. |
 | `timeline` | Its steps, analyses and cuts, in order. |
 
 | Timeline entry field | Meaning |
@@ -560,7 +561,7 @@ Unknown fields are errors, so typos don't get lost.
 | `procedure` | The title of the procedure followed. |
 | `files` | Files for the entry, as for the sample. |
 | `ref`, `on`, `partial` | Depositions only: `ref` names a deposition so a later one (on this sample or a piece cut after it) can sit on it with `"on": "<ref>"`; `"on": "substrate"` puts it on the bare substrate; `partial` makes it cover only part (see [Layers](#layers)). |
-| `pieces` | Cuts only, with `method`, `performed_at`, `performed_by`, `location`, `notes` and `files` (photos of the pieces). One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `is_reference` (at most one), `owner` or `team` (default: the parent's) and its own `timeline` after the cut, which can hold further cuts. Pieces get the usual `-A`, `-B`, `-REF` IDs and inherit the parent's timeline up to the cut. |
+| `pieces` | Cuts only, with `method`, `performed_at`, `performed_by`, `location`, `notes` and `files` (photos of the pieces). One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `studies`, `is_reference` (at most one), `owner` or `team` (default: the parent's) and its own `timeline` after the cut, which can hold further cuts. Pieces get the usual `-A`, `-B`, `-REF` IDs and inherit the parent's timeline up to the cut. |
 
 Between the check and the import the upload waits in `uploads/.imports/`;
 it's removed once imported, or after a day if it never is (an upload whose

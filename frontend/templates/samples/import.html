@@ -5,7 +5,8 @@
   <td class="py-1.5 pr-3 font-mono whitespace-nowrap" style="padding-left: {{ depth * 1.25 }}rem">
     {% if done %}<a href="/samples/{{ s.id }}" class="text-blue-600 hover:underline">{{ s.code }}</a>{% else %}{{ s.code }}{% endif %}
   </td>
-  <td class="py-1.5 pr-3">{{ s.label or "" }}</td>
+  <td class="py-1.5 pr-3">{{ s.label or "" }}{% if s.studies %}
+    <div class="text-xs text-gray-500">{{ _("Studies") }}: {{ s.studies|join(", ") }}</div>{% endif %}</td>
   <td class="py-1.5 pr-3">{{ s.owner }}{% if s.pending %} <span class="text-xs text-amber-700">· {{ _("asked to confirm") }}</span>{% endif %}</td>
   <td class="py-1.5 pr-3 text-right">{{ s.entries }}</td>
   <td class="py-1.5 text-right">{{ s.files }}</td>
@@ -88,11 +89,12 @@
       <li>{{ _("Timeline: steps (kind step), analyses (kind analysis) and cuts (kind cut, with pieces, each with its own timeline), in order.") }}</li>
       <li>{{ _("A Deposition can have ref, and a later one on (a ref, or substrate) and partial, for its place in the film stack.") }}</li>
       <li>{{ _("Files: paths inside the zip, relative to the .json file.") }}</li>
+      <li>{{ _("Studies: studies, a list of study titles (studies you co-own); the sample or piece is added to them.") }}</li>
     </ul>
 <pre class="bg-gray-50 border border-gray-200 rounded p-3 text-xs overflow-x-auto">{
   "label": "ZnO on Si", "sample_type": "thin_film", "team": "WBS", "year": 2019,
   "substrate": "Si (100)", "film_material": "ZnO", "tags": ["old"],
-  "files": ["photos/overview.jpg"],
+  "files": ["photos/overview.jpg"], "studies": ["ZnO annealing"],
   "timeline": [
     {"kind": "step", "type": "Deposition", "performed_at": "2019-03-04",
      "performed_by": "asousa", "parameters": {"target": "ZnO", "thickness": 100}, "ref": "zno"},

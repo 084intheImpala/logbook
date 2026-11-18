@@ -751,7 +751,7 @@ inglês; um campo desconhecido é um erro, para que nenhum engano passe.
 {
   "label": "ZnO em Si", "team": "WBS", "year": 2019,
   "substrate": "Si (100)", "film_material": "ZnO", "tags": ["antiga"],
-  "files": ["fotos/geral.jpg"],
+  "files": ["fotos/geral.jpg"], "studies": ["Recozimento do ZnO"],
   "timeline": [
     {"kind": "step", "type": "Deposition", "performed_at": "2019-03-04",
      "performed_by": "asousa", "ref": "zno",
@@ -783,7 +783,7 @@ inglês; um campo desconhecido é um erro, para que nenhum engano passe.
         \texttt{parameters}, \texttt{notes}, \texttt{procedure} e
         \texttt{files}. Uma data que não se sabe deixa-se de fora.
   \item \textbf{Cortes:} \texttt{pieces} tem um objeto por pedaço, com
-        \texttt{label}, \texttt{substrate\_dimensions}, \texttt{is\_reference}
+        \texttt{label}, \texttt{substrate\_dimensions}, \texttt{studies}, \texttt{is\_reference}
         (no máximo um), \texttt{owner} ou \texttt{team} (por omissão, os da
         amostra-mãe) e a sua própria \texttt{timeline} depois do corte, que pode
         ter mais cortes. Os pedaços recebem os IDs habituais (\sid{-A},
@@ -793,6 +793,11 @@ inglês; um campo desconhecido é um erro, para que nenhum engano passe.
         \texttt{"on": "substrate"}, e \texttt{"partial": true}.
   \item \textbf{Ficheiros:} caminhos dentro do zip, relativos ao ficheiro
         \texttt{.json}.
+  \item \textbf{Estudos:} \texttt{studies}, uma lista de títulos de estudos
+        (secção~\ref{sec:studies}) a que a amostra ou o pedaço é acrescentado,
+        como na página do estudo: só estudos de que é coautor (qualquer um, se
+        for administrador). Um título que não corresponda a nenhum, ou a vários,
+        é um erro.
 \end{itemize}
 
 A descrição completa dos campos está no README, em \emph{Importing samples}.
