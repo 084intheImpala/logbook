@@ -64,10 +64,14 @@ def test_check_shows_what_would_be_created_and_saves_nothing_until_confirmed(wor
     user = world.user("importer")
     client = world.client(user)
     sub = world.substrate()
-    assert "Importar amostras" in client.get("/samples/import").text
+    form = client.get("/samples/import").text
+    assert "Importar amostras" in form
+    # the upload shows its progress, then that the server is checking (translated for the script)
+    assert "data-import-upload" in form and "<progress" in form and "a verificar os ficheiros" in form
     assert 'href="/samples/import"' in client.get("/samples/").text
     page = _upload(client, _sample(sub))
     assert page.status_code == 200 and "Importar 1 amostra" in page.text
+    assert "data-import-busy" in page.text      # the Import button says it's working while it saves
     code = f"{user.initials}-2019-001"            # the year of its first entry
     assert code in page.text and "old ZnO" in page.text
     assert not _samples(code=code)

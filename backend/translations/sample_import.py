@@ -6,6 +6,15 @@ PT = {
     "Add samples written up in JSON files, such as old samples: one .json file, or a .zip with .json files and the photos and files they name. Everything is checked first and nothing is saved until you confirm.":
         "Acrescente amostras descritas em ficheiros JSON, como amostras antigas: um ficheiro .json, ou um .zip com ficheiros .json e as fotografias e ficheiros que indicam. Tudo é verificado primeiro e nada é guardado até confirmar.",
     "Check": "Verificar",
+    "Uploading": "A enviar",
+    "Upload done; checking the files. A big zip can take a few minutes.":
+        "Envio concluído; a verificar os ficheiros. Um zip grande pode demorar alguns minutos.",
+    "Importing: saving the samples and their files. A big zip can take a few minutes.":
+        "A importar: a guardar as amostras e os seus ficheiros. Um zip grande pode demorar alguns minutos.",
+    "The upload failed. Check the connection and try again.":
+        "O envio falhou. Verifique a ligação e tente outra vez.",
+    "The server stopped answering. The file may be too big for it: try smaller zips (for example one sample per zip).":
+        "O servidor deixou de responder. O ficheiro pode ser grande demais: experimente zips mais pequenos (por exemplo, uma amostra por zip).",
     "Choose a .json or .zip file.": "Escolha um ficheiro .json ou .zip.",
     "That upload has expired or was already imported; upload the file again.":
         "Esse envio expirou ou já foi importado; envie o ficheiro outra vez.",

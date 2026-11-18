@@ -514,6 +514,12 @@ can be imported until they're fixed) and warnings (worth a look, e.g. a
 parameter that isn't on the type's form). Nothing is saved until **Import**.
 Any user can import; the import is recorded in the Activity log.
 
+A big zip takes a while: while it uploads the page shows how far it is, then
+that the server is checking the files (with the time so far), and **Import**
+says it's saving. If the server stops answering (a file too big for its
+memory, for instance) the page says so: split the zip, e.g. one sample per zip.
+A zip may unpack to at most 2 GB.
+
 A file holds one sample (an object), a list of them, or `{"samples": [...]}`.
 Unknown fields are errors, so typos don't get lost.
 

@@ -61,10 +61,14 @@
       <tbody>{% for s in report.samples %}{{ sample_rows(s) }}{% endfor %}</tbody>
     </table>
     {% if token %}
-    <form method="post" action="/samples/import/{{ token }}" class="mt-4 flex items-center gap-3">
-      <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
+    <form method="post" action="/samples/import/{{ token }}" class="mt-4 flex flex-wrap items-center gap-3" data-import-busy>
+      <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">
         {{ _("Import 1 sample") if report.count == 1 else _("Import {n} samples", n=report.count) }}</button>
       <a href="/samples/import" class="text-sm text-gray-500 hover:underline">{{ _("Cancel") }}</a>
+      <div class="import-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
+        <progress class="flex-1 h-2"></progress>
+        <span class="import-progress-text"></span>
+      </div>
     </form>
     {% endif %}
   </div>
@@ -72,12 +76,94 @@
 {% endif %}
 
 {% if not token %}
-<form method="post" action="/samples/import/check" enctype="multipart/form-data"
+<form method="post" action="/samples/import/check" enctype="multipart/form-data" data-import-upload
       class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center gap-3">
   <input type="file" name="files" multiple accept=".json,.zip,application/json,application/zip" required class="text-sm">
-  <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Check") }}</button>
+  <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">{{ _("Check") }}</button>
+  <div class="import-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
+    <progress class="flex-1 h-2" max="100" value="0"></progress>
+    <span class="import-progress-text"></span>
+  </div>
 </form>
 {% endif %}
+
+{# Big zips take a while to upload and check: show how far the upload is, then that the server is working
+   (with the time so far), and say so if it stops answering. Without JavaScript the forms work as before. #}
+<script>
+(function () {
+  const say = {
+    uploading: {{ _("Uploading")|tojson }},
+    checking: {{ _("Upload done; checking the files. A big zip can take a few minutes.")|tojson }},
+    importing: {{ _("Importing: saving the samples and their files. A big zip can take a few minutes.")|tojson }},
+    failed: {{ _("The upload failed. Check the connection and try again.")|tojson }},
+    died: {{ _("The server stopped answering. The file may be too big for it: try smaller zips (for example one sample per zip).")|tojson }},
+  };
+  function clock(start) {
+    const s = Math.floor((Date.now() - start) / 1000);
+    return " (" + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + ")";
+  }
+  function busy(form, message) {
+    const box = form.querySelector(".import-progress"), bar = box.querySelector("progress"),
+          text = box.querySelector(".import-progress-text"), start = Date.now();
+    box.classList.remove("hidden");
+    bar.removeAttribute("value");   // no value: the bar just shows that something is going on
+    text.textContent = message;
+    return setInterval(() => { text.textContent = message + clock(start); }, 1000);
+  }
+
+  // Check: send the files ourselves, to see the upload's progress
+  const upload = document.querySelector("form[data-import-upload]");
+  if (upload && window.FormData && window.XMLHttpRequest) {
+    upload.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const button = upload.querySelector("button"), box = upload.querySelector(".import-progress"),
+            bar = box.querySelector("progress"), text = box.querySelector(".import-progress-text");
+      let timer = null;
+      button.disabled = true;
+      box.classList.remove("hidden");
+      bar.value = 0;
+      text.textContent = say.uploading + " 0%";
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", upload.action);
+      xhr.upload.addEventListener("progress", (e) => {
+        if (!e.lengthComputable) return;
+        const pct = Math.round(100 * e.loaded / e.total);
+        bar.value = pct;
+        text.textContent = say.uploading + " " + pct + "%";
+      });
+      xhr.upload.addEventListener("load", () => { timer = busy(upload, say.checking); });
+      function stop(message) {
+        clearInterval(timer);
+        button.disabled = false;
+        bar.value = 0;
+        text.textContent = message;
+        text.classList.add("text-red-700");
+      }
+      xhr.addEventListener("load", () => {
+        clearInterval(timer);
+        if (xhr.status >= 200 && xhr.status < 400 && xhr.responseText) {
+          document.open();
+          document.write(xhr.responseText);
+          document.close();
+        } else {
+          stop(say.died);
+        }
+      });
+      xhr.addEventListener("error", () => stop(timer ? say.died : say.failed));
+      xhr.send(new FormData(upload));
+    });
+  }
+
+  // Import: an ordinary submit, but say it's working while the page waits for the answer
+  const confirm = document.querySelector("form[data-import-busy]");
+  if (confirm) {
+    confirm.addEventListener("submit", () => {
+      confirm.querySelector("button").disabled = true;
+      busy(confirm, say.importing);
+    });
+  }
+})();
+</script>
 
 <details class="bg-white rounded-xl border border-gray-200 shadow-sm">
   <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">{{ _("How to write the file") }}</summary>

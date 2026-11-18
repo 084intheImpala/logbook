@@ -744,6 +744,12 @@ ficheiro \texttt{.json}, vários, ou um \texttt{.zip} com ficheiros
   \item Carregue em \ui{Importar}. A importação fica no registo de atividade.
 \end{enumerate}
 
+Um zip grande demora: enquanto é enviado, a página mostra quanto já foi; depois,
+que o servidor está a verificar os ficheiros (com o tempo decorrido); e
+\ui{Importar} indica que está a guardar. Se o servidor deixar de responder (por
+exemplo, um ficheiro grande demais para a memória dele), a página avisa: divida o
+zip, por exemplo uma amostra por zip. Um zip pode ter no máximo 2~GB descomprimido.
+
 Um ficheiro tem uma amostra, ou uma lista delas. Tipos, substratos, projetos e
 procedimentos têm o nome que têm no logbook; as pessoas, o nome de
 utilizador; as datas escrevem-se \texttt{AAAA-MM-DD}. Os campos têm nomes em
