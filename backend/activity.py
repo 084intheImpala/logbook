@@ -13,6 +13,7 @@ ACTIONS = {
     "sample_owner": "Owner changed",
     "sample_visibility": "Visibility changed",
     "sample_id": "ID changed",
+    "samples_imported": "Samples imported",
     "share_set": "Shared",
     "share_removed": "Sharing removed",
     "request_approved": "Access request approved",

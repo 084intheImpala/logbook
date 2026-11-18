@@ -161,7 +161,7 @@ def test_files_procedure_json_and_sample_json(world):
     sample = world.sample(owner)
     client.post(f"/samples/{sample.id}/steps/new", data={"type_id": _annealing_id(), "procedure_id": proc_id})
     entry = json.loads((settings.UPLOAD_DIR / sample.code / "sample.json").read_text())
-    assert entry["format"] == 9 and entry["timeline"][0]["procedure"] == {"id": proc_id, "title": "Cleaning"}
+    assert entry["format"] == 10 and entry["timeline"][0]["procedure"] == {"id": proc_id, "title": "Cleaning"}
 
     # Renamed: same folder, and the sample's file follows
     client.post(f"/procedures/{proc_id}/edit", data={"title": "Solvent clean", "visibility": "personal"})

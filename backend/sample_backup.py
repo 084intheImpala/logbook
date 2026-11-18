@@ -36,7 +36,7 @@ from backend.utils import _safe, procedure_folder, study_folder
 log = logging.getLogger("uvicorn.error")
 
 FILE_NAME = "sample.json"
-FORMAT = 9   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries
+FORMAT = 10   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries; 10: owner_team
 
 STUDY_FILE_NAME = "study.json"
 STUDY_FORMAT = 3   # 2: references have an id; a note can be about one; 3: status, and files on references
@@ -136,7 +136,8 @@ def _document(sample: Sample, parent: tuple | None, attachments: dict, studies: 
         "is_reference": sample.is_reference, "visibility": sample.visibility, "tags": sample.tags, "description": sample.description,
         "film_material": sample.film_material, "substrate_dimensions": sample.substrate_dimensions,
         "external_id": sample.external_id, "supplier": sample.supplier, "created_at": sample.created_at,
-        "owner": _person(sample.owner), "requested_by": _person(sample.requested_by),
+        "owner": _person(sample.owner), "owner_team": sample.owner_team.name if sample.owner_team else None,
+        "requested_by": _person(sample.requested_by),
         "shared_with": [{**_person(sh.user), "can_edit": sh.can_edit} for sh in sample.shares],
         "substrate": None if sub is None else {
             "name": sub.name, "material": sub.material, "orientation": sub.orientation,

@@ -14,7 +14,7 @@ from backend import recode
 from backend.activity import log as log_activity
 from backend.utils import save_upload, chosen_files, delete_attachments_of
 from backend.auth import (require_login, load_sample, can_view, can_edit, can_edit_entry, can_propose, can_decide,
-                          coordinates_user, is_coordinator_of, is_owner, is_performer, is_proposer)
+                          coordinates_user, in_owner_team, is_coordinator_of, is_owner, is_performer, is_proposer)
 from backend import timeline as tl
 from backend.lineage import CUT_TYPE_NAME, load_sample_full, load_samples_full, load_family, pieces_of
 from backend import layers as layer_stack
@@ -125,7 +125,8 @@ async def _form_context(db: AsyncSession, request: Request, current_user, sample
         # Who a new sample can be created for (it gets their initials), or who
         # the owner can give it to. Admins reassign with the "users" list instead.
         "researchers": await _researchers(db)
-                       if not editing or (sample.owner_id == current_user.id and not current_user.is_admin)
+                       if not editing or ((sample.owner_id == current_user.id or in_owner_team(current_user, sample))
+                                          and not current_user.is_admin)
                        else [u for u in await _researchers(db) if coordinates_user(current_user, u)]
                        if editing and not current_user.is_admin and is_coordinator_of(current_user, sample) else [],
         # Admins and the coordinator of the owner's team hand a sample over without the new owner confirming
@@ -527,7 +528,8 @@ async def update_sample(
     current_user=Depends(require_login),
 ):
     sample = await load_sample(db, sample_id, current_user, "edit")
-    was_owner = sample.owner_id == current_user.id
+    # A member of the team that owns it can hand it to someone, as an owner can
+    was_owner = sample.owner_id == current_user.id or in_owner_team(current_user, sample)
     coded_by = _coded_by(sample)
     film_material = await canonical(db, FILM_LIST, film_material)
     _apply_form(sample, _form_fields(sample_type, label, substrate_id, project_id, substrate_dimensions, film_material,
@@ -558,7 +560,7 @@ async def update_sample(
         log_activity(db, current_user, "sample_visibility", sample.title, sample.owner_id,
                      f"{sample.visibility} → {visibility}")
         sample.visibility = visibility
-    previous_owner = sample.owner.display_name if sample.owner else "—"
+    previous_owner = sample.researcher or "—"
     pending = new_owner is not None and _hand_over(
         sample, new_owner.id, current_user.id, current_user.is_admin or (team_admin and not was_owner))
     if new_owner is not None and (current_user.is_admin or team_admin):
@@ -834,7 +836,7 @@ def _hand_over(sample: Sample, owner_id: int, by_id: int, by_admin: bool) -> boo
     their confirmation, unless an admin does it: meanwhile the giver keeps
     edit access, and gets the sample back if they decline. Returns True if
     it's waiting for confirmation."""
-    sample.owner_id = owner_id
+    sample.owner_id, sample.owner_team_id = owner_id, None
     sample.shares = [sh for sh in sample.shares if sh.user_id != owner_id]
     if owner_id == by_id or by_admin:
         sample.requested_by_id = None

@@ -132,7 +132,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 Substrate         (shared library: material, orientation, thickness, polishing, spec files)
 Project           (collaboration or commercial supplier: name, institution or company, code used in its samples' IDs, contact)
-Sample            (generated ID, type, optional label and tags)
+Sample            (generated ID, type, optional label and tags; belongs to a researcher, or to a team)
  ├── ProcessStep  (can repeat types, e.g. two annealings; planned or done)
  │    └── Attachment (uploaded files)
  ├── Device       (D1, D2, …; made by a "Devices made" step)
@@ -395,11 +395,12 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 9: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr; 8 adds `studies`; 9 adds `procedure` on entries). |
+| `format` | Version of this layout (currently 10: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr; 8 adds `studies`; 9 adds `procedure` on entries; 10 adds `owner_team`). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
 | `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk` or `project`; `visibility` is `personal`, `team` or `public`. |
 | `owner`, `requested_by` | `{username, name, initials}` or `null`. |
+| `owner_team` | The name of the team the sample belongs to when it has no owner (see [Samples owned by a team](#samples-owned-by-a-team)), else `null`. |
 | `shared_with` | List of `{username, name, initials, can_edit}`. |
 | `substrate`, `project` | The library substrate / project it refers to, copied in full (`null` if none). |
 | `cut_from` | For a piece: `{sample, cut_step_id, cut_position}`: the parent's ID and where on its timeline the Cut step is. The piece inherits everything before that position; those entries are in the parent's file, not repeated here. |
@@ -501,6 +502,69 @@ pieces, and neither can a Cut step that pieces were cut at.
 Access to a piece includes its inherited history (entries and files from
 before the cut), even without access to the parent. Search matches pieces on
 inherited entries, and the CSV marks those rows in `inherited_from`.
+
+## Importing samples
+
+**Samples → Import** adds samples written up in JSON files, such as old
+samples from before the logbook. Upload one `.json` file, several, or a
+`.zip` with `.json` files plus the photos and files they name. Everything is
+checked first and the page shows what would be created: each sample's ID,
+owner, number of entries and files, and its pieces, with any errors (nothing
+can be imported until they're fixed) and warnings (worth a look, e.g. a
+parameter that isn't on the type's form). Nothing is saved until **Import**.
+Any user can import; the import is recorded in the Activity log.
+
+A file holds one sample (an object), a list of them, or `{"samples": [...]}`.
+Unknown fields are errors, so typos don't get lost.
+
+```json
+{
+  "label": "ZnO on Si", "sample_type": "thin_film", "team": "WBS", "year": 2019,
+  "substrate": "Si (100)", "film_material": "ZnO", "substrate_dimensions": "10x10 mm",
+  "tags": ["old"], "description": "From the 2019 notebook, p. 12",
+  "visibility": "team", "files": ["photos/overview.jpg"],
+  "timeline": [
+    {"kind": "step", "type": "Deposition", "performed_at": "2019-03-04", "performed_by": "asousa",
+     "location": "CTN", "parameters": {"target": "ZnO", "thickness": 100, "duration": "12:30"},
+     "notes": "first try", "files": ["photos/after-dep.jpg"], "ref": "zno"},
+    {"kind": "analysis", "type": "XRD / HRXRD", "performed_at": "2019-03-10", "files": ["xrd/scan.xy"]},
+    {"kind": "cut", "performed_at": "2019-04-01", "method": "Diamond saw", "pieces": [
+      {"label": "contacts", "timeline": [
+        {"kind": "step", "type": "Deposition", "on": "zno", "partial": true, "parameters": {"target": "Au"}}]},
+      {"label": "spare", "owner": "bob"},
+      {"is_reference": true}]}
+  ]
+}
+```
+
+| Sample field | Meaning |
+|---|---|
+| `owner` | Username of the researcher it belongs to (initials or full name also work if no one else has them). Someone else's sample is created on their behalf and waits for them to confirm it, as in [Assigning a sample to someone else](#assigning-a-sample-to-someone-else); an admin's import goes straight to them. |
+| `team` | Instead of `owner`, when nobody is known: the sample [belongs to the team](#samples-owned-by-a-team) and its ID starts with the team's name (`WBS-2019-001`; the name must be 2–6 letters or digits). Only the team's members and admins can import a team's samples. Without `owner` or `team` the sample is yours. |
+| `year` | The year in its ID. If left out: the year of its first dated entry, or else this year. Samples in one import are numbered in date order. |
+| `sample_type` | `thin_film` (default), `bulk` or `project`. |
+| `substrate` | A thin film or bulk sample's substrate, by its name in the Substrates library (add missing ones there first). |
+| `project` | A project sample's project, by code or name; a project sample also needs a `description`. |
+| `label`, `film_material`, `substrate_dimensions`, `external_id`, `description`, `tags`, `visibility`, `is_reference` | As on the sample form. `visibility` is `personal`, `team` (default) or `public`. |
+| `files` | Paths inside the zip, relative to the `.json` file; attached to the sample. |
+| `timeline` | Its steps, analyses and cuts, in order. |
+
+| Timeline entry field | Meaning |
+|---|---|
+| `kind` | `step`, `analysis` or `cut`. |
+| `type` | The step or analysis type, as named in the logbook (e.g. `Deposition`, `XRD / HRXRD`). `Devices made` can't be imported. |
+| `performed_at` | `YYYY-MM-DD`; leave it out if the day isn't known (say what is known in the notes). |
+| `performed_by` | A username (the entry is then linked to them), or any name for someone without an account. |
+| `location`, `notes` | As on the form. |
+| `parameters` | The type's parameters by key, as stored (see [Steps and analyses: parameters](#steps-and-analyses-parameters) and *Configurations → Step types*): numbers can be typed with a decimal comma, durations as minutes or `min:ss`, tick boxes as `true`, modes as `{"mode": {"sub-key": value}}`. Keys the type doesn't have are kept as extra parameters, with a warning. New dropdown values are added to their lists. |
+| `procedure` | The title of the procedure followed. |
+| `files` | Files for the entry, as for the sample. |
+| `ref`, `on`, `partial` | Depositions only: `ref` names a deposition so a later one (on this sample or a piece cut after it) can sit on it with `"on": "<ref>"`; `"on": "substrate"` puts it on the bare substrate; `partial` makes it cover only part (see [Layers](#layers)). |
+| `pieces` | Cuts only, with `method`, `performed_at`, `performed_by`, `location`, `notes` and `files` (photos of the pieces). One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `is_reference` (at most one), `owner` or `team` (default: the parent's) and its own `timeline` after the cut, which can hold further cuts. Pieces get the usual `-A`, `-B`, `-REF` IDs and inherit the parent's timeline up to the cut. |
+
+Between the check and the import the upload waits in `uploads/.imports/`;
+it's removed once imported, or after a day if it never is (an upload whose
+check found errors is removed straight away).
 
 ## Studies
 
@@ -655,6 +719,17 @@ either on the sample's *Edit* page or under *Sharing* (owner or admin): **Person
 in). A piece cut from a sample starts with its parent's visibility. Visibility
 only decides who can *see* details; changing a sample still needs an explicit
 **Edit** share (or being the owner or an admin).
+
+### Samples owned by a team
+
+A sample with no known researcher, such as an old sample
+[imported](#importing-samples) with `team`, can belong to a team instead of a
+person. Every member of that team has the owner's rights over it (edit,
+share, visibility, delete), and can give it to a researcher with the
+**Researcher** field on its Edit page (that person confirms it, as usual);
+it then stops belonging to the team. Its ID starts with the team's name.
+Samples with neither an owner nor a team (created before logins existed)
+stay open to everyone.
 
 ### Teams
 

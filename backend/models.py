@@ -145,6 +145,9 @@ class Sample(Base):
     film_material: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text)
     owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # A sample without an owner can belong to a team instead (e.g. old samples whose
+    # researcher isn't known, see sample_import.py): its members have owner rights.
+    owner_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), index=True)
     # Set when someone created the sample on the owner's behalf and the owner
     # hasn't confirmed it yet: the person who created it.
     requested_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
@@ -159,6 +162,7 @@ class Sample(Base):
     owner: Mapped["User | None"] = relationship(
         "User", back_populates="samples", foreign_keys=[owner_id], lazy="selectin")
     requested_by: Mapped["User | None"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")
+    owner_team: Mapped["Team | None"] = relationship("Team", lazy="selectin")
     substrate: Mapped["Substrate | None"] = relationship("Substrate", lazy="selectin")
     project: Mapped["Project | None"] = relationship("Project", lazy="selectin")
     process_steps: Mapped[list["ProcessStep"]] = relationship(
@@ -187,7 +191,9 @@ class Sample(Base):
 
     @property
     def researcher(self) -> str | None:
-        return self.owner.display_name if self.owner else None
+        if self.owner:
+            return self.owner.display_name
+        return self.owner_team.name if self.owner_team else None
 
     @property
     def substrate_material(self) -> str | None:

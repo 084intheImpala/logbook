@@ -247,7 +247,10 @@
 </div>
 {% endif %}
 
-{% if is_owner and sample.owner_id %}
+{% if is_owner and (sample.owner_id or sample.owner_team_id) %}
+{% if sample.owner_team %}
+<div class="mb-3 text-xs text-gray-500">{{ _("This sample belongs to the {team} team: its members can edit it and give it to a researcher (Edit → Researcher).", team=sample.owner_team.name) }}</div>
+{% endif %}
 <details id="sharing" class="mb-8 bg-white rounded-xl border border-gray-200 shadow-sm" {% if sample.shares %}open{% endif %}>
   <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">
     {{ _("Sharing") }} <span class="font-normal text-gray-400">· {{ _("{n} user", n=sample.shares|length) if sample.shares|length == 1 else _("{n} users", n=sample.shares|length) }}</span>
