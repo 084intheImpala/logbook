@@ -1,12 +1,12 @@
-{#- The Sleeve sheet button, next to a page's header buttons. The list's tick boxes (class sleeve-box,
+{#- The Manifesto button (the "sleeve sheet" in the code), next to a page's header buttons. The list's tick boxes (class sleeve-box,
     form="sleeve-form", name="ids") pick the samples; a sleeve-all box in the table header ticks all shown.
     Ticking (or unticking) a sample does the same to the pieces cut from it on the page, even collapsed
     ones: each box's data-ancestors lists the ids of the samples it was cut from.
     See routers/sleeve.py. -#}
 <form id="sleeve-form" method="get" action="/samples/sleeve" target="_blank" class="inline">
-  <button id="sleeve-button" disabled title="{{ _("Tick samples kept together to print one page for their sleeve.") }}"
+  <button id="sleeve-button" disabled title="{{ _("Tick samples kept together to print their manifesto: one page listing them.") }}"
           class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    {{ _("Sleeve sheet") }} <span id="sleeve-count"></span></button>
+    {{ _("Manifesto") }} <span id="sleeve-count"></span></button>
 </form>
 <script>
 document.addEventListener('DOMContentLoaded', function () {

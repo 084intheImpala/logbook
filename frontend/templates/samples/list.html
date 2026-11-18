@@ -7,16 +7,13 @@
     <p class="text-sm text-gray-500 mt-1">{{ _("{n} sample", n=samples|length) if samples|length == 1 else _("{n} samples", n=samples|length) }}</p>
   </div>
   <div class="flex items-center gap-4">
-  {% if rows|selectattr("pieces")|list %}
-  <button type="button" id="toggle-all" class="text-sm text-blue-600 hover:underline"
-          data-expand="{{ _("Expand all") }}" data-collapse="{{ _("Collapse all") }}">{{ _("Expand all") }}</button>
-  {% endif %}
-  <a href="/samples/import" class="text-sm text-blue-600 hover:underline">{{ _("Import") }}</a>
-  {% if samples %}{% include "_sleeve_button.html" %}
-  {# The same tick boxes: asks first (samples/delete_selected.html), deletes nothing by itself #}
+  {% if samples %}
+  {# The same tick boxes: asks first (samples/delete_selected.html), deletes nothing by itself.
+     First in the group and set apart: it only shows once samples are ticked, and the group is
+     right-aligned, so appearing here moves none of the other buttons (Manifesto stays put) #}
   <button type="submit" id="delete-selected" form="sleeve-form" formaction="/samples/delete-selected"
           formmethod="get" formtarget="_self" disabled
-          class="text-sm border border-red-300 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed hidden">
+          class="text-sm border border-red-300 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-50 mr-4 disabled:opacity-40 disabled:cursor-not-allowed hidden">
     {{ _("Delete selected") }} <span id="delete-count"></span></button>
   <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -31,6 +28,13 @@
     update();
   });
   </script>
+  {% endif %}
+  {% if rows|selectattr("pieces")|list %}
+  <button type="button" id="toggle-all" class="text-sm text-blue-600 hover:underline"
+          data-expand="{{ _("Expand all") }}" data-collapse="{{ _("Collapse all") }}">{{ _("Expand all") }}</button>
+  {% endif %}
+  <a href="/samples/import" class="text-sm text-blue-600 hover:underline">{{ _("Import") }}</a>
+  {% if samples %}{% include "_sleeve_button.html" %}
   {% endif %}
   <a href="/samples/new"
      class="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">

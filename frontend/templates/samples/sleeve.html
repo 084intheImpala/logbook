@@ -1,4 +1,4 @@
-{#- Sleeve sheet (routers/sleeve.py): several samples on one printable page, a
+{#- Manifesto, the "sleeve sheet" (routers/sleeve.py): several samples on one printable page, a
     compact block each, to file with samples kept together. Standalone like
     samples/print.html (no sidebar, no Tailwind), always light. -#}
 <!doctype html>
@@ -6,7 +6,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title or _("Sleeve sheet") }} — Logbook</title>
+  <title>{{ title or _("Manifesto") }} — Logbook</title>
   <style>
     @page { size: A4; margin: 10mm; }
     * { box-sizing: border-box; }
@@ -75,16 +75,16 @@
   <button type="button" onclick="window.print()">{{ _("Print / save as PDF") }}</button>
   <a href="/samples/">{{ _("Back to the samples") }}</a>
   <label><input type="checkbox" id="show-timelines" checked> {{ _("Timelines") }}</label>
-  <label>{{ _("Title") }}: <input type="text" id="sleeve-title" value="{{ title }}" placeholder="{{ _("Sleeve") }}"
+  <label>{{ _("Title") }}: <input type="text" id="sleeve-title" value="{{ title }}" placeholder="{{ _("Manifesto") }}"
          autocomplete="off"></label>
   {% if left_out %}
-  <span class="warn">{{ _("Only the first {max} samples are on this sheet; {n} left out.", max=max_samples, n=left_out) }}</span>
+  <span class="warn">{{ _("Only the first {max} samples are in this manifesto; {n} left out.", max=max_samples, n=left_out) }}</span>
   {% endif %}
 </div>
 
 <div class="sheet" id="sheet">
   <header class="top">
-    <h1 id="sheet-title" data-placeholder="{{ _("Sleeve") }}">{{ title }}</h1>
+    <h1 id="sheet-title" data-placeholder="{{ _("Manifesto") }}">{{ title }}</h1>
     <div class="meta">
       {{ _("1 sample") if count == 1 else _("{n} samples", n=count) }}
       · {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d')) }}

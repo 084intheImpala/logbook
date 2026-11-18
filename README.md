@@ -508,8 +508,9 @@ changes what the pieces inherit. A sample can't be deleted while it has
 pieces, and neither can a Cut step that pieces were cut at.
 
 **Deleting several samples.** Tick them on the **Samples** list (the same
-boxes as the [sleeve sheet](#sleeve-sheet-several-samples-on-one-page):
-ticking a sample ticks its pieces) and click **Delete selected**. A page
+boxes as the [manifesto](#manifesto-several-samples-on-one-page):
+ticking a sample ticks its pieces) and click **Delete selected** (it shows once samples are ticked, at the left of
+the header buttons, away from **Manifesto**). A page
 lists what will be deleted, and which of the ticked samples stay and why;
 nothing is deleted until you confirm there (`routers/samples.py`,
 `delete_selected`). The rules are a single delete's: you need the owner's
@@ -1082,12 +1083,13 @@ nothing extra is needed on the server: `GET /samples/{id}/print`
 (`routers/samples.py`, which shares the page's data with the sample page),
 `samples/print.html`.
 
-### Sleeve sheet: several samples on one page
+### Manifesto: several samples on one page
 
-To file samples that are kept together (in a sleeve, a box), tick them on
+To file samples that are kept together (in a sleeve, a box) with a page
+listing them, tick them on
 the **Samples** list or in the search results (the box in the header ticks
 all shown; ticking a sample also ticks the pieces cut from it, and theirs, that
-are on the page, even collapsed ones, and unticking it unticks them) and click **Sleeve sheet** at the top, next to **Import** /
+are on the page, even collapsed ones, and unticking it unticks them) and click **Manifesto** at the top, next to **Import** /
 **Export results (CSV)**.
 It opens one A4 page with a compact block per sample, in ID order, pieces
 grouped under their mother sample (their first ancestor). A mother on the sheet
@@ -1103,7 +1105,7 @@ layers drawing, thicknesses where known), tags, the first entries of the
 timeline (date, type and up to five parameter values in full, e.g. an
 implantation's ion, energy and fluence or an anneal's temperature and time,
 wrapping across the block's full width, and a Deposition's gas flow too;
-planned entries left out). Type a name for the sleeve in the **Title** field
+planned entries left out). Type a name for the manifesto in the **Title** field
 at the top before printing (it's kept in the address as `title=`, so a reload
 keeps it); the
 **Timelines** tick box hides the timelines for a shorter sheet. About eight

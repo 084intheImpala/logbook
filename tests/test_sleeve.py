@@ -167,4 +167,4 @@ def test_a_big_sleeve_has_every_sample_and_any_over_the_limit_are_reported(world
     monkeypatch.setattr(sleeve, "MAX_SAMPLES", 90)
     html = client.get(f"/samples/sleeve?{query}").text
     assert "90 amostras" in html
-    assert "Só as primeiras 90 amostras estão nesta folha; 2 ficaram de fora." in html
+    assert "Só as primeiras 90 amostras estão neste manifesto; 2 ficaram de fora." in html

@@ -54,7 +54,7 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   (`partial`, e.g. contacts): partial layers sit side by side, each film follows the surface it lands on.
 - **Printable record** (`/samples/{id}/print`, `samples/print.html`): the sample page's data (`samples._page`)
   laid out for A4, printed or saved as PDF by the browser; photo previews, file names only.
-- **Sleeve sheet** (`routers/sleeve.py`, `samples/sleeve.html`, `_sleeve_button.html`): tick samples on the list or
+- **Manifesto**, the "sleeve sheet" in the code (`routers/sleeve.py`, `samples/sleeve.html`, `_sleeve_button.html`): tick samples on the list or
   search page → `/samples/sleeve?ids=…`, one A4 page, a block each (summary, film stack, short timeline), built from `samples._page`.
 - **Studies** (`routers/studies.py`, permissions and note order in `studies.py`, `models.Study*`): several samples
   (only ones the user can see; listed per viewer), references (DOI looked up at doi.org by `doi.py`, stubbed in

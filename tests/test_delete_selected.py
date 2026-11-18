@@ -36,7 +36,10 @@ def test_the_list_has_the_button_and_asking_deletes_nothing(world):
     owner = world.user("bulk-ask")
     a, b = world.sample(owner), world.sample(owner)
     client = world.client(owner)
-    assert 'id="delete-selected"' in client.get("/samples/").text
+    listing = client.get("/samples/").text
+    assert 'id="delete-selected"' in listing
+    # first in the header buttons, away from the Manifesto button: showing up moves nothing else
+    assert listing.index('id="delete-selected"') < listing.index('id="sleeve-form"')
     page = client.get("/samples/delete-selected", params=_ids(a, b))
     assert page.status_code == 200
     assert a.code in page.text and b.code in page.text and "Eliminar 2 amostras" in page.text
