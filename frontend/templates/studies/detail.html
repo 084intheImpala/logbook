@@ -65,6 +65,10 @@
       · {{ _("since {date}", date=study.created_at.strftime('%Y-%m-%d')) }}
     </div>
     {% if study.description %}<p class="mt-2 text-sm text-gray-700 max-w-3xl whitespace-pre-line break-words">{{ study.description }}</p>{% endif %}
+    {% if study.repo_url %}
+    <div class="mt-2 text-sm">{{ _("Code") }}:
+      <a href="{{ study.repo_url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline font-mono break-all">{{ study.repo_url|replace("https://", "") }}</a></div>
+    {% endif %}
   </div>
   <div class="flex gap-2 shrink-0">
     <a href="/studies/{{ study.id }}/print" target="_blank"
@@ -205,12 +209,7 @@
   {% endif %}
 </section>
 
-<!-- References -->
-<section id="references" class="mb-8">
-  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("References") }} · {{ references|length }}</h2>
-  {% if references %}
-  <ul class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
-    {% for r in references %}{% set can_change = is_owner or r.added_by_id == current_user.id %}
+{% macro paper_item(r) %}{% set can_change = is_owner or r.added_by_id == current_user.id %}
     <li id="reference-{{ r.id }}" class="px-4 py-3 text-sm flex items-start gap-3">
       <div class="flex-1 min-w-0 break-words">
         <a href="{{ r.link }}" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">{{ r.title or r.doi or r.url }}</a>
@@ -253,11 +252,14 @@
               </div>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Why it's interesting") }}</label>
+              <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Note") if r.published else _("Why it's interesting") }}</label>
               <textarea name="note" rows="3" class="{{ input_cls }}">{{ r.note or '' }}</textarea>
             </div>
-            <label class="block text-xs text-gray-600">📎 {{ _("Add files, e.g. the PDF with your highlights") }}
+            <label class="block text-xs text-gray-600">📎 {{ _("Add files, e.g. the published PDF") if r.published else _("Add files, e.g. the PDF with your highlights") }}
               <input type="file" name="files" multiple class="block text-xs mt-1"></label>
+            <label class="flex items-center gap-2 text-xs text-gray-600">
+              <input type="checkbox" name="published" value="true" {% if r.published %}checked{% endif %}>
+              {{ _("One of the study's publications: a paper that uses its data") }}</label>
             <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-700">{{ _("Save") }}</button>
           </form>
         </details>
@@ -265,17 +267,25 @@
       </div>
       {% if can_change %}
       <form method="post" action="/studies/{{ study.id }}/references/{{ r.id }}/delete"
-            onsubmit='return confirm({{ _("Remove this reference?")|tojson }})'>
+            onsubmit='return confirm({{ (_("Remove this publication?") if r.published else _("Remove this reference?"))|tojson }})'>
         <button class="text-xs text-red-500 hover:underline">{{ _("Remove") }}</button>
       </form>
       {% endif %}
     </li>
-    {% endfor %}
+{% endmacro %}
+{% macro paper_section(id, heading, hint, papers, published, add_label) %}
+<section id="{{ id }}" class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ heading }} · {{ papers|length }}</h2>
+  {% if hint %}<p class="text-xs text-gray-400 -mt-1 mb-2">{{ hint }}</p>{% endif %}
+  {% if papers %}
+  <ul class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
+    {% for r in papers %}{{ paper_item(r) }}{% endfor %}
   </ul>
   {% endif %}
-  <details class="mt-3 bg-white rounded-xl border border-gray-200 shadow-sm" {% if not references %}open{% endif %}>
-    <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ _("Add a paper or link") }}</summary>
+  <details class="mt-3 bg-white rounded-xl border border-gray-200 shadow-sm" {% if not papers and not published %}open{% endif %}>
+    <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ add_label }}</summary>
     <form method="post" action="/studies/{{ study.id }}/references" enctype="multipart/form-data" class="px-4 pb-4 space-y-3">
+      {% if published %}<input type="hidden" name="published" value="true">{% endif %}
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("DOI or link") }} <span class="text-red-500">*</span></label>
         <input name="link" required class="{{ input_cls }} font-mono" placeholder="10.1063/5.0012345 {{ _("or") }} https://…">
@@ -286,15 +296,22 @@
         <input name="title" maxlength="500" class="{{ input_cls }}" placeholder="{{ _("optional with a DOI") }}">
       </div>
       <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Why it's interesting") }}</label>
+        <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Note") if published else _("Why it's interesting") }}</label>
         <textarea name="note" rows="2" class="{{ input_cls }}"></textarea>
       </div>
-      <label class="block text-xs text-gray-600">📎 {{ _("Files, e.g. the PDF with your highlights") }}
+      <label class="block text-xs text-gray-600">📎 {{ _("Files, e.g. the published PDF") if published else _("Files, e.g. the PDF with your highlights") }}
         <input type="file" name="files" multiple class="block text-xs mt-1"></label>
-      <button class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add reference") }}</button>
+      <button class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add publication") if published else _("Add reference") }}</button>
     </form>
   </details>
 </section>
+{% endmacro %}
+
+<!-- Publications: papers that use the study's data -->
+{{ paper_section("publications", _("Publications"), _("Papers that use this study's data."), publications, true, _("Add a publication")) }}
+
+<!-- References -->
+{{ paper_section("references", _("References"), "", references, false, _("Add a paper or link")) }}
 
 <!-- Notes -->
 <section id="notes" class="mb-8">

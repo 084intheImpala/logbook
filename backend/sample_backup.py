@@ -39,7 +39,8 @@ FILE_NAME = "sample.json"
 FORMAT = 10   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries; 10: owner_team
 
 STUDY_FILE_NAME = "study.json"
-STUDY_FORMAT = 3   # 2: references have an id; a note can be about one; 3: status, and files on references
+STUDY_FORMAT = 4   # 2: references have an id; a note can be about one; 3: status, and files on references;
+                   # 4: repo_url, and `published` on references (the study's publications)
 PROCEDURE_FILE_NAME = "procedure.json"
 PROCEDURE_FORMAT = 1
 
@@ -227,14 +228,15 @@ def _study_document(study: Study, notes_files: dict[int, list[Attachment]], code
     return {
         "format": STUDY_FORMAT,
         "written_at": datetime.now().replace(microsecond=0),
-        "id": study.id, "title": study.title, "description": study.description, "visibility": study.visibility,
+        "id": study.id, "title": study.title, "description": study.description, "repo_url": study.repo_url,
+        "visibility": study.visibility,
         "status": study.status,   # todo | ongoing | concluded
         "created_at": study.created_at, "created_by": _person(study.created_by),
         "owners": [_person(o.user) for o in study.owners],
         "samples": [{"id": l.sample.id, "code": l.sample.code, "label": l.sample.label, "added_at": l.created_at}
                     for l in study.sample_links if l.sample is not None],
         "references": [{"id": r.id, "doi": r.doi, "url": r.url, "title": r.title, "authors": r.authors, "journal": r.journal,
-                        "year": r.year, "note": r.note, "added_by": _person(r.added_by), "created_at": r.created_at,
+                        "year": r.year, "note": r.note, "published": r.published, "added_by": _person(r.added_by), "created_at": r.created_at,
                         "files": [_attachment(a) for a in reference_files.get(r.id, [])]}
                        for r in study.references],
         "notes": [{"id": n.id, "position": n.position, "noted_on": n.noted_on, "title": n.title, "text": n.text,

@@ -487,6 +487,7 @@ class Study(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    repo_url: Mapped[str | None] = mapped_column(String(500))   # its code, e.g. a GitHub repository
     visibility: Mapped[str] = mapped_column(String(10), default=DEFAULT_VISIBILITY, server_default=DEFAULT_VISIBILITY, nullable=False)
     status: Mapped[str] = mapped_column(String(10), default=DEFAULT_STUDY_STATUS, server_default=DEFAULT_STUDY_STATUS,
                                         nullable=False)   # a key of STUDY_STATUS
@@ -534,7 +535,8 @@ class StudySample(Base):
 
 
 class StudyReference(Base):
-    """A paper (by DOI) or a web page that bears on a study."""
+    """A paper (by DOI) or a web page that bears on a study, or (`published`)
+    one of the study's own publications: a paper that uses its data."""
     __tablename__ = "study_references"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -547,6 +549,7 @@ class StudyReference(Base):
     journal: Mapped[str | None] = mapped_column(String(300))
     year: Mapped[int | None] = mapped_column(Integer)
     note: Mapped[str | None] = mapped_column(Text)            # why it matters to the study
+    published: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     added_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

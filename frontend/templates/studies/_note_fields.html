@@ -1,5 +1,5 @@
 {# The fields of a study note, for adding one (study page) and editing one (note_form.html).
-   Needs: note (or None), entries (key → {label, url, depth}), references, about (selected key), today. #}
+   Needs: note (or None), entries (key → {label, url, depth}), papers (the study's references and publications), about (selected key), today. #}
 {% set input_cls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %}
 <div class="grid grid-cols-[10rem_1fr] gap-4">
   <div>
@@ -16,7 +16,7 @@
 <div>
   <div class="flex items-center gap-2 mb-1">
     <label class="text-xs font-medium text-gray-600">{{ _("Note") }}</label>
-    {% if entries or references %}
+    {% if entries or papers %}
     <details class="reference-picker relative ml-auto">
       <summary class="list-none cursor-pointer text-xs text-blue-600 border border-gray-300 rounded-lg px-2 py-1 hover:bg-gray-50">🔗 {{ _("Insert reference") }}</summary>
       <div class="absolute right-0 z-10 mt-2 w-[36rem] max-w-[90vw] bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs text-gray-700">
@@ -24,7 +24,7 @@
         <input type="search" autocomplete="off" class="reference-filter w-full border border-gray-300 rounded px-2 py-1 mb-2"
                placeholder="{{ _("Type to narrow the list") }}">
         <ul class="max-h-80 overflow-y-auto divide-y divide-gray-100">
-          {% for r in references %}
+          {% for r in papers %}
           <li><button type="button" class="reference-insert w-full text-left px-2 py-1 hover:bg-blue-50"
                       data-label="{{ (r.title or r.doi or r.url)|truncate(70, True, '…') }}{% if r.year %} ({{ r.year }}){% endif %}" data-url="/studies/{{ study.id }}#reference-{{ r.id }}">
             📄 {{ r.title or r.doi or r.url }}{% if r.year %} <span class="text-gray-400">({{ r.year }})</span>{% endif %}</button></li>
@@ -67,13 +67,16 @@
   <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("About") }}</label>
   <select name="about" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
     <option value="">{{ _("— the study as a whole —") }}</option>
-    {% if references %}
-    <optgroup label="{{ _("References") }}">
-      {% for r in references %}
+    {% for group, published in ((_("Publications"), true), (_("References"), false)) %}
+    {% set group_papers = papers|selectattr("published", "equalto", published)|list %}
+    {% if group_papers %}
+    <optgroup label="{{ group }}">
+      {% for r in group_papers %}
       <option value="reference:{{ r.id }}" {% if 'reference:' ~ r.id == about %}selected{% endif %}>📄 {{ (r.title or r.doi or r.url)|truncate(90, True, '…') }}{% if r.year %} ({{ r.year }}){% endif %}</option>
       {% endfor %}
     </optgroup>
     {% endif %}
+    {% endfor %}
     {% if entries %}
     <optgroup label="{{ _("Samples") }}">
       {% for key, e in entries.items() %}

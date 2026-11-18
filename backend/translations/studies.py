@@ -78,6 +78,19 @@ PT = {
     "Authors": "Autores",
     "Journal": "Revista",
     "Notes about it": "Notas sobre ela",
+
+    # Publications (references with `published`) and the code repository
+    "Publications": "Publicações",
+    "Papers that use this study's data.": "Artigos que usam os dados deste estudo.",
+    "Add a publication": "Adicionar uma publicação",
+    "Add publication": "Adicionar publicação",
+    "Remove this publication?": "Remover esta publicação?",
+    "One of the study's publications: a paper that uses its data": "Uma das publicações do estudo: um artigo que usa os seus dados",
+    "Files, e.g. the published PDF": "Ficheiros, ex.: o PDF publicado",
+    "Add files, e.g. the published PDF": "Adicionar ficheiros, ex.: o PDF publicado",
+    "Code repository": "Repositório do código",
+    "Optional: where the study's analysis code lives, e.g. its GitHub repository.":
+        "Opcional: onde está o código de análise do estudo, por exemplo o seu repositório no GitHub.",
     "Files, e.g. the PDF with your highlights": "Ficheiros, ex.: o PDF com os seus sublinhados",
     "Add files, e.g. the PDF with your highlights": "Adicionar ficheiros, ex.: o PDF com os seus sublinhados",
     "Couldn't look up {doi}.": "Não foi possível procurar {doi}.",

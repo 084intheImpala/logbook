@@ -902,6 +902,20 @@ preenchendo só o que ficou vazio) ou removê-la. Uma referência pode ter
 com ela ou em \ui{Editar}); quem vê o estudo pode abri-los, e quem pode editar
 a referência pode removê-los. Cada referência mostra as notas que são sobre ela.
 
+\paragraph{Publicações.} Por cima das referências ficam as
+\emph{publicações} do estudo: os artigos que usam os seus dados. Acrescentam-se
+da mesma maneira, em \ui{+ Adicionar uma publicação} (um DOI ou um link,
+procurado da mesma forma), e funcionam como as referências (ficheiros, notas
+sobre elas, os mesmos direitos). Marcar ou desmarcar
+\ui{Uma das publicações do estudo} em \ui{Editar} passa um artigo de uma
+lista para a outra.
+
+\paragraph{Repositório do código.} Ao criar ou editar o estudo pode indicar
+o \ui{Repositório do código}: o link para onde está o código de análise, por
+exemplo o repositório no GitHub (\texttt{github.com/\ldots} chega; o
+\texttt{https://} é acrescentado). A página do estudo e o registo impresso
+mostram-no.
+
 \paragraph{Notas.} Notas datadas para literatura, ideias e planos, com
 título opcional, fotografias e ficheiros. Ordenam-se como uma cronologia:
 uma nota nova (ou com a data alterada) vai para depois das outras desse dia,
@@ -936,7 +950,8 @@ coproprietário, mesmo os pessoais, mas só os altera se for coproprietário.
 
 \paragraph{Imprimir.} \ui{Imprimir / PDF} na página do estudo abre-o pronto
 para uma folha A4, como o registo de uma amostra: dados, coproprietários, as
-amostras (só as que quem imprime pode ver), as referências numeradas e as
+amostras (só as que quem imprime pode ver), as publicações e as referências
+numeradas e as
 notas por ordem, com as fotografias em miniatura e os ficheiros pelo nome.
 Imprima-o, ou escolha \ui{Guardar como PDF} como impressora. O registo
 impresso de uma amostra indica os estudos em que ela está.
@@ -1219,7 +1234,8 @@ cópia da base de dados continua a ser a cópia de segurança principal.
 Cada estudo tem uma pasta \texttt{uploads/studies/<id>-<título>/} (o nome
 fica o mesmo se o estudo mudar de título), com os ficheiros das suas notas e
 um \texttt{study.json}, escrito da mesma maneira: os dados do estudo,
-coproprietários, amostras (pelo ID), referências e notas por ordem (texto,
+coproprietários, repositório do código, amostras (pelo ID), publicações e
+referências e notas por ordem (texto,
 sobre que amostra, passo ou análise é cada uma, e os seus ficheiros).
 
 \subsubsection*{Estrutura do \texttt{sample.json}}

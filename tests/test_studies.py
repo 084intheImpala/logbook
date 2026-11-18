@@ -250,7 +250,7 @@ def test_study_json_is_kept_next_to_the_notes_files(world):
     client = world.client(owner)
     study_id = _study(client, "Backup study")
     data = _study_json(study_id)
-    assert data["format"] == 3 and data["title"] == "Backup study" and data["owners"][0]["username"] == owner.username
+    assert data["format"] == 4 and data["title"] == "Backup study" and data["owners"][0]["username"] == owner.username
 
     sample = world.sample(owner, label="film A")
     step_id, _ = world.step(sample, "annealed")
@@ -600,3 +600,44 @@ def test_a_study_is_to_do_ongoing_or_concluded(world):
     listed = client.get("/studies/?status=todo").text
     assert "Running one" not in listed and "Não há estudos com este estado." in listed
     assert "Running one" in client.get("/studies/").text and "Someday" in client.get("/studies/").text
+
+
+def test_a_study_has_a_code_repository_and_publications(world, monkeypatch):
+    owner, mate = world.user("pub-owner"), world.user("pub-mate")
+    world.team("pub-team", members=[owner, mate])
+    client = world.client(owner)
+    client.post("/lang", data={"lang": "en"})
+    r = client.post("/studies/new", data={"title": "Published study", "visibility": "team",
+                                          "repo_url": " github.com/lab/ga2o3-analysis "})
+    study_id = int(re.search(r"/studies/(\d+)", r.headers["location"]).group(1))
+    page = client.get(f"/studies/{study_id}").text
+    assert 'href="https://github.com/lab/ga2o3-analysis"' in page
+    assert 'value="https://github.com/lab/ga2o3-analysis"' in client.get(f"/studies/{study_id}/edit").text
+
+    monkeypatch.setattr(doi, "_fetch_csl", lambda d: {"title": "Our Ga2O3 paper", "issued": {"date-parts": [[2026]]}})
+    client.post(f"/studies/{study_id}/references", data={"link": "10.1063/5.0011111", "published": "true"})
+    world.client(mate).post(f"/studies/{study_id}/references", data={"link": "example.org/background", "title": "Background"})
+    page = client.get(f"/studies/{study_id}").text
+    publications, references = page.index('id="publications"'), page.index('id="references"')
+    assert publications < page.index("Our Ga2O3 paper") < references < page.index("Background")
+    pub_id = int(re.search(r'id="reference-(\d+)"', page[publications:]).group(1))
+
+    # A note can be about a publication; the study.json and the printout have both
+    client.post(f"/studies/{study_id}/notes", data={"text": "submitted", "about": f"reference:{pub_id}"})
+    data = _study_json(study_id)
+    assert data["format"] == 4 and data["repo_url"] == "https://github.com/lab/ga2o3-analysis"
+    assert {r["title"]: r["published"] for r in data["references"]} == {"Our Ga2O3 paper": True, "Background": False}
+    html = client.get(f"/studies/{study_id}/print").text
+    assert html.index("Publications") < html.index("Our Ga2O3 paper") < html.index("Background")
+    assert "github.com/lab/ga2o3-analysis" in html
+
+    # Editing moves it back to the references; clearing the repository removes it
+    client.post(f"/studies/{study_id}/references/{pub_id}/edit", data={"link": "10.1063/5.0011111", "title": "Our Ga2O3 paper"})
+    page = client.get(f"/studies/{study_id}").text
+    assert page.index('id="references"') < page.index("Our Ga2O3 paper")
+    client.post(f"/studies/{study_id}/edit", data={"title": "Published study", "visibility": "team", "repo_url": ""})
+    assert "github.com/lab" not in client.get(f"/studies/{study_id}").text
+
+    # In Portuguese
+    client.post("/lang", data={"lang": "pt"})
+    assert "Publicações" in client.get(f"/studies/{study_id}").text

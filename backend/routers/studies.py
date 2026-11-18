@@ -1,5 +1,6 @@
 """Studies tab: a study spanning several samples, with references (papers by
 DOI, or links) and dated notes. Permissions are in backend/studies.py."""
+import re
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -105,8 +106,17 @@ async def _entries(request: Request, db: AsyncSession, user: User, samples: list
 
 
 async def _references(db: AsyncSession, study_id: int) -> list[StudyReference]:
+    """The study's references and publications (`published`), in the order they were added."""
     return list((await db.execute(select(StudyReference).where(StudyReference.study_id == study_id)
                                   .order_by(StudyReference.id))).scalars())
+
+
+def _repo_url(text: str) -> str | None:
+    """The code repository's link as typed: `github.com/me/x` gets `https://`."""
+    text = text.strip()
+    if text and not re.match(r"^https?://", text, re.IGNORECASE):
+        text = f"https://{text}"
+    return text[:500] or None
 
 
 def _about_key(note: StudyNote) -> str | None:
@@ -202,9 +212,10 @@ async def new_study_form(request: Request, current_user: User = Depends(require_
 
 @router.post("/new")
 async def create_study(request: Request, title: str = Form(...), description: str = Form(""),
-                       visibility: str = Form("team"), status: str = Form(DEFAULT_STUDY_STATUS),
+                       repo_url: str = Form(""), visibility: str = Form("team"), status: str = Form(DEFAULT_STUDY_STATUS),
                        db: AsyncSession = Depends(get_db), current_user: User = Depends(require_login)):
-    study = Study(title=title.strip(), description=description.strip() or None, created_by_id=current_user.id,
+    study = Study(title=title.strip(), description=description.strip() or None, repo_url=_repo_url(repo_url),
+                  created_by_id=current_user.id,
                   visibility=visibility if visibility in VISIBILITY else "team",
                   status=status if status in STUDY_STATUS else DEFAULT_STUDY_STATUS)
     if not study.title:
@@ -223,12 +234,13 @@ async def edit_study_form(request: Request, study_id: int, db: AsyncSession = De
 
 @router.post("/{study_id}/edit")
 async def update_study(request: Request, study_id: int, title: str = Form(...), description: str = Form(""),
-                       visibility: str = Form("team"), status: str = Form(""), db: AsyncSession = Depends(get_db),
+                       repo_url: str = Form(""), visibility: str = Form("team"), status: str = Form(""), db: AsyncSession = Depends(get_db),
                        current_user: User = Depends(require_login)):
     study = await load_study(db, study_id, current_user, "owner")
     if not title.strip():
         return _form(request, current_user, study, t(request, "The study needs a title."), status_code=400)
     study.title, study.description = title.strip(), description.strip() or None
+    study.repo_url = _repo_url(repo_url)
     if visibility in VISIBILITY:
         study.visibility = visibility
     if status in STUDY_STATUS:
@@ -309,7 +321,9 @@ async def _page(request: Request, db: AsyncSession, study_id: int, current_user:
         "request": request, "current_user": current_user, "study": study, "is_owner": owner,
         "samples": samples, "hidden_samples": len(study.sample_links) - len(samples),
         "addable": await _addable_samples(db, current_user, study) if owner else [],
-        "references": references, "notes_on": notes_on, "reference_files": reference_files,
+        "references": [r for r in references if not r.published],
+        "publications": [r for r in references if r.published], "papers": references,
+        "notes_on": notes_on, "reference_files": reference_files,
         "notes": note_rows, "entries": entries, "today": date.today(),
         "owner_candidates": [u for u in (await db.execute(
             select(User).order_by(User.name, User.username))).scalars() if u.id not in taken] if owner else [],
@@ -431,17 +445,18 @@ async def remove_sample(study_id: int, sample_id: int, db: AsyncSession = Depend
 
 @router.post("/{study_id}/references")
 async def add_reference(request: Request, study_id: int, link: str = Form(...), title: str = Form(""),
-                        note: str = Form(""), files: list[UploadFile | str] = File([]),
+                        note: str = Form(""), published: bool = Form(False), files: list[UploadFile | str] = File([]),
                         db: AsyncSession = Depends(get_db), current_user: User = Depends(require_login)):
     """Anyone who can see the study may add a paper (DOI) or link to it, with
-    files (e.g. the PDF with their highlights)."""
+    files (e.g. the PDF with their highlights): a reference, or with `published`
+    one of the study's publications (a paper that uses its data)."""
     study = await load_study(db, study_id, current_user)
     doi, url = doi_lookup.parse(link)
     if not doi and not url:
         request.session["flash_error"] = t(request, "Give a DOI or a link.")
-        return _back(study, "#references")
+        return _back(study, "#publications" if published else "#references")
     ref = StudyReference(study_id=study.id, doi=doi, url=url, title=title.strip() or None,
-                         note=note.strip() or None, added_by_id=current_user.id)
+                         note=note.strip() or None, published=published, added_by_id=current_user.id)
     if doi:
         paper = await doi_lookup.lookup(doi)
         if paper is not None:
@@ -471,10 +486,12 @@ async def _own_reference(db: AsyncSession, user: User, study_id: int, reference_
 @router.post("/{study_id}/references/{reference_id}/edit")
 async def update_reference(request: Request, study_id: int, reference_id: int, link: str = Form(...),
                            title: str = Form(""), authors: str = Form(""), journal: str = Form(""),
-                           year: str = Form(""), note: str = Form(""), files: list[UploadFile | str] = File([]),
+                           year: str = Form(""), note: str = Form(""), published: bool = Form(False),
+                           files: list[UploadFile | str] = File([]),
                            db: AsyncSession = Depends(get_db), current_user: User = Depends(require_login)):
     """Change a reference: its details as typed, or another DOI (looked up,
-    filling what was left empty); add files to it."""
+    filling what was left empty), whether it is one of the study's
+    publications; add files to it."""
     study, ref = await _own_reference(db, current_user, study_id, reference_id)
     doi, url = doi_lookup.parse(link)
     if not doi and not url:
@@ -485,6 +502,7 @@ async def update_reference(request: Request, study_id: int, reference_id: int, l
     ref.title, ref.authors, ref.journal = title.strip() or None, authors.strip() or None, journal.strip() or None
     ref.year = int(year) if year.strip().isdigit() else None
     ref.note = note.strip() or None
+    ref.published = published
     if new_doi:
         paper = await doi_lookup.lookup(doi)
         if paper is not None:
@@ -506,9 +524,10 @@ async def delete_reference(study_id: int, reference_id: int, db: AsyncSession = 
     for attachment in (await db.execute(select(Attachment).where(
             Attachment.entity_type == REFERENCE_FILES, Attachment.entity_id == ref.id))).scalars().all():
         await delete_attachment(attachment, db)
+    section = "#publications" if ref.published else "#references"
     await db.delete(ref)
     await db.commit()
-    return _back(study, "#references")
+    return _back(study, section)
 
 
 # ── Notes ────────────────────────────────────────────────────────────────────
@@ -555,7 +574,7 @@ async def edit_note_form(request: Request, study_id: int, note_id: int, db: Asyn
     return templates.TemplateResponse("studies/note_form.html", {
         "request": request, "current_user": current_user, "study": study, "note": note,
         "entries": await _entries(request, db, current_user, _visible_samples(current_user, study)),
-        "about": _about_key(note), "attachments": attachments, "references": await _references(db, study_id),
+        "about": _about_key(note), "attachments": attachments, "papers": await _references(db, study_id),
     })
 
 

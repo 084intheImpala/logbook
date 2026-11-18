@@ -571,7 +571,9 @@ check found errors is removed straight away).
 The **Studies** tab (`/studies`, `routers/studies.py`, permissions in
 `backend/studies.py`) is for work that spans several samples: an annealing
 series, a contact-metal comparison, a collaboration's batch. A study has a
-title, a description, a **status** (*To do*, *Ongoing*, the default, or
+title, a description, an optional **code repository** (a link, e.g. the
+GitHub repository with the analysis code; `github.com/…` gets `https://`, and
+the study's page links to it), a **status** (*To do*, *Ongoing*, the default, or
 *Concluded*: set on its form, or by co-owners from the list next to its title;
 the Studies list shows it and filters by it) and three parts:
 
@@ -596,6 +598,13 @@ the Studies list shows it and filters by it) and three parts:
   highlights (added with it or under *Edit*; anyone who sees the study can
   open them, and the people who can edit the reference can remove them; stored
   with the notes' files). A reference lists the notes that are about it.
+
+  **Publications**, above the references, are the papers that use the
+  study's data. They are added the same way (**+ Add a publication**, a DOI or
+  link, looked up likewise) and work like references (files, notes about them,
+  the same rights); ticking or unticking *One of the study's publications*
+  under *Edit* moves a paper between the two lists. They are rows of
+  `study_references` with `published` true.
 - **Notes.** Dated notes for literature, thoughts and plans, with an
   optional title, photos and files. They are ordered like a timeline: a new
   or re-dated note goes after the others of its day, and ↑/↓ move it. A note
@@ -621,23 +630,24 @@ co-owners; *Team*, also everyone in a co-owner's team (the default);
 their team co-owns, even a personal one, but can't change it unless they are
 a co-owner. The tables are `studies`, `study_owners`,
 `study_samples`, `study_references` and `study_notes` (migration `0020`;
-`study_notes.reference_id`, migration `0022`; `studies.status`, migration `0023`).
+`study_notes.reference_id`, migration `0022`; `studies.status`, migration `0023`;
+`studies.repo_url` and `study_references.published`, migration `0025`).
 
 **Printing.** **🖨 Print / PDF** on a study's page opens it laid out for A4
 (`/studies/{id}/print`, `studies/print.html`), like a sample's printable
-record: details, co-owners, the samples (only those the reader can see), the
-references as a numbered list, and the notes in order with photo previews and
+record: details, co-owners, the code repository, the samples (only those the
+reader can see), the publications and the references as numbered lists, and the notes in order with photo previews and
 file names. Print it, or choose *Save as PDF* as the printer. A sample's own
 printout lists the studies it is in.
 
 **`study.json`.** Next to its notes' files, `uploads/studies/<id>-<title>/`
 (named when the study is created, and kept if it's renamed) has a
 `study.json`, written like `sample.json`: after every change and for every
-study at start-up. Keys: `format` (currently 3), `written_at`, `id`, `title`,
-`description`, `visibility`, `status` (`todo`, `ongoing` or `concluded`), `created_at`, `created_by`, `owners`
+study at start-up. Keys: `format` (currently 4), `written_at`, `id`, `title`,
+`description`, `repo_url`, `visibility`, `status` (`todo`, `ongoing` or `concluded`), `created_at`, `created_by`, `owners`
 (`{username, name, initials}`), `samples` (`{id, code, label, added_at}`),
 `references` (`id`, `doi`, `url`, `title`, `authors`, `journal`, `year`, `note`,
-`added_by`, `created_at`, `files` as in `sample.json`) and `notes`, in order (`id`, `position`, `noted_on`,
+`published` (true for the study's publications), `added_by`, `created_at`, `files` as in `sample.json`) and `notes`, in order (`id`, `position`, `noted_on`,
 `title`, `text`, `author`, `created_at`, `files` as in `sample.json`, and
 `about`: `null`, `{kind: "reference", id}` (a reference's `id` in
 `references`), or `{sample, sample_id, kind, id}` where `kind` is `sample`,
