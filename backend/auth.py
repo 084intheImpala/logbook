@@ -88,8 +88,9 @@ async def _suggestion_badge(db: AsyncSession, user: User) -> int:
 # techniques were used). Details — parameters, notes, dates, files — need
 # view access: the owner, anyone it is shared with, the coordinators of the
 # owner's team, and whoever the sample's visibility lets in (team: the owner's
-# team, public: everyone). Samples without an owner (created before logins)
-# stay open.
+# team, public: everyone). A sample without an owner can belong to a team,
+# whose members then have owner rights; with neither (created before logins)
+# it stays open.
 
 def _share_for(user: User, sample):
     return next((sh for sh in sample.shares if sh.user_id == user.id), None)
@@ -100,8 +101,14 @@ def is_owner(user: User | None, sample) -> bool:
     delete it and manage its sharing."""
     if user is None:
         return False
-    return (user.is_admin or sample.owner_id is None or sample.owner_id == user.id
-            or is_coordinator_of(user, sample))
+    return (user.is_admin or sample.owner_id == user.id or is_coordinator_of(user, sample)
+            or (sample.owner_id is None and (sample.owner_team_id is None or in_owner_team(user, sample))))
+
+
+def in_owner_team(user: User | None, sample) -> bool:
+    """A member of the team that owns a sample without an owner."""
+    return (user is not None and sample.owner_id is None and sample.owner_team_id is not None
+            and sample.owner_team_id in _teams(user))
 
 
 def _teams(user: User | None) -> set[int]:
@@ -125,6 +132,8 @@ def coordinates_user(user: User | None, target: User | None) -> bool:
 
 
 def in_owners_team(user: User | None, sample) -> bool:
+    if in_owner_team(user, sample):
+        return True
     return user is not None and sample.owner is not None and bool(_teams(user) & _teams(sample.owner))
 
 
