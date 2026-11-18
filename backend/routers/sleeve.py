@@ -69,6 +69,23 @@ def _groups(blocks: list[dict]) -> list[dict]:
     return groups
 
 
+def _sections(groups: list[dict]) -> list[dict]:
+    """The sheet's sections, each laid out on its own, evenly spaced: a family
+    (a mother and/or her pieces), or a run of samples on their own sharing rows.
+    `head` names the mother when she isn't on the sheet herself."""
+    sections = []
+    for g in groups:
+        if g["pieces"]:
+            mother_here = g["blocks"][0]["sample"].id == g["root"].id
+            sections.append({"head": None if mother_here else g["root"], "blocks": [
+                b | {"wide": b["sample"].id == g["root"].id} for b in g["blocks"]]})
+        elif sections and sections[-1].get("singles"):
+            sections[-1]["blocks"] += g["blocks"]
+        else:
+            sections.append({"head": None, "singles": True, "blocks": list(g["blocks"])})
+    return sections
+
+
 @router.get("", response_class=HTMLResponse)
 async def sleeve_sheet(
     request: Request,
@@ -97,7 +114,7 @@ async def sleeve_sheet(
         entries = [e for e in b["entries"] if not (e["inherited"] and e["source_id"] in shown)]
         b["entries"], b["more"] = entries[:MAX_ENTRIES], max(0, len(entries) - MAX_ENTRIES)
     return templates.TemplateResponse("samples/sleeve.html", {
-        "request": request, "current_user": current_user, "groups": _groups(blocks),
+        "request": request, "current_user": current_user, "sections": _sections(_groups(blocks)),
         "count": len(blocks), "title": title.strip(),
         "printed_at": datetime.now().replace(microsecond=0),
     })

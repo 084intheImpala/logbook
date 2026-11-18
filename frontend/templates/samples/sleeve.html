@@ -29,17 +29,16 @@
     @media print { h1:empty::before { content: ""; } }
     .meta { text-align: right; color: #6b7280; white-space: nowrap; }
     /* minmax(0, 1fr): long timeline lines are cut short instead of widening a column off the page */
+    /* each section (a family, or samples on their own) is its own grid, sections evenly spaced */
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; }
-    .group-head { grid-column: 1 / -1; margin-top: 2mm; padding-bottom: 1px; border-bottom: 1px solid #9ca3af;
+    .grid + .grid { margin-top: 5mm; }
+    .group-head { grid-column: 1 / -1; padding-bottom: 1px; border-bottom: 1px solid #9ca3af;
                   font-size: 9.5pt; break-after: avoid; }
-    .group-head:first-child { margin-top: 0; }
     .group-head .k { font-size: 8pt; }
-    /* a mother sample with pieces on the sheet takes both columns, its timeline in two */
-    .block.wide { grid-column: 1 / -1; margin-top: 2mm; }
-    .block.wide:first-child { margin-top: 0; }
-    .block.wide ol.entries { columns: 2; column-gap: 6mm; }
-    .block.wide ol.entries li { break-inside: avoid; }
-    .block.new-row { grid-column-start: 1; }
+    /* a mother sample with pieces on the sheet takes both columns, her timeline in two, read across */
+    .block.wide { grid-column: 1 / -1; }
+    .block.wide ol.entries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 6mm; }
+    .block.wide ol.entries li { align-self: start; }
     .badge.mother { border-color: #111827; color: #111827; }
     .block { min-width: 0; border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; }
     .block .top { display: flex; gap: 2.5mm; }
@@ -87,21 +86,17 @@
     </div>
   </header>
 
+  {% for sec in sections %}
   <div class="grid">
-    {% for g in groups %}
-    {% set mother_here = g.blocks[0].sample.id == g.root.id %}
-    {% set after_family = loop.previtem is defined and loop.previtem.pieces %}
-    {% if g.pieces and not mother_here %}
+    {% if sec.head %}
     <div class="group-head"><span class="k">{{ _("Mother sample") }}:</span>
-      <span class="mono"><b>{{ g.root.title }}</b></span>
-      {%- if g.root.label %} <span class="muted">· {{ g.root.label }}</span>{% endif %}</div>
+      <span class="mono"><b>{{ sec.head.title }}</b></span>
+      {%- if sec.head.label %} <span class="muted">· {{ sec.head.label }}</span>{% endif %}</div>
     {% endif %}
-    {% for b in g.blocks %}
+    {% for b in sec.blocks %}
     {% set s = b.sample %}
-    {% set wide = g.pieces and s.id == g.root.id %}
-    {#- a family starts on its own row, and so does whatever follows it #}
-    {% set new_row = loop.first and (g.pieces or after_family) %}
-    <section class="block{{ ' wide' if wide }}{{ ' new-row' if new_row }}">
+    {% set wide = b.wide %}
+    <section class="block{{ ' wide' if wide }}">
       <div class="top">
       <div class="body">
         <div><span class="code mono">{{ s.title }}</span>
@@ -148,8 +143,8 @@
         {% endif %}
     </section>
     {% endfor %}
-    {% endfor %}
   </div>
+  {% endfor %}
 
 </div>
 <script>

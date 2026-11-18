@@ -59,7 +59,7 @@ def test_pieces_are_grouped_under_their_mother_sample(world):
     html = client.get("/samples/sleeve?" + "&".join(f"ids={i}" for i in ids)).text
     assert "6 amostras" in html
     # the mother on the sheet: her block takes both columns, marked; no separate heading
-    assert html.count('class="block wide new-row"') == 1 and 'class="badge mother">Amostra-mãe<' in html
+    assert html.count('class="block wide"') == 1 and 'class="badge mother">Amostra-mãe<' in html
     # the mother not on the sheet: a heading names her
     assert html.count('<div class="group-head">') == 1 and "lonely mother" in html
 
@@ -68,9 +68,9 @@ def test_pieces_are_grouped_under_their_mother_sample(world):
     assert at(mother) < at(a) < at(a1) < at(b)                     # mother first, then its pieces
     assert html.index("block wide") < at(mother) < html.index('<div class="group-head">') < at(lonely_piece)
     assert html.index('<div class="group-head">') > at(b)
-    # whatever follows a family starts on a new row
+    # each family is its own section; samples on their own share one
     assert at(b) < at(other) < at(lonely_piece)                      # families in their mothers' ID order
-    assert "new-row" in html[html.rindex("<section", 0, at(other)):at(other)]
+    assert html.count('<div class="grid">') == 3                      # wafer family, unrelated, lonely family
     assert ("grid-template-columns: repeat(2, minmax(0, 1fr))") in html
 
 
