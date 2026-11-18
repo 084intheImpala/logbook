@@ -1,0 +1,141 @@
+{#- Sleeve sheet (routers/sleeve.py): several samples on one printable page, a
+    compact block each, to file with samples kept together. Standalone like
+    samples/print.html (no sidebar, no Tailwind), always light. -#}
+<!doctype html>
+<html lang="{{ get_lang(request) }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or _("Sleeve sheet") }} — Logbook</title>
+  <style>
+    @page { size: A4; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e5e7eb; color: #111827; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+           font: 8.5pt/1.3 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .sheet { max-width: 210mm; margin: 16px auto; padding: 10mm; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+    .toolbar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center;
+               align-items: center; padding: 10px 16px; background: #f9fafb; border-bottom: 1px solid #d1d5db; font-size: 10pt; }
+    .toolbar button, .toolbar a { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid #d1d5db;
+               background: #fff; color: #374151; text-decoration: none; cursor: pointer; }
+    .toolbar button { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+    .toolbar label { color: #374151; }
+    .toolbar .hint { color: #6b7280; font-size: 9pt; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { color: #6b7280; }
+    header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;
+                 border-bottom: 2px solid #111827; padding-bottom: 4px; margin-bottom: 6px; }
+    h1 { margin: 0; font-size: 15pt; line-height: 1.15; outline: none; min-width: 40mm; }
+    h1:empty::before { content: attr(data-placeholder); color: #9ca3af; }
+    @media print { h1:empty::before { content: ""; } }
+    .meta { text-align: right; color: #6b7280; white-space: nowrap; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+    .block { border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; display: flex; gap: 2.5mm; }
+    .block .body { flex: 1; min-width: 0; }
+    .qr { width: 18mm; height: 18mm; flex: none; }
+    .code { font-size: 11.5pt; font-weight: 700; }
+    .badge { font-size: 7pt; font-weight: 600; border: 1px solid #9ca3af; border-radius: 3px; padding: 0 3px; margin-left: 3px;
+             vertical-align: middle; color: #4b5563; }
+    .label { font-size: 9pt; color: #374151; }
+    .line { margin-top: 1px; }
+    .k { color: #6b7280; }
+    .stack { margin-top: 2px; }
+    .stack .film + .film::before { content: " / "; color: #9ca3af; }
+    ol.entries { list-style: none; margin: 3px 0 0; padding: 2px 0 0; border-top: 1px solid #e5e7eb; }
+    ol.entries li { display: flex; gap: 6px; white-space: nowrap; overflow: hidden; }
+    ol.entries .d { color: #4b5563; width: 16mm; flex: none; font-variant-numeric: tabular-nums; }
+    ol.entries .t { font-weight: 600; flex: none; }
+    ol.entries .s { color: #4b5563; overflow: hidden; text-overflow: ellipsis; }
+    ol.entries .inherited { color: #6b7280; }
+    ol.entries .inherited .t { font-weight: 400; }
+    .no-timelines ol.entries, .no-timelines .more { display: none; }
+    footer { margin-top: 6px; padding-top: 3px; border-top: 1px solid #d1d5db; font-size: 7.5pt; color: #6b7280; }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+    }
+    @media (max-width: 640px) { .sheet { margin: 0; padding: 16px; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="toolbar">
+  <button type="button" onclick="window.print()">{{ _("Print / save as PDF") }}</button>
+  <a href="/samples/">{{ _("Back to the samples") }}</a>
+  <label><input type="checkbox" id="show-timelines" checked> {{ _("Timelines") }}</label>
+  <span class="hint">{{ _("Click the heading to name the sleeve.") }}</span>
+</div>
+
+<div class="sheet" id="sheet">
+  <header class="top">
+    <h1 contenteditable="true" spellcheck="false" data-placeholder="{{ _("Sleeve") }}">{{ title }}</h1>
+    <div class="meta">
+      {{ _("1 sample") if blocks|length == 1 else _("{n} samples", n=blocks|length) }}
+      · {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d')) }}
+    </div>
+  </header>
+
+  <div class="grid">
+    {% for b in blocks %}
+    {% set s = b.sample %}
+    <section class="block">
+      <div class="body">
+        <div><span class="code mono">{{ s.title }}</span>
+          <span class="badge">{{ _(s.type_label) }}</span>
+          {%- if s.is_reference %}<span class="badge">{{ _("Reference") }}</span>{% endif %}</div>
+        {% if s.label %}<div class="label">{{ s.label }}</div>{% endif %}
+        <div class="line">{{ s.researcher or '—' }}
+          {%- if b.parent %} <span class="muted">· {{ _("cut from {code}", code=b.parent.title) }}</span>{% endif %}</div>
+        {% if s.substrate %}
+        <div class="line"><span class="k">{{ _("Substrate") }}:</span> {{ s.substrate.name }}
+          {%- if s.substrate.material and s.substrate.material != s.substrate.name %} ({{ s.substrate.material }}){% endif %}
+          {%- if s.substrate_dimensions %} · {{ s.substrate_dimensions }}{% endif %}</div>
+        {% elif s.project %}
+        <div class="line"><span class="k">{{ _("Project") }}:</span> {{ s.project.name }} <span class="mono muted">({{ s.project.code }})</span>
+          {%- if s.external_id %} · <span class="mono">{{ s.external_id }}</span>{% endif %}</div>
+        {% endif %}
+        {% if b.layers %}
+        <div class="stack"><span class="k">{{ _("Films") }}:</span>
+          {% for l in b.layers %}<span class="film">{{ l.material or '?' }}
+            {%- if l.thickness %} {{ '%g'|format(l.thickness) }} nm{% endif %}
+            {%- if l.partial %} <span class="muted">({{ _("partial") }})</span>{% endif %}</span>{% endfor %}
+          <span class="muted">/ {{ _("substrate") }}</span></div>
+        {% elif s.film_material %}
+        <div class="stack"><span class="k">{{ _("Film") }}:</span> {{ s.film_material }}</div>
+        {% endif %}
+        {% if s.tags %}<div class="line muted">{{ s.tags|join(", ") }}</div>{% endif %}
+        {% if b.entries %}
+        <ol class="entries">
+          {% for e in b.entries %}
+          <li class="{{ 'inherited' if e.inherited }}" {% if e.inherited %}title="{{ _("from {sample}", sample=e.source) }}"{% endif %}>
+            <span class="d">{{ e.date.strftime('%Y-%m-%d') if e.date else '—' }}</span>
+            <span class="t">{{ e.type }}{% if e.device %} {{ e.device }}{% endif %}</span>
+            {% if e.summary %}<span class="s">{{ e.summary }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+        {% if b.more %}<div class="more muted">{{ _("+ {n} more", n=b.more) }}</div>{% endif %}
+        {% elif not b.can_view %}
+        <div class="line muted">🔒 {{ _("Summary only") }}</div>
+        {% endif %}
+      </div>
+      {{ b.qr|safe }}
+    </section>
+    {% endfor %}
+  </div>
+
+  <footer>{{ _("Scan a code to open the sample in the logbook.") }}</footer>
+</div>
+<script>
+  // Timelines on or off, remembered on this browser
+  const box = document.getElementById('show-timelines');
+  const sheet = document.getElementById('sheet');
+  try { box.checked = localStorage.getItem('sleeve-timelines') !== 'off'; } catch (e) {}
+  const apply = () => {
+    sheet.classList.toggle('no-timelines', !box.checked);
+    try { localStorage.setItem('sleeve-timelines', box.checked ? 'on' : 'off'); } catch (e) {}
+  };
+  box.addEventListener('change', apply);
+  apply();
+</script>
+</body>
+</html>
