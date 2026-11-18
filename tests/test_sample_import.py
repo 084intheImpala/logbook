@@ -264,3 +264,33 @@ def test_a_study_the_importer_doesnt_co_own_is_an_error(world):
     assert not _samples(label="to their study") and not _study_links(theirs)
     bad = _upload(client, _sample(sub, label="bad studies", studies="Their team study"))
     assert "studies" in bad.text and "action=\"/samples/import/" not in bad.text.replace("/samples/import/check", "")
+
+
+def test_the_import_page_offers_a_claude_md_with_this_logbook_s_names(world):
+    from backend.sample_import import CUT_KEYS, ENTRY_KEYS, PIECE_KEYS, SAMPLE_KEYS
+    user = world.user("guide-reader")
+    team = world.team("GDE", members=[user])
+    sub = world.substrate()
+    client = world.client(user)
+    assert 'href="/samples/import/CLAUDE.md"' in client.get("/samples/import").text
+
+    r = client.get("/samples/import/CLAUDE.md")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/markdown")
+    assert 'filename="CLAUDE.md"' in r.headers["content-disposition"]
+    md = r.text
+    assert md.startswith("# Preparing samples for the Logbook's Import")
+    assert "{generated}" not in md and date.today().isoformat() in md
+    # every field the import reads is explained
+    for key in SAMPLE_KEYS | PIECE_KEYS | ENTRY_KEYS | CUT_KEYS:
+        assert f"`{key}`" in md, key
+    # this logbook's names: types with their parameter keys, substrates, people, teams
+    assert "**Deposition**" in md and "- `target`:" in md and "**XRD / HRXRD**" in md
+    names = md[md.index("## This logbook's names"):]
+    assert "**Cut**" not in names and "**Devices made**" not in names   # cuts are kind cut; devices can't be imported
+    assert f"- `{sub.name}` (Si)" in md and f"- `{user.username}` · " in md
+    assert f"- `{team.name}` (IDs start `{team.name.upper()}-`)" in md
+
+
+def test_the_claude_md_needs_a_login(world):
+    r = world.client(None).get("/samples/import/CLAUDE.md", follow_redirects=False)
+    assert r.status_code in (302, 303, 401)

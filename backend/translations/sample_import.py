@@ -1,5 +1,8 @@
 """Importing samples from JSON files (samples/import.html, backend/sample_import.py), and samples owned by a team."""
 PT = {
+    "Download a CLAUDE.md": "Descarregar um CLAUDE.md",
+    "for an AI assistant (such as Claude Code) to help prepare the files: put it in the folder with your old records. It explains the format and lists this logbook's step and analysis types, parameters, substrates and people.":
+        "para um assistente de IA (como o Claude Code) ajudar a preparar os ficheiros: ponha-o na pasta com os registos antigos. Explica o formato e lista os tipos de passos e análises, os parâmetros, os substratos e as pessoas deste logbook.",
     # The page
     "Import": "Importar",
     "Import samples": "Importar amostras",

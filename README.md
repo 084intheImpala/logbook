@@ -544,6 +544,19 @@ says it's saving. If the server stops answering (a file too big for its
 memory, for instance) the page says so: split the zip, e.g. one sample per zip.
 A zip may unpack to at most 2 GB.
 
+**With an AI assistant.** **Download a CLAUDE.md** at the top of the page
+(`GET /samples/import/CLAUDE.md`, `backend/import_guide.py`) gives an
+instruction file for an assistant such as Claude Code: put it in the folder
+with the old records (typed-up notebooks, spreadsheets, photos, data files)
+and ask it to prepare the zip. The fixed part (`backend/import_guide.md`)
+explains the logbook, the format below and how to lay out the zip, and tells
+the assistant to ask rather than guess. It ends with this logbook's names as
+the import looks them up for the downloading user: step and analysis types with
+their parameter keys (units, lists, variants, modes), substrates, people,
+teams, projects, the procedures they can see and the studies they co-own.
+Keep `import_guide.md` in step with the format (a test checks every field the
+import reads is named in it).
+
 A file holds one sample (an object), a list of them, or `{"samples": [...]}`.
 Unknown fields are errors, so typos don't get lost.
 

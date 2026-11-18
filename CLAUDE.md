@@ -73,6 +73,8 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   their files; checked as a dry run (rolled back) and previewed, then imported from `uploads/.imports/<token>/`.
   Codes per prefix/year in date order; owner (hand-over), team, or the uploader; cuts with pieces; Deposition
   `ref`/`on`. Messages are English templates put through `tr` (translated in `translations/sample_import.py`).
+  The page offers a generated `CLAUDE.md` for an AI assistant preparing the files (`import_guide.py` +
+  `import_guide.md`, with this logbook's types/parameter keys/substrates/people): update it with the format.
 - **Team-owned samples** (`Sample.owner_team_id`, `auth.in_owner_team`): no owner, a team instead; its members have
   owner rights; code prefix is the team's name. Ownerless samples without a team stay open to all.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.

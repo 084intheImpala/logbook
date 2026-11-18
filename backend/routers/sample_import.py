@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.activity import log as log_activity
@@ -19,6 +19,7 @@ from backend.auth import require_login
 from backend.config import settings
 from backend.database import get_db
 from backend.i18n import t
+from backend.import_guide import guide
 from backend.models import User
 from backend.routers.samples import _ask_to_confirm
 from backend.sample_import import Bundle, Problem, read_bundle, run_import
@@ -65,6 +66,13 @@ def _page(request: Request, user: User, **extra):
 @router.get("", response_class=HTMLResponse)
 async def import_form(request: Request, current_user=Depends(require_login)):
     return _page(request, current_user)
+
+
+@router.get("/CLAUDE.md")
+async def claude_md(db: AsyncSession = Depends(get_db), current_user=Depends(require_login)):
+    """Instructions for an AI assistant preparing an import, with this logbook's names (import_guide.py)."""
+    return Response(await guide(db, current_user), media_type="text/markdown; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="CLAUDE.md"'})
 
 
 @router.post("/check", response_class=HTMLResponse)
