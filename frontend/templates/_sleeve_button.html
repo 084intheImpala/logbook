@@ -1,5 +1,7 @@
 {#- The Sleeve sheet button, next to a page's header buttons. The list's tick boxes (class sleeve-box,
     form="sleeve-form", name="ids") pick the samples; a sleeve-all box in the table header ticks all shown.
+    Ticking (or unticking) a sample does the same to the pieces cut from it on the page, even collapsed
+    ones: each box's data-ancestors lists the ids of the samples it was cut from.
     See routers/sleeve.py. -#}
 <form id="sleeve-form" method="get" action="/samples/sleeve" target="_blank" class="inline">
   <button id="sleeve-button" disabled title="{{ _("Tick samples kept together to print one page for their sleeve.") }}"
@@ -15,10 +17,19 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('sleeve-button').disabled = n === 0;
     document.getElementById('sleeve-count').textContent = n ? '(' + n + ')' : '';
   };
-  document.addEventListener('change', e => { if (e.target.classList.contains('sleeve-box')) update(); });
+  // A sample's pieces (and theirs) follow it
+  const withPieces = box => {
+    boxes().filter(b => (b.dataset.ancestors || '').split(' ').includes(box.value))
+           .forEach(b => b.checked = box.checked);
+  };
+  document.addEventListener('change', e => {
+    if (!e.target.classList.contains('sleeve-box')) return;
+    withPieces(e.target);
+    update();
+  });
   const all = document.getElementById('sleeve-all');
   if (all) all.addEventListener('change', () => {
-    boxes().filter(shown).forEach(b => b.checked = all.checked);
+    boxes().filter(shown).forEach(b => { b.checked = all.checked; withPieces(b); });
     update();
   });
   update();

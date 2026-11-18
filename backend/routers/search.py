@@ -255,6 +255,16 @@ async def _search(db: AsyncSession, user, q, investigator, sample_type, material
     return results, options, family
 
 
+def _ancestor_ids(family, sample) -> list[int]:
+    """The ids of the samples `sample` was cut from: its parent, the parent's parent…"""
+    ids, seen = [], {sample.id}
+    parent = family.parent_and_cut(sample)[0]
+    while parent is not None and parent.id not in seen:
+        ids.append(parent.id)
+        seen.add(parent.id)
+        parent = family.parent_and_cut(parent)[0]
+    return ids
+
 @router.get("/search", response_class=HTMLResponse)
 async def search_page(
     request: Request,
@@ -300,6 +310,7 @@ async def search_page(
         "options": options,
         "techniques_of": lambda s: _techniques(family, s),
         "parent_of": lambda s: family.parent_and_cut(s)[0],
+        "ancestor_ids": lambda s: _ancestor_ids(family, s),
         "can_view": lambda s: can_view(current_user, s),
         "is_owner": lambda s: is_owner(current_user, s),
         "any_owned": any(is_owner(current_user, s) for s in results),

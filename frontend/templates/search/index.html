@@ -227,7 +227,7 @@
           {% if any_owned and share_users %}
           <td class="pl-4 py-2">{% if is_owner(s) %}<input type="checkbox" form="bulk-share" name="sample_ids" value="{{ s.id }}" class="share-box">{% endif %}</td>
           {% endif %}
-          <td class="pl-2 py-2"><input type="checkbox" form="sleeve-form" name="ids" value="{{ s.id }}" class="sleeve-box" aria-label="{{ s.title }}"></td>
+          <td class="pl-2 py-2"><input type="checkbox" form="sleeve-form" name="ids" value="{{ s.id }}" class="sleeve-box" aria-label="{{ s.title }}" data-ancestors="{{ ancestor_ids(s)|join(' ') }}"></td>
           <td class="px-4 py-2"><a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
             {% if s.label %}<div class="text-xs text-gray-600">{{ s.label }}</div>{% endif %}
             {% if not can_view(s) %}<span class="text-xs text-gray-400" title="{{ _("Summary only — ask the owner to share it") }}">🔒</span>{% endif %}

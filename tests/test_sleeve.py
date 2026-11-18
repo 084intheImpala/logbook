@@ -121,3 +121,22 @@ def test_a_deposition_line_shows_the_gas_flow(world):
     html = client.get(f"/samples/sleeve?ids={sample.id}").text
     assert "Sputtering" in html and "100\u00a0W" not in html     # past the first five values…
     assert "20\u00a0sccm" in html                                # …but the flow is always shown
+
+
+def test_a_sample_s_tick_box_names_the_samples_it_was_cut_from(world):
+    """Ticking a mother ticks her pieces (in _sleeve_button.html): each box lists its ancestors."""
+    from tests.test_studies import _cut
+    import re
+    owner = world.user("sleeve-ticker")
+    client = world.client(owner)
+    mother = world.sample(owner, label="ticked wafer")
+    a = _cut(mother, "A", label="ticked piece")
+    a1 = _cut(a, "A", label="ticked piece of a piece")
+
+    def ancestors(html, sample):
+        return re.search(rf'value="{sample.id}" class="sleeve-box"[^>]*data-ancestors="([^"]*)"', html).group(1)
+    for html in (client.get("/samples/").text, client.get("/search?q=ticked").text):
+        assert ancestors(html, mother) == ""
+        assert ancestors(html, a) == str(mother.id)
+        assert sorted(ancestors(html, a1).split()) == sorted([str(mother.id), str(a.id)])
+    assert "withPieces" in client.get("/samples/").text

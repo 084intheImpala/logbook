@@ -1057,7 +1057,8 @@ nothing extra is needed on the server: `GET /samples/{id}/print`
 
 To file samples that are kept together (in a sleeve, a box), tick them on
 the **Samples** list or in the search results (the box in the header ticks
-all shown) and click **Sleeve sheet** at the top, next to **Import** /
+all shown; ticking a sample also ticks the pieces cut from it, and theirs, that
+are on the page, even collapsed ones, and unticking it unticks them) and click **Sleeve sheet** at the top, next to **Import** /
 **Export results (CSV)**.
 It opens one A4 page with a compact block per sample, in ID order, pieces
 grouped under their mother sample (their first ancestor). A mother on the sheet
