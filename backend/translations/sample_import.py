@@ -18,6 +18,11 @@ PT = {
     "Choose a .json or .zip file.": "Escolha um ficheiro .json ou .zip.",
     "That upload has expired or was already imported; upload the file again.":
         "Esse envio expirou ou já foi importado; envie o ficheiro outra vez.",
+    "Import complete!": "Importação concluída!",
+    "Import more samples": "Importar mais amostras",
+    "Upload complete!": "Envio concluído!",
+    "Nothing is saved yet: check what would be created below, then click Import.":
+        "Ainda nada foi guardado: veja abaixo o que seria criado e carregue em Importar.",
     "Imported 1 sample.": "Importada 1 amostra.",
     "Imported {n} samples.": "Importadas {n} amostras.",
     "Their owners are asked to confirm them; meanwhile you can edit them.":

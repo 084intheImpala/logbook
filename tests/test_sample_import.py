@@ -72,6 +72,7 @@ def test_check_shows_what_would_be_created_and_saves_nothing_until_confirmed(wor
     page = _upload(client, _sample(sub))
     assert page.status_code == 200 and "Importar 1 amostra" in page.text
     assert "data-import-busy" in page.text      # the Import button says it's working while it saves
+    assert "Envio concluído!" in page.text      # the upload went through; nothing saved yet
     code = f"{user.initials}-2019-001"            # the year of its first entry
     assert code in page.text and "old ZnO" in page.text
     assert not _samples(code=code)
@@ -79,6 +80,7 @@ def test_check_shows_what_would_be_created_and_saves_nothing_until_confirmed(wor
     done = _confirm(client, page)
     [sample] = _samples(code=code)
     assert done.status_code == 200 and f'href="/samples/{sample.id}"' in done.text
+    assert "Importação concluída!" in done.text and 'href="/samples/import"' in done.text   # says so, and what next
     assert sample.owner_id == user.id and sample.substrate_id == sub.id and sample.tags == ["old"]
     deposition, xrd = _entries(sample.id)
     assert deposition.parameters == {"target": "ZnO", "thickness": 100.5, "duration": "12:00"}

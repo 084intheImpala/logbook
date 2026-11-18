@@ -531,7 +531,10 @@ samples from before the logbook. Upload one `.json` file, several, or a
 checked first and the page shows what would be created: each sample's ID,
 owner, number of entries and files, and its pieces, with any errors (nothing
 can be imported until they're fixed) and warnings (worth a look, e.g. a
-parameter that isn't on the type's form). Nothing is saved until **Import**.
+parameter that isn't on the type's form). Nothing is saved until **Import**:
+the page says "Upload complete!" and that nothing is saved yet. Once imported
+it says "Import complete!", with links to import more samples or go back to
+the list.
 Any user can import; the import is recorded in the Activity log.
 
 A big zip takes a while: while it uploads the page shows how far it is, then
