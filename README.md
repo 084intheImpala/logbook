@@ -517,6 +517,7 @@ rights on each sample, and a sample goes only together with all the pieces
 cut from it (they're deleted first), so a sample whose pieces aren't ticked,
 or can't be deleted, stays. Each deleted sample is logged in the Activity
 log, and its files go to the trash unless another sample also uses them.
+While it deletes, the page says so, with the time so far.
 
 Access to a piece includes its inherited history (entries and files from
 before the cut), even without access to the parent. Search matches pieces on

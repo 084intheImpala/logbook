@@ -17,12 +17,35 @@
       {% if s.label %}<span class="text-gray-600">{{ s.label }}</span>{% endif %}</li>
     {% endfor %}
   </ul>
-  <form method="post" action="/samples/delete-selected" class="flex items-center gap-3">
+  <form method="post" action="/samples/delete-selected" class="flex flex-wrap items-center gap-3" id="delete-form">
     {% for s in deletable %}<input type="hidden" name="ids" value="{{ s.id }}">{% endfor %}
-    <button class="bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-700">
+    <button class="bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50">
       {{ _("Delete 1 sample") if deletable|length == 1 else _("Delete {n} samples", n=deletable|length) }}</button>
     <a href="/samples/" class="text-sm text-gray-500 hover:underline">{{ _("Cancel") }}</a>
+    <div class="delete-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
+      <progress class="flex-1 h-2"></progress>
+      <span class="delete-progress-text"></span>
+    </div>
   </form>
+  {# Deleting many samples with their files takes a while: say it's working, with the time so far #}
+  <script>
+  (function () {
+    const form = document.getElementById("delete-form");
+    const message = {{ (_("Deleting 1 sample and its files…") if deletable|length == 1
+                        else _("Deleting {n} samples and their files…", n=deletable|length))|tojson }};
+    form.addEventListener("submit", () => {
+      form.querySelector("button").disabled = true;
+      const box = form.querySelector(".delete-progress"), text = box.querySelector(".delete-progress-text");
+      const start = Date.now();
+      box.classList.remove("hidden");
+      text.textContent = message;
+      setInterval(() => {
+        const s = Math.floor((Date.now() - start) / 1000);
+        text.textContent = message + " (" + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + ")";
+      }, 1000);
+    });
+  })();
+  </script>
 </div>
 {% else %}
 <div class="mb-6 bg-gray-50 border border-gray-200 text-gray-700 text-sm px-4 py-3 rounded-lg">

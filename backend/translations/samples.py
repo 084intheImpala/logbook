@@ -153,6 +153,8 @@ PT = {
         "Crie os dispositivos quando o processo que os produz estiver concluído: um passo 'Devices made' fica na cronologia. Os passos seguintes, como o recozimento, continuam a aplicar-se a todos os dispositivos. Ao adicionar uma análise, escolha o dispositivo em que foi medida.",
     # deleting several samples (ticked on the list)
     "Delete selected": "Eliminar as selecionadas",
+    "Deleting 1 sample and its files…": "A eliminar 1 amostra e os seus ficheiros…",
+    "Deleting {n} samples and their files…": "A eliminar {n} amostras e os seus ficheiros…",
     "Delete samples": "Eliminar amostras",
     "This deletes 1 sample, with its entries and files:": "Isto elimina 1 amostra, com as suas entradas e ficheiros:",
     "This deletes {n} samples, with their entries and files:": "Isto elimina {n} amostras, com as suas entradas e ficheiros:",

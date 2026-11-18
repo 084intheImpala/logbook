@@ -40,6 +40,8 @@ def test_the_list_has_the_button_and_asking_deletes_nothing(world):
     page = client.get("/samples/delete-selected", params=_ids(a, b))
     assert page.status_code == 200
     assert a.code in page.text and b.code in page.text and "Eliminar 2 amostras" in page.text
+    # deleting says it's working (translated for the script) while the page waits
+    assert "<progress" in page.text and "A eliminar 2 amostras e os seus ficheiros" in page.text
     assert _exists(a, b) == [True, True]
 
 
