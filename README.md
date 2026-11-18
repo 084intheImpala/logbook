@@ -1045,8 +1045,15 @@ nothing extra is needed on the server: `GET /samples/{id}/print`
 ### Sleeve sheet: several samples on one page
 
 To file samples that are kept together (in a sleeve, a box), tick them on
-the **Samples** list or in the search results and click **Sleeve sheet**.
-It opens one A4 page with a compact block per sample, in ID order: ID, type,
+the **Samples** list or in the search results (the box in the header ticks
+all shown) and click **Sleeve sheet** at the top, next to **Import** /
+**Export results (CSV)**.
+It opens one A4 page with a compact block per sample, in ID order, pieces
+grouped under a **Mother sample** heading (their first ancestor, named even when
+it isn't on the sheet; the mother's own block comes first). Nothing is
+listed twice: what a piece inherits from a sample that is also on the sheet is
+left to that sample's block, so the piece's timeline starts after its cut.
+Each block has: ID, type,
 label, researcher (or "cut from" for a piece), substrate and dimensions (a
 project sample's project), the film stack from top to substrate (as in the
 layers drawing, thicknesses where known), tags, the first entries of the

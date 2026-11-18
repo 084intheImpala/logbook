@@ -1,0 +1,26 @@
+{#- The Sleeve sheet button, next to a page's header buttons. The list's tick boxes (class sleeve-box,
+    form="sleeve-form", name="ids") pick the samples; a sleeve-all box in the table header ticks all shown.
+    See routers/sleeve.py. -#}
+<form id="sleeve-form" method="get" action="/samples/sleeve" target="_blank" class="inline">
+  <button id="sleeve-button" disabled title="{{ _("Tick samples kept together to print one page for their sleeve.") }}"
+          class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+    {{ _("Sleeve sheet") }} <span id="sleeve-count"></span></button>
+</form>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const boxes = () => [...document.querySelectorAll('.sleeve-box')];
+  const shown = b => b.offsetParent !== null;   // not in a collapsed row
+  const update = () => {
+    const n = boxes().filter(b => b.checked).length;
+    document.getElementById('sleeve-button').disabled = n === 0;
+    document.getElementById('sleeve-count').textContent = n ? '(' + n + ')' : '';
+  };
+  document.addEventListener('change', e => { if (e.target.classList.contains('sleeve-box')) update(); });
+  const all = document.getElementById('sleeve-all');
+  if (all) all.addEventListener('change', () => {
+    boxes().filter(shown).forEach(b => b.checked = all.checked);
+    update();
+  });
+  update();
+});
+</script>

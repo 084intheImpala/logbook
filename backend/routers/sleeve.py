@@ -1,6 +1,8 @@
 """Sleeve sheet: several samples on one printable page, a compact block each
 (ID, label, type, researcher, substrate, film stack, short timeline and a QR
 code to the sample's page), to file with samples kept together in a sleeve.
+Pieces are grouped under their mother sample (the first ancestor), in ID order;
+what a piece inherits from a sample on the sheet is left to that sample's block.
 
 Picked with the tick boxes on the Samples list or the search results;
 /samples/sleeve?ids=1&ids=2… Printed (or saved as PDF) by the browser.
@@ -48,8 +50,24 @@ def _entries(page: dict) -> list[dict]:
         values = [p["value"] for p in e["params"] if "value" in p and not p["long"] and p["value"]]
         out.append({"date": e["performed_at"], "type": e["type_name"], "kind": e["kind"],
                     "summary": " · ".join(values[:3]), "inherited": e["inherited"],
-                    "source": e["source"].title, "device": e["device"]})
+                    "source": e["source"].title, "source_id": e["source"].id, "device": e["device"]})
     return out
+
+
+def _groups(blocks: list[dict]) -> list[dict]:
+    """Blocks grouped by mother sample (the first ancestor of a piece), in ID order:
+    the mother first, then its pieces. `pieces` says whether to head the group."""
+    by_root: dict[int, list[dict]] = {}
+    for b in blocks:
+        by_root.setdefault(b["root"].id, []).append(b)
+    groups = []
+    for members in by_root.values():
+        root = members[0]["root"]
+        members.sort(key=lambda b: (b["sample"].id != root.id, b["sample"].code or ""))
+        groups.append({"root": root, "blocks": members,
+                       "pieces": any(b["sample"].id != root.id for b in members)})
+    groups.sort(key=lambda g: g["root"].code or "")
+    return groups
 
 
 @router.get("", response_class=HTMLResponse)
@@ -71,12 +89,17 @@ async def sleeve_sheet(
         entries = _entries(page) if page["can_view"] or any(e["visible"] for e in page["timeline"]) else []
         url = str(request.url_for("sample_detail", sample_id=sample_id))
         blocks.append({
-            "sample": page["sample"], "parent": page["parent"], "can_view": page["can_view"],
-            "layers": _layers(page), "entries": entries[:MAX_ENTRIES],
-            "more": max(0, len(entries) - MAX_ENTRIES), "url": url, "qr": qr_svg(url),
+            "sample": page["sample"], "parent": page["parent"], "root": page["root"], "can_view": page["can_view"],
+            "layers": _layers(page), "entries": entries, "url": url, "qr": qr_svg(url),
         })
-    blocks.sort(key=lambda b: b["sample"].code or "")
+    # No doubled lines: an entry a piece inherits from a sample that has its own
+    # block on the sheet is shown there only, so a piece lists what came after its cut.
+    shown = {b["sample"].id for b in blocks}
+    for b in blocks:
+        entries = [e for e in b["entries"] if not (e["inherited"] and e["source_id"] in shown)]
+        b["entries"], b["more"] = entries[:MAX_ENTRIES], max(0, len(entries) - MAX_ENTRIES)
     return templates.TemplateResponse("samples/sleeve.html", {
-        "request": request, "current_user": current_user, "blocks": blocks, "title": title.strip(),
+        "request": request, "current_user": current_user, "groups": _groups(blocks),
+        "count": len(blocks), "title": title.strip(),
         "printed_at": datetime.now().replace(microsecond=0),
     })

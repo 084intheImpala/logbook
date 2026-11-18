@@ -28,8 +28,13 @@
     h1:empty::before { content: attr(data-placeholder); color: #9ca3af; }
     @media print { h1:empty::before { content: ""; } }
     .meta { text-align: right; color: #6b7280; white-space: nowrap; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
-    .block { border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; display: flex; gap: 2.5mm; }
+    /* minmax(0, 1fr): long timeline lines are cut short instead of widening a column off the page */
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; }
+    .group-head { grid-column: 1 / -1; margin-top: 2mm; padding-bottom: 1px; border-bottom: 1px solid #9ca3af;
+                  font-size: 9.5pt; break-after: avoid; }
+    .group-head:first-child { margin-top: 0; }
+    .group-head .k { font-size: 8pt; }
+    .block { min-width: 0; border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; display: flex; gap: 2.5mm; }
     .block .body { flex: 1; min-width: 0; }
     .qr { width: 18mm; height: 18mm; flex: none; }
     .code { font-size: 11.5pt; font-weight: 700; }
@@ -69,13 +74,19 @@
   <header class="top">
     <h1 contenteditable="true" spellcheck="false" data-placeholder="{{ _("Sleeve") }}">{{ title }}</h1>
     <div class="meta">
-      {{ _("1 sample") if blocks|length == 1 else _("{n} samples", n=blocks|length) }}
+      {{ _("1 sample") if count == 1 else _("{n} samples", n=count) }}
       · {{ _("Printed {date}", date=printed_at.strftime('%Y-%m-%d')) }}
     </div>
   </header>
 
   <div class="grid">
-    {% for b in blocks %}
+    {% for g in groups %}
+    {% if g.pieces %}
+    <div class="group-head"><span class="k">{{ _("Mother sample") }}:</span>
+      <span class="mono"><b>{{ g.root.title }}</b></span>
+      {%- if g.root.label %} <span class="muted">· {{ g.root.label }}</span>{% endif %}</div>
+    {% endif %}
+    {% for b in g.blocks %}
     {% set s = b.sample %}
     <section class="block">
       <div class="body">
@@ -120,6 +131,7 @@
       </div>
       {{ b.qr|safe }}
     </section>
+    {% endfor %}
     {% endfor %}
   </div>
 

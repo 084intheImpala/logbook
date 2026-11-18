@@ -10,6 +10,7 @@ PT = {
     "Click the heading to name the sleeve.": "Clique no título para dar um nome à manga.",
     "1 sample": "1 amostra",
     "cut from {code}": "cortada de {code}",
+    "Mother sample": "Amostra-mãe",
     "Films": "Filmes",
     "substrate": "substrato",
     "+ {n} more": "+ {n} mais",

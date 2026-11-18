@@ -14,6 +14,10 @@ def test_the_sheet_has_a_block_per_sample_with_its_stack_timeline_and_qr_code(wo
 
     listing = client.get("/samples/").text
     assert 'action="/samples/sleeve"' in listing and f'name="ids" value="{first.id}"' in listing
+    assert listing.index('action="/samples/sleeve"') < listing.index("<table")   # a button in the header
+    found = client.get("/search?q=one").text
+    assert found.index('action="/samples/sleeve"') < found.index("Exportar resultados (CSV)") < found.index("<table")
+    assert 'id="sleeve-all"' in found
 
     html = client.get(f"/samples/sleeve?ids={second.id}&ids={first.id}&title=Box+3").text
     assert "Box 3" in html and "2 amostras" in html
@@ -44,3 +48,48 @@ def test_no_samples_goes_back_to_the_list_and_unknown_ids_are_skipped(world):
 def test_the_qr_code_is_an_svg():
     svg = qr_svg("http://lab.example/samples/1")
     assert svg.startswith('<svg class="qr"') and "<path" in svg
+
+
+def test_pieces_are_grouped_under_their_mother_sample(world):
+    from tests.test_studies import _cut
+    owner = world.user("sleeve-mother")
+    client = world.client(owner)
+    mother = world.sample(owner, label="the wafer")
+    other = world.sample(owner, label="unrelated")
+    a, b = _cut(mother, "A"), _cut(mother, "B")
+    a1 = _cut(a, "A")                                           # a piece of a piece: same mother
+    lonely = world.sample(owner, label="lonely mother")
+    lonely_piece = _cut(lonely, "A")                            # its mother isn't on the sheet
+
+    ids = [other.id, a1.id, b.id, lonely_piece.id, mother.id, a.id]
+    html = client.get("/samples/sleeve?" + "&".join(f"ids={i}" for i in ids)).text
+    assert "6 amostras" in html
+    head = html.index('<div class="group-head">')
+    assert html.count('<div class="group-head">') == 2           # no heading for a sample on its own
+    assert "Amostra-mãe" in html and "the wafer" in html and "lonely mother" in html
+
+    def at(sample):
+        return html.index(f'<span class="code mono">{sample.code}<')
+    assert head < at(mother) < at(a) < at(a1) < at(b)              # mother first, then its pieces
+    assert at(lonely_piece) > html.index("lonely mother")
+    assert ("grid-template-columns: repeat(2, minmax(0, 1fr))") in html
+
+
+def test_a_piece_leaves_out_what_its_mother_shows_on_the_same_sheet(world):
+    from tests.test_studies import _cut
+    owner = world.user("sleeve-nodup")
+    client = world.client(owner)
+    mother = world.sample(owner, label="wafer")
+    world.step(mother, "before the cut")                      # inherited by the piece
+    piece = _cut(mother, "A")
+    world.step(piece, "after the cut")
+
+    def lines(html, sample):                                  # timeline lines in the sample's block
+        block = html[html.index(f'<span class="code mono">{sample.code}<'):]
+        return block[:block.index("</section>")].count("<li")
+
+    both = client.get(f"/samples/sleeve?ids={mother.id}&ids={piece.id}").text
+    assert lines(both, mother) == 2                          # its step and the Cut
+    assert lines(both, piece) == 1                           # only what came after the cut
+    alone = client.get(f"/samples/sleeve?ids={piece.id}").text
+    assert lines(alone, piece) == 2                          # mother not on the sheet: inherited step shown

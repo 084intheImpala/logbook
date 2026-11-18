@@ -432,6 +432,7 @@ async def _page(request: Request, db: AsyncSession, sample_id: int, current_user
         "has_inherited": own_count < len(items),
         "performed_any": any(is_performer(current_user, i.entry) for i in items),
         "parent": fam["parent"],
+        "root": list(fam["family"].samples.values())[-1],   # the first ancestor (itself if not a piece)
         "cut": fam["cut"],
         "siblings": fam["siblings"],
         "current_user": current_user,
