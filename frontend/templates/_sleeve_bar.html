@@ -1,0 +1,29 @@
+{#- The bar above a list of samples whose tick boxes (class sleeve-box, form="sleeve-form", name="ids")
+    pick samples for the sleeve sheet (routers/sleeve.py). -#}
+<form id="sleeve-form" method="get" action="/samples/sleeve" target="_blank"
+      class="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-2 mb-4 flex flex-wrap items-center gap-3 text-sm">
+  <span class="text-gray-600">{{ _("Tick samples kept together to print one page for their sleeve.") }}</span>
+  <button id="sleeve-button" disabled
+          class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">
+    {{ _("Sleeve sheet") }} <span id="sleeve-count"></span></button>
+  <label class="ml-auto text-xs text-gray-500 flex items-center gap-1 cursor-pointer">
+    <input type="checkbox" id="sleeve-all"> {{ _("select all shown") }}
+  </label>
+</form>
+<script>
+(function () {
+  const boxes = () => [...document.querySelectorAll('.sleeve-box')];
+  const shown = b => b.offsetParent !== null;   // not in a collapsed row
+  const update = () => {
+    const n = boxes().filter(b => b.checked).length;
+    document.getElementById('sleeve-button').disabled = n === 0;
+    document.getElementById('sleeve-count').textContent = n ? '(' + n + ')' : '';
+  };
+  document.addEventListener('change', e => { if (e.target.classList.contains('sleeve-box')) update(); });
+  document.getElementById('sleeve-all').addEventListener('change', e => {
+    boxes().filter(shown).forEach(b => b.checked = e.target.checked);
+    update();
+  });
+  update();
+})();
+</script>

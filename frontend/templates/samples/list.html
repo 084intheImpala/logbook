@@ -39,10 +39,12 @@
 {% endif %}
 
 {% if samples %}
+{% include "_sleeve_bar.html" %}
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
   <table class="w-full text-sm">
     <thead>
       <tr class="bg-gray-50 border-b border-gray-200">
+        <th class="w-8"></th>
         <th class="text-left px-5 py-3 font-semibold text-gray-600">ID</th>
         <th class="text-left px-5 py-3 font-semibold text-gray-600">{{ _("Type") }}</th>
         <th class="text-left px-5 py-3 font-semibold text-gray-600">{{ _("Film") }}</th>
@@ -58,6 +60,7 @@
       {% set s = row.sample %}
       <tr class="sample-row hover:bg-gray-50 {% if row.depth %}hidden bg-gray-50{% endif %}"
           data-id="{{ s.id }}" data-ancestors="{{ row.ancestors|join(' ') }}">
+        <td class="pl-4 py-3 align-top"><input type="checkbox" form="sleeve-form" name="ids" value="{{ s.id }}" class="sleeve-box" aria-label="{{ s.title }}"></td>
         <td class="px-5 py-3" style="padding-left: {{ 1.25 + row.depth * 1.5 }}rem">
           <div class="flex items-start gap-1.5">
             {% if row.depth %}<span class="text-gray-300 select-none">└</span>{% endif %}

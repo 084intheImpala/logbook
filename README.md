@@ -967,6 +967,24 @@ nothing extra is needed on the server: `GET /samples/{id}/print`
 (`routers/samples.py`, which shares the page's data with the sample page),
 `samples/print.html`.
 
+### Sleeve sheet: several samples on one page
+
+To file samples that are kept together (in a sleeve, a box), tick them on
+the **Samples** list or in the search results and click **Sleeve sheet**.
+It opens one A4 page with a compact block per sample, in ID order: ID, type,
+label, researcher (or "cut from" for a piece), substrate and dimensions (a
+project sample's project), the film stack from top to substrate (as in the
+layers drawing, thicknesses where known), tags, the first entries of the
+timeline (date, type and first parameter values; planned entries left out)
+and a **QR code** that opens the sample's page in the logbook. Click the
+heading to name the sleeve before printing (or pass `title=`); the
+**Timelines** tick box hides the timelines for a shorter sheet. About eight
+samples fit on a page; more flow onto the next. Like the printable record,
+each block shows what you can see: without access, the summary only.
+`GET /samples/sleeve?ids=…` (`routers/sleeve.py`, built from the sample
+page's data), `samples/sleeve.html`; the QR codes are drawn by the `segno`
+package.
+
 ### One step or analysis on several samples
 
 Things done in parallel (one deposition run, one XRD session) can be
