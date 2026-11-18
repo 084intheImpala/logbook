@@ -93,3 +93,20 @@ def test_a_piece_leaves_out_what_its_mother_shows_on_the_same_sheet(world):
     assert lines(both, piece) == 1                           # only what came after the cut
     alone = client.get(f"/samples/sleeve?ids={piece.id}").text
     assert lines(alone, piece) == 2                          # mother not on the sheet: inherited step shown
+
+
+def test_a_timeline_line_shows_the_key_values_in_full(world):
+    from backend.models import ProcessStepType
+    from tests.loop import run
+    from tests.test_deposition_rate import _type_id
+    owner = world.user("sleeve-values")
+    client = world.client(owner)
+    sample = world.sample(owner, label="implanted")
+    for kind, params in [("Ion Implantation", {"ion": "Eu", "energy": "150", "fluence": "1e15", "tilt_angle": "7"}),
+                         ("Annealing", {"method": "RTA", "atmosphere": "N2", "temperature": "900", "duration": "120"})]:
+        data = {"type_id": run(_type_id(ProcessStepType, kind))} | {f"p::{k}": v for k, v in params.items()}
+        assert client.post(f"/samples/{sample.id}/steps/new", data=data).status_code == 303
+    html = client.get(f"/samples/sleeve?ids={sample.id}").text
+    assert "150 keV" in html and "ions/cm²" in html                 # energy and fluence
+    assert "900 °C" in html and "120 s" in html                     # anneal temperature and time
+    assert "text-overflow: ellipsis" not in html                    # wrapped, never cut short

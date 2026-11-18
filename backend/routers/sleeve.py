@@ -24,6 +24,7 @@ router = APIRouter(prefix="/samples/sleeve", tags=["sleeve"])
 
 MAX_SAMPLES = 60       # more than any sleeve holds
 MAX_ENTRIES = 8        # timeline lines per sample; the rest are counted
+MAX_VALUES = 5         # parameter values per line (an implantation's ion, energy, fluence…)
 
 
 def qr_svg(url: str) -> str:
@@ -49,7 +50,7 @@ def _entries(page: dict) -> list[dict]:
             continue
         values = [p["value"] for p in e["params"] if "value" in p and not p["long"] and p["value"]]
         out.append({"date": e["performed_at"], "type": e["type_name"], "kind": e["kind"],
-                    "summary": " · ".join(values[:3]), "inherited": e["inherited"],
+                    "summary": " · ".join(values[:MAX_VALUES]), "inherited": e["inherited"],
                     "source": e["source"].title, "source_id": e["source"].id, "device": e["device"]})
     return out
 

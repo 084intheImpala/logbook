@@ -34,8 +34,9 @@
                   font-size: 9.5pt; break-after: avoid; }
     .group-head:first-child { margin-top: 0; }
     .group-head .k { font-size: 8pt; }
-    .block { min-width: 0; border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; display: flex; gap: 2.5mm; }
-    .block .body { flex: 1; min-width: 0; }
+    .block { min-width: 0; border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; }
+    .block .top { display: flex; gap: 2.5mm; }
+    .block .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
     .qr { width: 18mm; height: 18mm; flex: none; }
     .code { font-size: 11.5pt; font-weight: 700; }
     .badge { font-size: 7pt; font-weight: 600; border: 1px solid #9ca3af; border-radius: 3px; padding: 0 3px; margin-left: 3px;
@@ -46,10 +47,12 @@
     .stack { margin-top: 2px; }
     .stack .film + .film::before { content: " / "; color: #9ca3af; }
     ol.entries { list-style: none; margin: 3px 0 0; padding: 2px 0 0; border-top: 1px solid #e5e7eb; }
-    ol.entries li { display: flex; gap: 6px; white-space: nowrap; overflow: hidden; }
+    /* the timeline runs the block's full width, under the QR code; long values wrap, never cut */
+    ol.entries li { display: flex; gap: 6px; }
     ol.entries .d { color: #4b5563; width: 16mm; flex: none; font-variant-numeric: tabular-nums; }
-    ol.entries .t { font-weight: 600; flex: none; }
-    ol.entries .s { color: #4b5563; overflow: hidden; text-overflow: ellipsis; }
+    ol.entries .x { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    ol.entries .t { font-weight: 600; }
+    ol.entries .s { color: #374151; }
     ol.entries .inherited { color: #6b7280; }
     ol.entries .inherited .t { font-weight: 400; }
     .no-timelines ol.entries, .no-timelines .more { display: none; }
@@ -89,6 +92,7 @@
     {% for b in g.blocks %}
     {% set s = b.sample %}
     <section class="block">
+      <div class="top">
       <div class="body">
         <div><span class="code mono">{{ s.title }}</span>
           <span class="badge">{{ _(s.type_label) }}</span>
@@ -114,22 +118,24 @@
         <div class="stack"><span class="k">{{ _("Film") }}:</span> {{ s.film_material }}</div>
         {% endif %}
         {% if s.tags %}<div class="line muted">{{ s.tags|join(", ") }}</div>{% endif %}
+        {% if not b.can_view and not b.entries %}
+        <div class="line muted">🔒 {{ _("Summary only") }}</div>
+        {% endif %}
+      </div>
+      {{ b.qr|safe }}
+      </div>
         {% if b.entries %}
         <ol class="entries">
           {% for e in b.entries %}
           <li class="{{ 'inherited' if e.inherited }}" {% if e.inherited %}title="{{ _("from {sample}", sample=e.source) }}"{% endif %}>
             <span class="d">{{ e.date.strftime('%Y-%m-%d') if e.date else '—' }}</span>
-            <span class="t">{{ e.type }}{% if e.device %} {{ e.device }}{% endif %}</span>
-            {% if e.summary %}<span class="s">{{ e.summary }}</span>{% endif %}
+            <span class="x"><span class="t">{{ e.type }}{% if e.device %} {{ e.device }}{% endif %}</span>
+            {%- if e.summary %} <span class="s">{{ e.summary }}</span>{% endif %}</span>
           </li>
           {% endfor %}
         </ol>
         {% if b.more %}<div class="more muted">{{ _("+ {n} more", n=b.more) }}</div>{% endif %}
-        {% elif not b.can_view %}
-        <div class="line muted">🔒 {{ _("Summary only") }}</div>
         {% endif %}
-      </div>
-      {{ b.qr|safe }}
     </section>
     {% endfor %}
     {% endfor %}

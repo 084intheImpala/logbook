@@ -1057,7 +1057,9 @@ Each block has: ID, type,
 label, researcher (or "cut from" for a piece), substrate and dimensions (a
 project sample's project), the film stack from top to substrate (as in the
 layers drawing, thicknesses where known), tags, the first entries of the
-timeline (date, type and first parameter values; planned entries left out)
+timeline (date, type and up to five parameter values in full, e.g. an
+implantation's ion, energy and fluence or an anneal's temperature and time,
+wrapping across the block's full width; planned entries left out)
 and a **QR code** that opens the sample's page in the logbook. Click the
 heading to name the sleeve before printing (or pass `title=`); the
 **Timelines** tick box hides the timelines for a shorter sheet. About eight
