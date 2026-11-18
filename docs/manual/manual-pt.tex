@@ -257,7 +257,15 @@ proposta e avisa o autor.
 \menu{Aprovações}; se aprovar, cria-se a partilha. Um coordenador da equipa do
 responsável (ou um administrador) também pode responder.
 
-As amostras sem responsável estão abertas a todos.
+\paragraph{Amostras de uma equipa.} Uma amostra sem investigador conhecido
+(por exemplo, uma amostra antiga importada com \texttt{team}, ver
+secção~\ref{sec:import}) pode pertencer a uma equipa em vez de a uma pessoa.
+Todos os membros dessa equipa têm sobre ela os direitos do responsável
+(editar, partilhar, visibilidade, apagar) e podem entregá-la a um
+investigador no campo \ui{Investigador(a)} da página \ui{Editar} (que a
+confirma, como de costume); deixa então de ser da equipa. O ID começa pelo
+nome da equipa. As amostras sem responsável nem equipa (anteriores às
+contas) estão abertas a todos.
 
 %=====================================================================
 \section{Amostras}
@@ -692,6 +700,82 @@ Cada pedaço:
 
 A amostra-mãe continua a poder ser usada; o que lhe for acrescentado
 depois pertence só a ela. Quem vê um pedaço também vê a história herdada.
+
+%=====================================================================
+\section{Importar amostras}
+\label{sec:import}
+%=====================================================================
+
+\menu{Amostras} $\rightarrow$ \ui{Importar} acrescenta amostras descritas em
+ficheiros JSON, por exemplo amostras antigas, anteriores ao logbook. Envie um
+ficheiro \texttt{.json}, vários, ou um \texttt{.zip} com ficheiros
+\texttt{.json} e as fotografias e ficheiros que eles indicam.
+
+\begin{enumerate}
+  \item Escolha o(s) ficheiro(s) e carregue em \ui{Verificar}. Nada é guardado.
+  \item A página mostra o que seria criado: o ID de cada amostra, o
+        responsável, o número de entradas e de ficheiros, e os pedaços. Os
+        \emph{erros} (um substrato que não está na biblioteca, um tipo de passo
+        que não existe, uma data mal escrita, um ficheiro que falta no zip\ldots)
+        impedem a importação: corrija-os e envie outra vez. Os \emph{avisos}
+        (por exemplo, um parâmetro que não está no formulário do tipo) não a impedem.
+  \item Carregue em \ui{Importar}. A importação fica no registo de atividade.
+\end{enumerate}
+
+Um ficheiro tem uma amostra, ou uma lista delas. Tipos, substratos, projetos e
+procedimentos têm o nome que têm no logbook; as pessoas, o nome de
+utilizador; as datas escrevem-se \texttt{AAAA-MM-DD}. Os campos têm nomes em
+inglês; um campo desconhecido é um erro, para que nenhum engano passe.
+
+\begin{verbatim}
+{
+  "label": "ZnO em Si", "team": "WBS", "year": 2019,
+  "substrate": "Si (100)", "film_material": "ZnO", "tags": ["antiga"],
+  "files": ["fotos/geral.jpg"],
+  "timeline": [
+    {"kind": "step", "type": "Deposition", "performed_at": "2019-03-04",
+     "performed_by": "asousa", "ref": "zno",
+     "parameters": {"target": "ZnO", "thickness": 100}},
+    {"kind": "analysis", "type": "XRD / HRXRD", "files": ["xrd/scan.xy"]},
+    {"kind": "cut", "method": "Diamond saw", "pieces": [
+      {"label": "contactos", "timeline": [
+        {"kind": "step", "type": "Deposition", "on": "zno",
+         "partial": true, "parameters": {"target": "Au"}}]},
+      {"is_reference": true}]}
+  ]
+}
+\end{verbatim}
+
+\begin{itemize}
+  \item \textbf{Responsável:} \texttt{owner} (um nome de utilizador), ou
+        \texttt{team} quando não se sabe de quem é: a amostra fica da equipa e
+        o ID começa pelo nome dela (\sid{WBS-2019-001}). Só membros da equipa
+        (ou administradores) importam amostras de uma equipa. Sem nenhum dos
+        dois, a amostra é sua. A amostra de outra pessoa espera que ela a
+        confirme (secção~\ref{sec:assign}).
+  \item \textbf{Ano do ID:} \texttt{year}; se faltar, o ano da primeira
+        entrada com data; se nenhuma tiver data, o ano atual. As amostras de
+        uma importação são numeradas por ordem de data.
+  \item \textbf{Cronologia} (\texttt{timeline}): passos
+        (\texttt{"kind": "step"}), análises (\texttt{"analysis"}) e cortes
+        (\texttt{"cut"}), por ordem. Cada entrada pode ter \texttt{type},
+        \texttt{performed\_at}, \texttt{performed\_by}, \texttt{location},
+        \texttt{parameters}, \texttt{notes}, \texttt{procedure} e
+        \texttt{files}. Uma data que não se sabe deixa-se de fora.
+  \item \textbf{Cortes:} \texttt{pieces} tem um objeto por pedaço, com
+        \texttt{label}, \texttt{substrate\_dimensions}, \texttt{is\_reference}
+        (no máximo um), \texttt{owner} ou \texttt{team} (por omissão, os da
+        amostra-mãe) e a sua própria \texttt{timeline} depois do corte, que pode
+        ter mais cortes. Os pedaços recebem os IDs habituais (\sid{-A},
+        \sid{-B}, \sid{-REF}) e herdam a cronologia até ao corte.
+  \item \textbf{Camadas:} uma Deposição pode ter \texttt{ref}, e uma posterior
+        (nesta amostra ou num pedaço) \texttt{"on": "<ref>"} ou
+        \texttt{"on": "substrate"}, e \texttt{"partial": true}.
+  \item \textbf{Ficheiros:} caminhos dentro do zip, relativos ao ficheiro
+        \texttt{.json}.
+\end{itemize}
+
+A descrição completa dos campos está no README, em \emph{Importing samples}.
 
 %=====================================================================
 \section{Partilha e responsabilidade}

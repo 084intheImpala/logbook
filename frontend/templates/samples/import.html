@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Import samples") }} — Logbook{% endblock %}
+{% macro sample_rows(s, depth=0) %}
+<tr class="border-t border-gray-100 align-top">
+  <td class="py-1.5 pr-3 font-mono whitespace-nowrap" style="padding-left: {{ depth * 1.25 }}rem">
+    {% if done %}<a href="/samples/{{ s.id }}" class="text-blue-600 hover:underline">{{ s.code }}</a>{% else %}{{ s.code }}{% endif %}
+  </td>
+  <td class="py-1.5 pr-3">{{ s.label or "" }}</td>
+  <td class="py-1.5 pr-3">{{ s.owner }}{% if s.pending %} <span class="text-xs text-amber-700">· {{ _("asked to confirm") }}</span>{% endif %}</td>
+  <td class="py-1.5 pr-3 text-right">{{ s.entries }}</td>
+  <td class="py-1.5 text-right">{{ s.files }}</td>
+</tr>
+{% for p in s.pieces %}{{ sample_rows(p, depth + 1) }}{% endfor %}
+{% endmacro %}
+{% block content %}
+<div class="mb-6">
+  <a href="/samples/" class="text-sm text-gray-500 hover:underline">← {{ _("Samples") }}</a>
+  <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ _("Import samples") }}</h1>
+  <p class="text-sm text-gray-500 mt-1">{{ _("Add samples written up in JSON files, such as old samples: one .json file, or a .zip with .json files and the photos and files they name. Everything is checked first and nothing is saved until you confirm.") }}</p>
+</div>
+
+{% if problem %}
+<div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ problem }}</div>
+{% endif %}
+
+{% if report %}
+  {% if done %}
+  <div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">
+    {{ _("Imported 1 sample.") if report.count == 1 else _("Imported {n} samples.", n=report.count) }}
+    {% if report.handed_over %}{{ _("Their owners are asked to confirm them; meanwhile you can edit them.") }}{% endif %}
+  </div>
+  {% elif report.errors %}
+  <div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+    <div class="font-medium mb-1">{{ _("Nothing was imported. Fix these and upload the file again:") }}</div>
+    <ul class="list-disc pl-5 space-y-0.5">{% for e in report.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if report.warnings and not done %}
+  <div class="mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
+    <div class="font-medium mb-1">{{ _("Worth a look (these don't stop the import):") }}</div>
+    <ul class="list-disc pl-5 space-y-0.5">{% for w in report.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if report.samples %}
+  <div class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+    {% if not done %}
+    <p class="text-sm text-gray-600 mb-3">{{ _("This would create 1 sample:") if report.count == 1 else _("This would create {n} samples:", n=report.count) }}
+      <span class="text-gray-400">{{ _("IDs are given when you import; they may move on if someone adds a sample meanwhile.") }}</span></p>
+    {% endif %}
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-xs text-gray-500">
+        <th class="pb-1 pr-3 font-medium">{{ _("ID") }}</th>
+        <th class="pb-1 pr-3 font-medium">{{ _("Label") }}</th>
+        <th class="pb-1 pr-3 font-medium">{{ _("Owner") }}</th>
+        <th class="pb-1 pr-3 font-medium text-right">{{ _("Entries") }}</th>
+        <th class="pb-1 font-medium text-right">{{ _("Files") }}</th>
+      </tr></thead>
+      <tbody>{% for s in report.samples %}{{ sample_rows(s) }}{% endfor %}</tbody>
+    </table>
+    {% if token %}
+    <form method="post" action="/samples/import/{{ token }}" class="mt-4 flex items-center gap-3">
+      <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">
+        {{ _("Import 1 sample") if report.count == 1 else _("Import {n} samples", n=report.count) }}</button>
+      <a href="/samples/import" class="text-sm text-gray-500 hover:underline">{{ _("Cancel") }}</a>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+{% endif %}
+
+{% if not token %}
+<form method="post" action="/samples/import/check" enctype="multipart/form-data"
+      class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center gap-3">
+  <input type="file" name="files" multiple accept=".json,.zip,application/json,application/zip" required class="text-sm">
+  <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Check") }}</button>
+</form>
+{% endif %}
+
+<details class="bg-white rounded-xl border border-gray-200 shadow-sm">
+  <summary class="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer">{{ _("How to write the file") }}</summary>
+  <div class="px-4 pb-4 text-sm text-gray-600 space-y-2">
+    <p>{{ _("A file holds one sample, or a list of them. Types, substrates, projects and procedures are named as they are in the logbook; people by their username. Dates are YYYY-MM-DD; leave out what isn't known.") }}</p>
+    <ul class="list-disc pl-5 space-y-0.5">
+      <li>{{ _("Owner: give owner (a username), or team when nobody is known: the sample then belongs to the team and gets its name in the ID. Without either it's yours. Someone else's sample waits for them to confirm it.") }}</li>
+      <li>{{ _("ID year: year, or else the year of the first dated entry, or else this year. Samples are numbered in date order.") }}</li>
+      <li>{{ _("Timeline: steps (kind step), analyses (kind analysis) and cuts (kind cut, with pieces, each with its own timeline), in order.") }}</li>
+      <li>{{ _("A Deposition can have ref, and a later one on (a ref, or substrate) and partial, for its place in the film stack.") }}</li>
+      <li>{{ _("Files: paths inside the zip, relative to the .json file.") }}</li>
+    </ul>
+<pre class="bg-gray-50 border border-gray-200 rounded p-3 text-xs overflow-x-auto">{
+  "label": "ZnO on Si", "sample_type": "thin_film", "team": "WBS", "year": 2019,
+  "substrate": "Si (100)", "film_material": "ZnO", "tags": ["old"],
+  "files": ["photos/overview.jpg"],
+  "timeline": [
+    {"kind": "step", "type": "Deposition", "performed_at": "2019-03-04",
+     "performed_by": "asousa", "parameters": {"target": "ZnO", "thickness": 100}, "ref": "zno"},
+    {"kind": "analysis", "type": "XRD / HRXRD", "files": ["xrd/scan.xy"]},
+    {"kind": "cut", "method": "Diamond saw", "pieces": [
+      {"label": "for RBS", "timeline": [{"kind": "analysis", "type": "RBS"}]},
+      {"is_reference": true}]}
+  ]
+}</pre>
+  </div>
+</details>
+{% endblock %}
