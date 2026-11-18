@@ -549,11 +549,11 @@ A zip may unpack to at most 2 GB.
 instruction file for an assistant such as Claude Code: put it in the folder
 with the old records (typed-up notebooks, spreadsheets, photos, data files)
 and ask it to prepare the zip. The fixed part (`backend/import_guide.md`)
-explains the logbook, the format below and how to lay out the zip, and tells
+explains the logbook, the format below (people are not listed: it
+asks for usernames) and how to lay out the zip, and tells
 the assistant to ask rather than guess. It ends with this logbook's names as
 the import looks them up for the downloading user: step and analysis types with
-their parameter keys (units, lists, variants, modes), substrates, people,
-teams, projects, the procedures they can see and the studies they co-own.
+their parameter keys (units, lists, variants, modes), substrates, teams, projects, the procedures they can see and the studies they co-own.
 Keep `import_guide.md` in step with the format (a test checks every field the
 import reads is named in it).
 
@@ -604,6 +604,7 @@ Unknown fields are errors, so typos don't get lost.
 | `procedure` | The title of the procedure followed. |
 | `files` | Files for the entry, as for the sample. |
 | `ref`, `on`, `partial` | Depositions only: `ref` names a deposition so a later one (on this sample or a piece cut after it) can sit on it with `"on": "<ref>"`; `"on": "substrate"` puts it on the bare substrate; `partial` makes it cover only part (see [Layers](#layers)). |
+| `run` | Entries done together on several samples or pieces (e.g. contacts deposited on eight pieces at once): give them the same `"run": "<name>"` and they become one [run](#one-step-or-analysis-on-several-samples), as if added to several samples on the form. The entries of a run must be of one type; a run spans one import (all its files), so put samples that share runs in the same zip. Each keeps its own parameters, notes and files. |
 | `pieces` | Cuts only, with `method`, `performed_at`, `performed_by`, `location`, `notes` and `files` (photos of the pieces). One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `studies`, `is_reference` (at most one), `owner` or `team` (default: the parent's) and its own `timeline` after the cut, which can hold further cuts. Pieces get the usual `-A`, `-B`, `-REF` IDs and inherit the parent's timeline up to the cut. |
 
 Between the check and the import the upload waits in `uploads/.imports/`;

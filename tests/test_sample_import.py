@@ -287,10 +287,40 @@ def test_the_import_page_offers_a_claude_md_with_this_logbook_s_names(world):
     assert "**Deposition**" in md and "- `target`:" in md and "**XRD / HRXRD**" in md
     names = md[md.index("## This logbook's names"):]
     assert "**Cut**" not in names and "**Devices made**" not in names   # cuts are kind cut; devices can't be imported
-    assert f"- `{sub.name}` (Si)" in md and f"- `{user.username}` · " in md
+    assert f"- `{sub.name}` (Si)" in md
+    assert "### People" not in md and user.username not in md                   # people aren't listed
     assert f"- `{team.name}` (IDs start `{team.name.upper()}-`)" in md
 
 
 def test_the_claude_md_needs_a_login(world):
     r = world.client(None).get("/samples/import/CLAUDE.md", follow_redirects=False)
     assert r.status_code in (302, 303, 401)
+
+
+def test_entries_with_the_same_run_are_one_run_across_samples_and_pieces(world):
+    user = world.user("importer-run")
+    sub = world.substrate()
+    client = world.client(user)
+    dep = {"kind": "step", "type": "Deposition", "performed_at": "2024-08-28", "run": "contacts",
+           "parameters": {"target": "Ti"}}
+    payload = [
+        {"label": "run one", "substrate": sub.name, "timeline": [
+            {"kind": "cut", "pieces": [{"label": "R1A", "timeline": [dep | {"parameters": {"target": "Ti", "station": "2"}}]},
+                                       {"label": "R1B", "timeline": [dep]}]}]},
+        {"label": "run two", "substrate": sub.name, "timeline": [dep, {"kind": "analysis", "type": "XRD / HRXRD"}]},
+    ]
+    r = _confirm(client, _upload(client, payload))
+    assert "Importação concluída" in r.text, r.text
+    pieces = [s for s in _samples(owner_id=user.id) if s.label in ("R1A", "R1B")]
+    two = next(s for s in _samples(owner_id=user.id) if s.label == "run two")
+    steps = [_entries(p.id)[-1] for p in pieces] + [_entries(two.id)[0]]
+    assert len({e.run_id for e in steps}) == 1 and steps[0].run_id
+    assert _entries(two.id)[1].run_id is None
+    # the sample page names the others of the run
+    page = client.get(f"/samples/{two.id}").text
+    assert all(p.code in page for p in pieces)
+
+    bad = [{"label": "mixed", "substrate": sub.name, "timeline": [
+        dep, {"kind": "analysis", "type": "XRD / HRXRD", "run": "contacts"}]}]
+    page = _upload(client, bad).text
+    assert "junta entradas de tipos diferentes" in page

@@ -1,8 +1,8 @@
 """Importing samples from JSON files (samples/import.html, backend/sample_import.py), and samples owned by a team."""
 PT = {
     "Download a CLAUDE.md": "Descarregar um CLAUDE.md",
-    "for an AI assistant (such as Claude Code) to help prepare the files: put it in the folder with your old records. It explains the format and lists this logbook's step and analysis types, parameters, substrates and people.":
-        "para um assistente de IA (como o Claude Code) ajudar a preparar os ficheiros: ponha-o na pasta com os registos antigos. Explica o formato e lista os tipos de passos e análises, os parâmetros, os substratos e as pessoas deste logbook.",
+    "for an AI assistant (such as Claude Code) to help prepare the files: put it in the folder with your old records. It explains the format and lists this logbook's step and analysis types, parameters and substrates.":
+        "para um assistente de IA (como o Claude Code) ajudar a preparar os ficheiros: ponha-o na pasta com os registos antigos. Explica o formato e lista os tipos de passos e análises, os parâmetros e os substratos deste logbook.",
     # The page
     "Import": "Importar",
     "Import samples": "Importar amostras",
@@ -133,6 +133,8 @@ PT = {
     '"partial" must be true or false': '"partial" tem de ser true ou false',
     '"ref" must be a name': '"ref" tem de ser um nome',
     '"ref" {ref} is used twice': '"ref" {ref} aparece duas vezes',
+    '"run" must be a name': '"run" tem de ser um nome',
+    '"run" {run} joins entries of different types': '"run" {run} junta entradas de tipos diferentes',
     'a cut needs "pieces": a list with one object per piece': 'um corte precisa de "pieces": uma lista com um objeto por peça',
     "a cut can keep at most one reference piece": "um corte só pode guardar uma peça de referência",
 

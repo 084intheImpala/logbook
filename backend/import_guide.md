@@ -78,7 +78,7 @@ errors**, so a typo is never silently lost: use exactly the field names below.
 
 | Field | Meaning |
 |---|---|
-| `owner` | Username of the researcher it belongs to (initials or full name also work if no one else has them). Someone else's sample waits for them to confirm it after the import. |
+| `owner` | Username of the researcher it belongs to (initials or full name also work if no one else has them); ask the person for usernames, they aren't listed here. Someone else's sample waits for them to confirm it after the import. |
 | `team` | Instead of `owner`, when nobody is known: the sample belongs to the team and its ID starts with the team's name. Only the team's members (and admins) can import a team's samples. With neither, the sample belongs to whoever uploads it. |
 | `year` | The year in its ID. If left out: the year of its first dated entry, else this year. Samples are numbered in date order. |
 | `sample_type` | `thin_film` (default), `bulk` or `project`. |
@@ -103,6 +103,7 @@ errors**, so a typo is never silently lost: use exactly the field names below.
 | `procedure` | The title of the procedure followed (optional). |
 | `files` | Files for the entry (spectra, photos, reports). |
 | `ref`, `on`, `partial` | Depositions only. `ref` names a deposition so that a later one (on this sample or on a piece cut after it) can sit on it with `"on": "<ref>"`; `"on": "substrate"` puts it on the bare substrate; `"partial": true` means it covers only part (contacts, a mask). This builds the film-stack drawing. |
+| `run` | Entries done together, at the same time, on several samples or pieces (a deposition with several pieces in the chamber, one furnace run, contacts on eight pieces at once): give each the same `"run": "<name>"` and the Logbook links them as one run. They must be of the same type; each keeps its own parameters (e.g. its station), notes and files. A run spans one upload, so samples that share runs go in the same zip. Link steps of the same type on the same date (unless a key parameter such as the temperature or the target differs: those are separate runs); ask about undated ones. |
 | `pieces` | Cuts only; a cut also takes `method`, `performed_at`, `performed_by`, `location`, `notes`, `files`. One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `studies`, `is_reference` (at most one per cut), `owner` or `team` (default: the parent's), and its own `timeline` after the cut, which can hold further cuts. |
 
 ### Tips

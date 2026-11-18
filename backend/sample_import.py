@@ -36,6 +36,7 @@ import io
 import json
 import mimetypes
 import posixpath
+import uuid
 import zipfile
 from dataclasses import dataclass, field
 from datetime import date
@@ -66,7 +67,7 @@ SAMPLE_KEYS = {"label", "sample_type", "owner", "team", "year", "substrate", "pr
 PIECE_KEYS = {"label", "owner", "team", "substrate_dimensions", "description", "tags", "is_reference", "files",
               "studies", "timeline"}
 ENTRY_KEYS = {"kind", "type", "performed_at", "performed_by", "location", "parameters", "notes", "files",
-              "procedure", "ref", "on", "partial"}
+              "procedure", "ref", "on", "partial", "run"}
 CUT_KEYS = {"kind", "performed_at", "performed_by", "location", "method", "notes", "files", "pieces"}
 
 
@@ -345,6 +346,7 @@ class Importer:
         self.check = Checker(self.report, tr)
         self.picked: list[tuple[str, str, str | None, set, dict]] = []   # for remember()
         self.my_teams = {m.team_id for m in user.memberships}
+        self.runs: dict[str, tuple] = {}   # "run" name → (kind, type name, run id): entries done together
 
     async def run(self) -> Report:
         self.look = await Lookups().load(self.db, self.user)
@@ -578,6 +580,17 @@ class Importer:
                 c.error(where, '"ref" {ref} is used twice', ref=repr(ref))
             else:
                 refs[ref] = checked
+        run = entry.get("run")
+        checked["run"] = None
+        if run is not None:
+            if not isinstance(run, str) or not run.strip():
+                c.error(where, '"run" must be a name')
+            else:
+                kind_type = (kind, entry_type.name)
+                first = self.runs.setdefault(run, (*kind_type, uuid.uuid4().hex))
+                if first[:2] != kind_type:
+                    c.error(where, '"run" {run} joins entries of different types', run=repr(run))
+                checked["run"] = first[2]
         return checked
 
     def _cut(self, where: str, entry: dict, base: str, refs: dict, owner: _Owner | None) -> dict | None:
@@ -658,7 +671,7 @@ class Importer:
             row = model(sample_id=sample.id, position=position, parameters=e["params"] or None, notes=e["notes"],
                         performer_id=e["performer"].id if e["performer"] else None, performed_by=e["performed_by"],
                         location=e["location"], performed_at=e["date"],
-                        procedure_id=e["procedure"].id if e["procedure"] else None)
+                        procedure_id=e["procedure"].id if e["procedure"] else None, run_id=e["run"])
             if e["kind"] == "step":
                 row.step_type_id = e["type"].id
                 row.on_substrate, row.partial = e["on_substrate"], e["partial"]

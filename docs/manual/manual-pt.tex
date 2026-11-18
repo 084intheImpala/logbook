@@ -775,7 +775,7 @@ cálculo, fotografias, ficheiros de medidas) e peça-lhe que prepare o zip. O fi
 explica o logbook, o formato e como organizar o zip, e diz ao assistente para
 perguntar o que não souber em vez de inventar. Termina com os nomes deste logbook,
 tal como a importação os espera: os tipos de passos e análises com as chaves dos
-parâmetros (e unidades), os substratos, as pessoas, as equipas, os projetos, os
+parâmetros (e unidades), os substratos, as equipas, os projetos, os
 procedimentos que pode ver e os estudos de que é co-responsável. Esses nomes mudam:
 descarregue-o outra vez se o seu já for antigo.
 
@@ -828,6 +828,12 @@ inglês; um campo desconhecido é um erro, para que nenhum engano passe.
   \item \textbf{Camadas:} uma Deposição pode ter \texttt{ref}, e uma posterior
         (nesta amostra ou num pedaço) \texttt{"on": "<ref>"} ou
         \texttt{"on": "substrate"}, e \texttt{"partial": true}.
+  \item \textbf{Execuções conjuntas:} entradas com o mesmo \texttt{"run": "<nome>"}
+        (do mesmo tipo, em amostras ou pedaços diferentes da mesma importação) ficam
+        como uma só execução, como as que se acrescentam a várias amostras no
+        formulário: por exemplo, contactos depositados em vários pedaços de uma vez.
+        Uma execução fica dentro de uma importação: amostras que partilham
+        execuções vão no mesmo zip.
   \item \textbf{Ficheiros:} caminhos dentro do zip, relativos ao ficheiro
         \texttt{.json}.
   \item \textbf{Estudos:} \texttt{studies}, uma lista de títulos de estudos

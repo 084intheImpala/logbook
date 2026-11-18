@@ -1,6 +1,6 @@
 """A CLAUDE.md for preparing an import: the fixed instructions in import_guide.md (the format,
 how to lay out the zip, what to ask) followed by this logbook's names, so an AI assistant writes
-types, parameter keys, substrates and people exactly as the import expects them. The names are
+types, parameter keys and substrates exactly as the import expects them. The names are
 those the import itself looks up (sample_import.Lookups), as the downloading user sees them.
 Downloaded from the Import page (GET /samples/import/CLAUDE.md).
 """
@@ -66,11 +66,6 @@ async def guide(db: AsyncSession, user: User) -> str:
         details = ", ".join(x for x in (s.material, s.orientation, s.size, s.supplier) if x)
         out.append(f"- `{s.name}`" + (f" ({details})" if details else ""))
     out += ["" if look.substrates else "- (none yet)", ""]
-
-    out += ["### People (`owner`, `performed_by`)", "", "Username, then name and initials.", ""]
-    for u in sorted(look.users, key=lambda u: u.username.lower()):
-        out.append(f"- `{u.username}`" + "".join(f" · {x}" for x in (u.name, u.initials) if x))
-    out.append("")
 
     teams = [t for t in look.teams if team_prefix(t)]
     out += ["### Teams (`team`)", ""]
