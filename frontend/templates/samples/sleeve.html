@@ -34,6 +34,13 @@
                   font-size: 9.5pt; break-after: avoid; }
     .group-head:first-child { margin-top: 0; }
     .group-head .k { font-size: 8pt; }
+    /* a mother sample with pieces on the sheet takes both columns, its timeline in two */
+    .block.wide { grid-column: 1 / -1; margin-top: 2mm; }
+    .block.wide:first-child { margin-top: 0; }
+    .block.wide ol.entries { columns: 2; column-gap: 6mm; }
+    .block.wide ol.entries li { break-inside: avoid; }
+    .block.new-row { grid-column-start: 1; }
+    .badge.mother { border-color: #111827; color: #111827; }
     .block { min-width: 0; border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; }
     .block .top { display: flex; gap: 2.5mm; }
     .block .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -84,17 +91,23 @@
 
   <div class="grid">
     {% for g in groups %}
-    {% if g.pieces %}
+    {% set mother_here = g.blocks[0].sample.id == g.root.id %}
+    {% set after_family = loop.previtem is defined and loop.previtem.pieces %}
+    {% if g.pieces and not mother_here %}
     <div class="group-head"><span class="k">{{ _("Mother sample") }}:</span>
       <span class="mono"><b>{{ g.root.title }}</b></span>
       {%- if g.root.label %} <span class="muted">· {{ g.root.label }}</span>{% endif %}</div>
     {% endif %}
     {% for b in g.blocks %}
     {% set s = b.sample %}
-    <section class="block">
+    {% set wide = g.pieces and s.id == g.root.id %}
+    {#- a family starts on its own row, and so does whatever follows it #}
+    {% set new_row = loop.first and (g.pieces or after_family) %}
+    <section class="block{{ ' wide' if wide }}{{ ' new-row' if new_row }}">
       <div class="top">
       <div class="body">
         <div><span class="code mono">{{ s.title }}</span>
+          {%- if wide %} <span class="badge mother">{{ _("Mother sample") }}</span>{% endif %}
           <span class="badge">{{ _(s.type_label) }}</span>
           {%- if s.is_reference %}<span class="badge">{{ _("Reference") }}</span>{% endif %}</div>
         {% if s.label %}<div class="label">{{ s.label }}</div>{% endif %}

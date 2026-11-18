@@ -50,7 +50,7 @@ def _entries(page: dict) -> list[dict]:
             continue
         values = [p["value"] for p in e["params"] if "value" in p and not p["long"] and p["value"]]
         out.append({"date": e["performed_at"], "type": e["type_name"], "kind": e["kind"],
-                    "summary": " · ".join(values[:MAX_VALUES]), "inherited": e["inherited"],
+                    "summary": " · ".join(v.replace(" ", "\u00a0") for v in values[:MAX_VALUES]), "inherited": e["inherited"],
                     "source": e["source"].title, "source_id": e["source"].id, "device": e["device"]})
     return out
 

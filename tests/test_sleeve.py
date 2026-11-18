@@ -64,14 +64,19 @@ def test_pieces_are_grouped_under_their_mother_sample(world):
     ids = [other.id, a1.id, b.id, lonely_piece.id, mother.id, a.id]
     html = client.get("/samples/sleeve?" + "&".join(f"ids={i}" for i in ids)).text
     assert "6 amostras" in html
-    head = html.index('<div class="group-head">')
-    assert html.count('<div class="group-head">') == 2           # no heading for a sample on its own
-    assert "Amostra-mãe" in html and "the wafer" in html and "lonely mother" in html
+    # the mother on the sheet: her block takes both columns, marked; no separate heading
+    assert html.count('class="block wide new-row"') == 1 and 'class="badge mother">Amostra-mãe<' in html
+    # the mother not on the sheet: a heading names her
+    assert html.count('<div class="group-head">') == 1 and "lonely mother" in html
 
     def at(sample):
         return html.index(f'<span class="code mono">{sample.code}<')
-    assert head < at(mother) < at(a) < at(a1) < at(b)              # mother first, then its pieces
-    assert at(lonely_piece) > html.index("lonely mother")
+    assert at(mother) < at(a) < at(a1) < at(b)                     # mother first, then its pieces
+    assert html.index("block wide") < at(mother) < html.index('<div class="group-head">') < at(lonely_piece)
+    assert html.index('<div class="group-head">') > at(b)
+    # whatever follows a family starts on a new row
+    assert at(b) < at(other) < at(lonely_piece)                      # families in their mothers' ID order
+    assert "new-row" in html[html.rindex("<section", 0, at(other)):at(other)]
     assert ("grid-template-columns: repeat(2, minmax(0, 1fr))") in html
 
 
@@ -107,6 +112,6 @@ def test_a_timeline_line_shows_the_key_values_in_full(world):
         data = {"type_id": run(_type_id(ProcessStepType, kind))} | {f"p::{k}": v for k, v in params.items()}
         assert client.post(f"/samples/{sample.id}/steps/new", data=data).status_code == 303
     html = client.get(f"/samples/sleeve?ids={sample.id}").text
-    assert "150 keV" in html and "ions/cm²" in html                 # energy and fluence
-    assert "900 °C" in html and "120 s" in html                     # anneal temperature and time
+    assert "150\u00a0keV" in html and "ions/cm²" in html            # energy and fluence, unit kept with its value
+    assert "900\u00a0°C" in html and "120\u00a0s" in html          # anneal temperature and time
     assert "text-overflow: ellipsis" not in html                    # wrapped, never cut short
