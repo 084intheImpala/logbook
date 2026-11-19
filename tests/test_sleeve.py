@@ -16,7 +16,7 @@ def test_the_sheet_has_a_block_per_sample_with_its_stack_timeline_and_qr_code(wo
     assert listing.index('action="/samples/sleeve"') < listing.index("<table")   # a button in the header
     found = client.get("/search?q=one").text
     assert found.index('action="/samples/sleeve"') < found.index("Exportar resultados (CSV)") < found.index("<table")
-    assert 'id="sleeve-all"' in found
+    assert 'class="sleeve-all"' in found
 
     html = client.get(f"/samples/sleeve?ids={second.id}&ids={first.id}&title=Box+3").text
     assert "Box 3" in html and "2 amostras" in html
@@ -198,3 +198,34 @@ def test_a_long_timeline_lists_its_steps_and_sums_up_its_analyses(world):
     assert summed.count("<li") == 2                                     # 5 entries: the two anneals in full…
     assert "900\u00a0°C" in summed and "1000\u00a0°C" in summed
     assert 'class="analyses"' in summed and "Análises (3)" in summed and "&nbsp;×3" in summed   # …the analyses in one line
+
+
+def test_samples_ticked_on_the_search_page_stay_ticked_on_the_next_search(world):
+    owner = world.user("sel-keeper")
+    client = world.client(owner)
+    kept = world.sample(owner, label="alpha kept")
+    other = world.sample(owner, label="beta other")
+    # Ticked on a search for "alpha", then searching for "beta"
+    page = client.get(f"/search?q=beta&sel={kept.id}").text
+    assert other.code in page
+    assert "Também selecionadas" in page                          # listed apart, still ticked
+    assert f'name="ids" value="{kept.id}" class="sleeve-box" checked' in page
+    assert f'name="sel" value="{kept.id}"' in page                 # and sent with the next search
+    assert f'href="/search?sel={kept.id}"' in page                 # Clear keeps it too
+    # Among the results it is just ticked in its row
+    page = client.get(f"/search?q=alpha&sel={kept.id}").text
+    assert "Também selecionadas" not in page and 'checked></td>' in page
+    # Rubbish in `sel` is ignored
+    assert client.get("/search?sel=x&sel=999999").status_code == 200
+
+
+def test_the_search_page_has_one_tick_box_per_sample_for_the_manifesto_and_sharing(world):
+    owner, mate = world.user("one-box"), world.user("one-box-mate")
+    client = world.client(owner)
+    sample = world.sample(owner, label="single box")
+    page = client.get("/search?q=single").text
+    assert page.count(f'value="{sample.id}"') == 1 and "share-box" not in page
+    assert 'id="bulk-share"' in page and 'name="sample_ids"' in page     # filled from the ticks when sharing
+    r = client.post("/samples/share", data={"sample_ids": [sample.id], "user_id": mate.id, "access": "view"})
+    assert r.status_code == 303
+    assert world.client(mate).get(f"/samples/{sample.id}").status_code == 200

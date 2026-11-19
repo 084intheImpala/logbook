@@ -1,5 +1,6 @@
 {#- The Manifesto button (the "sleeve sheet" in the code), next to a page's header buttons. The list's tick boxes (class sleeve-box,
-    form="sleeve-form", name="ids") pick the samples; a sleeve-all box in the table header ticks all shown.
+    form="sleeve-form", name="ids") pick the samples; a sleeve-all box in a table's header ticks all shown in that table.
+    A sample listed twice (in two groups) has its boxes kept alike and is counted once.
     Ticking (or unticking) a sample does the same to the pieces cut from it on the page, even collapsed
     ones: each box's data-ancestors lists the ids of the samples it was cut from.
     See routers/sleeve.py. -#}
@@ -13,13 +14,13 @@ document.addEventListener('DOMContentLoaded', function () {
   const boxes = () => [...document.querySelectorAll('.sleeve-box')];
   const shown = b => b.offsetParent !== null;   // not in a collapsed row
   const update = () => {
-    const n = boxes().filter(b => b.checked).length;
+    const n = new Set(boxes().filter(b => b.checked).map(b => b.value)).size;
     document.getElementById('sleeve-button').disabled = n === 0;
     document.getElementById('sleeve-count').textContent = n ? '(' + n + ')' : '';
   };
-  // A sample's pieces (and theirs) follow it
+  // A sample's pieces (and theirs) follow it, and its other boxes
   const withPieces = box => {
-    boxes().filter(b => (b.dataset.ancestors || '').split(' ').includes(box.value))
+    boxes().filter(b => b.value === box.value || (b.dataset.ancestors || '').split(' ').includes(box.value))
            .forEach(b => b.checked = box.checked);
   };
   document.addEventListener('change', e => {
@@ -27,11 +28,11 @@ document.addEventListener('DOMContentLoaded', function () {
     withPieces(e.target);
     update();
   });
-  const all = document.getElementById('sleeve-all');
-  if (all) all.addEventListener('change', () => {
-    boxes().filter(shown).forEach(b => { b.checked = all.checked; withPieces(b); });
+  document.querySelectorAll('.sleeve-all').forEach(all => all.addEventListener('change', () => {
+    boxes().filter(b => shown(b) && b.closest('table') === all.closest('table'))
+           .forEach(b => { b.checked = all.checked; withPieces(b); });
     update();
-  });
+  }));
   update();
 });
 </script>

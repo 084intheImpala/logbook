@@ -1,19 +1,20 @@
 """Search tab: filter samples, group the results, export them as CSV."""
 from datetime import date
 from urllib.parse import urlencode
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models import User, SAMPLE_TYPES
+from backend.models import StudySample, User, SAMPLE_TYPES
 from backend.auth import require_login, can_view, is_owner, is_performer
 from backend.export import samples_csv
 from backend.lineage import Family, load_samples_full
 from backend.params import describe, flatten, scalar_fields
 from backend.i18n import t
 from backend import rate_plot
+from backend.studies import visible_studies
 from backend.deposition_rate import DEPOSITION_TYPE_NAME, RATE_KEY, rate_points
 
 router = APIRouter(tags=["search"])
@@ -242,11 +243,33 @@ def technique_view(request: Request, family: Family, results, user, technique: s
     return results, view
 
 
-async def _search(db: AsyncSession, user, q, investigator, sample_type, material, technique, tag):
+def _int(raw) -> int | None:
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+async def _search(db: AsyncSession, user, q, investigator, sample_type, material, technique, tag, study=""):
     samples = await load_samples_full(db)
     family = Family(samples)
     results = [s for s in samples if _matches(family, s, user, q, investigator, sample_type, material, technique, tag)]
+    studies = await visible_studies(db, user)
+    by_study = {st.id: st for st in studies}
+    # Sample id → the studies it is in that the user can see (the Study column), by title
+    studies_of: dict[int, list] = {}
+    for study_id_, sample_id in (await db.execute(
+            select(StudySample.study_id, StudySample.sample_id).where(StudySample.study_id.in_(by_study)))).all():
+        studies_of.setdefault(sample_id, []).append(by_study[study_id_])
+    for listed in studies_of.values():
+        listed.sort(key=lambda st: st.title.lower())
+    if study:
+        # Only a study the user can see; its samples themselves (not pieces cut from them)
+        study_id = _int(study)
+        results = [s for s in results if any(st.id == study_id for st in studies_of.get(s.id, []))]
     options = {
+        "studies_of": studies_of,
+        "studies": studies,
         "investigators": sorted({s.researcher for s in samples if s.researcher}, key=str.lower),
         "materials": sorted({m for s in samples for m in (s.film_material, s.substrate_material) if m}, key=str.lower),
         "techniques": sorted({t for s in samples for t in _techniques(family, s)}, key=str.lower),
@@ -274,11 +297,14 @@ async def search_page(
     material: str = "",
     technique: str = "",
     tag: str = "",
+    study: str = "",
     group_by: str = "",
+    sel: list[str] = Query([]),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_login),
 ):
-    results, options, family = await _search(db, current_user, q, investigator, sample_type, material, technique, tag)
+    results, options, family = await _search(db, current_user, q, investigator, sample_type, material, technique, tag,
+                                             study)
     entry_view = None
     if technique:
         results, entry_view = technique_view(request, family, results, current_user, technique)
@@ -296,7 +322,10 @@ async def search_page(
         groups = {"": results}
 
     filters = {"q": q, "investigator": investigator, "sample_type": sample_type, "material": material,
-               "technique": technique, "tag": tag}
+               "technique": technique, "tag": tag, "study": study}
+    # Samples ticked on earlier searches stay ticked (the search form sends them back as `sel`)
+    by_id = family.samples
+    selected_ids = list(dict.fromkeys(i for i in map(_int, sel) if i is not None))
     return templates.TemplateResponse("search/index.html", {
         "request": request,
         "current_user": current_user,
@@ -307,8 +336,12 @@ async def search_page(
         "sample_types": SAMPLE_TYPES,
         "groups": groups,
         "result_count": len(results),
+        "selected_ids": selected_ids,
+        # Ticked but not among these results: listed above them, still ticked
+        "selected_elsewhere": [by_id[i] for i in selected_ids if i in by_id and i not in {s.id for s in results}],
         "options": options,
         "techniques_of": lambda s: _techniques(family, s),
+        "studies_of": lambda s: options["studies_of"].get(s.id, []),
         "parent_of": lambda s: family.parent_and_cut(s)[0],
         "ancestor_ids": lambda s: _ancestor_ids(family, s),
         "can_view": lambda s: can_view(current_user, s),
@@ -323,7 +356,7 @@ async def search_page(
         "current_url": str(request.url.path) + (f"?{request.url.query}" if request.url.query else ""),
         # Everything filtered by, parameter filters included
         "export_url": "/search/export.csv?" + urlencode([(k, v) for k, v in request.query_params.multi_items()
-                                                         if v and k != "group_by"]),
+                                                         if v and k not in ("group_by", "sel")]),
     })
 
 
@@ -336,10 +369,11 @@ async def search_export(
     material: str = "",
     technique: str = "",
     tag: str = "",
+    study: str = "",
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_login),
 ):
-    results, _, family = await _search(db, current_user, q, investigator, sample_type, material, technique, tag)
+    results, _, family = await _search(db, current_user, q, investigator, sample_type, material, technique, tag, study)
     if technique:   # parameter filters leave only samples with a matching entry
         results, _ = technique_view(request, family, results, current_user, technique)
     return await samples_csv(db, results, family, f"logbook_search_{date.today():%Y%m%d}.csv",

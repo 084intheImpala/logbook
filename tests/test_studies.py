@@ -690,3 +690,24 @@ def test_a_study_has_a_code_repository_and_publications(world, monkeypatch):
     # In Portuguese
     client.post("/lang", data={"lang": "pt"})
     assert "Publicações" in client.get(f"/studies/{study_id}").text
+
+
+def test_search_filters_by_a_study_the_user_can_see(world):
+    owner, stranger = world.user("sf-owner"), world.user("sf-stranger")
+    client = world.client(owner)
+    study_id = _study(client, "Filter study", "personal")
+    inside, outside = world.sample(owner, label="inside one"), world.sample(owner, label="outside one")
+    client.post("/studies/add-sample", data={"study_id": study_id, "sample_id": inside.id})
+    page = client.get("/search").text
+    assert 'name="study"' in page and f'value="{study_id}"' in page and "Filter study" in page
+    found = client.get(f"/search?study={study_id}").text
+    assert inside.code in found and outside.code not in found
+    assert ">Estudo<" in found and f'href="/studies/{study_id}"' in found   # the Study column
+    assert inside.code in client.get(f"/search/export.csv?study={study_id}").text
+    assert outside.code not in client.get(f"/search/export.csv?study={study_id}").text
+    # Someone who can't see the study gets neither its name nor its samples
+    other = world.client(stranger)
+    assert "Filter study" not in other.get("/search").text
+    assert inside.code not in other.get(f"/search?study={study_id}").text
+    world.client(owner).post(f"/samples/{inside.id}/visibility", data={"visibility": "public"})
+    assert f'href="/studies/{study_id}"' not in other.get("/search?q=inside").text   # not in its Study column either

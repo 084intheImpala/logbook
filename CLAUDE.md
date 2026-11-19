@@ -86,5 +86,6 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
 - **Missing / destroyed** (`Sample.condition` `missing`/`destroyed`, `condition_on`, `condition_note`; `POST /samples/{id}/condition`,
   anyone who can edit): a badge and notice on the page, list, printout and manifesto; the record stays. In `sample.json`,
   CSV, Import and Update; logged as `sample_condition`.
-- **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
+- **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications. Search filters
+  by study too; ticked samples survive a new search (`sel` in the form, "Also selected" box above the results).
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).

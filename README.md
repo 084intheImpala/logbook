@@ -908,7 +908,8 @@ dates and files of all its steps and analyses, not only the list of steps.
 lets the person delete the sample or manage its sharing.
 
 Owners share from the **Sharing** panel on a sample's page, or select
-several samples on the **Search** page and share them at once. Each share
+several samples on the **Search** page and share them at once (the same tick
+boxes as the Manifesto; ticked samples you don't own are skipped). Each share
 is **View** (read details and download files) or **Edit** (also add and
 change steps, analyses and files). Only the owner, an admin or a coordinator
 of the owner's team can delete a sample or change who it's shared with. Samples without an owner are open to
@@ -998,7 +999,8 @@ colour may need a line there.
 ## Search and export
 
 The **Search** tab filters samples by free text, researcher, sample type,
-material, technique and tag, and groups results by researcher, year, type,
+material, technique, tag and study (the studies you can see; the samples in
+the study itself, not pieces cut from them; a **Study** column lists them), and groups results by researcher, year, type,
 material, technique or tag. **Export results
 (CSV)** downloads the matching samples, with details left blank for
 samples you can't view. Free-text search only matches details you can see.
@@ -1196,7 +1198,10 @@ listing them, tick them on
 the **Samples** list or in the search results (the box in the header ticks
 all shown; ticking a sample also ticks the pieces cut from it, and theirs, that
 are on the page, even collapsed ones, and unticking it unticks them) and click **Manifesto** at the top, next to **Import** /
-**Export results (CSV)**.
+**Export results (CSV)**. On the search page the ticks survive a new search
+(and **Clear**): samples ticked earlier that the new search doesn't find are
+listed above the results under *Also selected (from earlier searches)*, still
+ticked, so you can gather samples from several searches (query parameter `sel`).
 It opens one A4 page with a compact block per sample, in ID order, pieces
 grouped under their mother sample (their first ancestor). A mother on the sheet
 comes first, marked **Mother sample** and across both columns (her timeline in

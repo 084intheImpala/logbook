@@ -6,6 +6,9 @@ PT = {
     "{n} sample found": "{n} amostra encontrada",
     "{n} samples found": "{n} amostras encontradas",
     "Export results (CSV)": "Exportar resultados (CSV)",
+    "Also selected (from earlier searches)": "Também selecionadas (de pesquisas anteriores)",
+    "Tick the samples in the list below; only yours are shared.": "Marque as amostras na lista abaixo; só as suas são partilhadas.",
+    "Tick the samples to share first.": "Marque primeiro as amostras a partilhar.",
     "Search IDs, labels, external IDs, descriptions, notes, parameters…":
         "Pesquise IDs, rótulos, IDs externos, descrições, notas, parâmetros…",
     "Researcher": "Investigador(a)",
@@ -20,7 +23,6 @@ PT = {
     "View": "Ver",
     "Edit": "Editar",
     "Share": "Partilhar",
-    "select all mine": "selecionar todas as minhas",
     "ID": "ID",
     "Type": "Tipo",
     "Film": "Filme",

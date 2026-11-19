@@ -20,17 +20,19 @@
     <p class="text-sm text-gray-500 mt-1">{{ _("{n} sample found", n=result_count) if result_count == 1 else _("{n} samples found", n=result_count) }}</p>
   </div>
   <div class="flex items-center gap-2">
-  {% if result_count %}{% include "_sleeve_button.html" %}{% endif %}
+  {% if result_count or selected_elsewhere %}{% include "_sleeve_button.html" %}{% endif %}
   <a href="{{ export_url }}"
      class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Export results (CSV)") }}</a>
   </div>
 </div>
 
-<form method="get" action="/search{% if entry_view %}#technique-entries{% endif %}" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 space-y-3">
+<form method="get" id="search-form" action="/search{% if entry_view %}#technique-entries{% endif %}" class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 space-y-3">
   <input name="q" type="search" value="{{ filters.q }}" autofocus
          placeholder="{{ _("Search IDs, labels, external IDs, descriptions, notes, parameters…") }}"
          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-  <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+  {# The ticked samples, sent back so a new search keeps them ticked (kept up to date by the script below) #}
+  <span id="kept-selection">{% for i in selected_ids %}<input type="hidden" name="sel" value="{{ i }}">{% endfor %}</span>
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
     {{ select("investigator", _("Researcher"), options.investigators) }}
     <div>
       <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Sample type") }}</label>
@@ -44,6 +46,15 @@
     {{ select("material", _("Material (film or substrate)"), options.materials) }}
     {{ select("technique", _("Technique"), options.techniques) }}
     {{ select("tag", _("Tag"), options.tags) }}
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Study") }}</label>
+      <select name="study" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
+        <option value="">{{ _("Any") }}</option>
+        {% for st in options.studies %}
+        <option value="{{ st.id }}" {% if filters.study == st.id|string %}selected{% endif %}>{{ st.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
     <div>
       <label class="block text-xs font-medium text-gray-600 mb-1">{{ _("Group by") }}</label>
       <select name="group_by" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
@@ -89,12 +100,28 @@
   {% endif %}
   <div class="flex gap-3">
     <button type="submit" class="bg-blue-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-blue-700">{{ _("Search") }}</button>
-    <a href="/search" class="text-sm text-gray-500 px-2 py-1.5 hover:text-gray-700">{{ _("Clear") }}</a>
+    <a href="/search{% if selected_ids %}?{% for i in selected_ids %}sel={{ i }}{% if not loop.last %}&amp;{% endif %}{% endfor %}{% endif %}" id="clear-search" class="text-sm text-gray-500 px-2 py-1.5 hover:text-gray-700">{{ _("Clear") }}</a>
   </div>
 </form>
 
 {% if flash %}
 <div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">{{ flash }}</div>
+{% endif %}
+
+{% if selected_elsewhere %}
+<!-- Ticked on an earlier search and not among these results: still ticked, for the Manifesto -->
+<section class="mb-6 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm">
+  <div class="font-medium text-blue-900 mb-1">{{ _("Also selected (from earlier searches)") }}</div>
+  <div class="flex flex-wrap gap-x-4 gap-y-1">
+    {% for s in selected_elsewhere %}
+    <label class="flex items-center gap-1.5">
+      <input type="checkbox" form="sleeve-form" name="ids" value="{{ s.id }}" class="sleeve-box" checked aria-label="{{ s.title }}" data-ancestors="{{ ancestor_ids(s)|join(' ') }}">
+      <a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
+      {% if s.label %}<span class="text-gray-600">{{ s.label }}</span>{% endif %}
+    </label>
+    {% endfor %}
+  </div>
+</section>
 {% endif %}
 
 {% if entry_view %}
@@ -183,6 +210,8 @@
 <form id="bulk-share" method="post" action="/samples/share"
       class="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 mb-6 flex flex-wrap items-center gap-2 text-sm">
   <input type="hidden" name="back" value="{{ current_url }}">
+  {# The ticked samples (the Manifesto's boxes) go in as sample_ids when sending; ones you don't own are skipped #}
+  <span id="share-ids"></span>
   <span class="text-gray-600">{{ _("Share selected samples with") }}</span>
   <select name="user_id" required class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
     <option value="">— {{ _("user") }} —</option>
@@ -193,10 +222,16 @@
     <option value="edit">{{ _("Edit") }}</option>
   </select>
   <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Share") }}</button>
-  <label class="ml-auto text-xs text-gray-500 flex items-center gap-1 cursor-pointer">
-    <input type="checkbox" onchange="document.querySelectorAll('.share-box').forEach(b => b.checked = this.checked)"> {{ _("select all mine") }}
-  </label>
+  <span class="ml-auto text-xs text-gray-500">{{ _("Tick the samples in the list below; only yours are shared.") }}</span>
 </form>
+<script>
+document.getElementById('bulk-share').addEventListener('submit', e => {
+  const ids = [...new Set([...document.querySelectorAll('.sleeve-box:checked')].map(b => b.value))];
+  if (!ids.length) { e.preventDefault(); alert({{ _("Tick the samples to share first.")|tojson }}); return; }
+  document.getElementById('share-ids').innerHTML =
+    ids.map(i => '<input type="hidden" name="sample_ids" value="' + i + '">').join('');
+});
+</script>
 {% endif %}
 {% for group, samples in groups.items() %}
 <section class="mb-6">
@@ -209,14 +244,14 @@
     <table class="w-full text-sm">
       <thead>
         <tr class="bg-gray-50 border-b border-gray-200">
-          {% if any_owned and share_users %}<th class="w-8"></th>{% endif %}
-          <th class="w-8 pl-2"><input type="checkbox" id="sleeve-all" title="{{ _("select all shown") }}" aria-label="{{ _("select all shown") }}"></th>
+          <th class="w-8 pl-4"><input type="checkbox" class="sleeve-all" title="{{ _("select all shown") }}" aria-label="{{ _("select all shown") }}"></th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("ID") }}</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Type") }}</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Film") }}</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Substrate") }}</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Techniques") }}</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Tags") }}</th>
+          <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Study") }}</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Researcher") }}</th>
           <th class="text-left px-4 py-2 font-semibold text-gray-600">{{ _("Created") }}</th>
         </tr>
@@ -224,10 +259,7 @@
       <tbody class="divide-y divide-gray-100">
         {% for s in samples %}
         <tr class="hover:bg-gray-50">
-          {% if any_owned and share_users %}
-          <td class="pl-4 py-2">{% if is_owner(s) %}<input type="checkbox" form="bulk-share" name="sample_ids" value="{{ s.id }}" class="share-box">{% endif %}</td>
-          {% endif %}
-          <td class="pl-2 py-2"><input type="checkbox" form="sleeve-form" name="ids" value="{{ s.id }}" class="sleeve-box" aria-label="{{ s.title }}" data-ancestors="{{ ancestor_ids(s)|join(' ') }}"></td>
+          <td class="pl-4 py-2"><input type="checkbox" form="sleeve-form" name="ids" value="{{ s.id }}" class="sleeve-box" aria-label="{{ s.title }}" data-ancestors="{{ ancestor_ids(s)|join(' ') }}" {% if s.id in selected_ids %}checked{% endif %}></td>
           <td class="px-4 py-2"><a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
             {% if s.label %}<div class="text-xs text-gray-600">{{ s.label }}</div>{% endif %}
             {% if not can_view(s) %}<span class="text-xs text-gray-400" title="{{ _("Summary only — ask the owner to share it") }}">🔒</span>{% endif %}
@@ -240,6 +272,7 @@
           <td class="px-4 py-2">
             {% for t in s.tags or [] %}<span class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1">{{ t }}</span>{% endfor %}
           </td>
+          <td class="px-4 py-2 text-xs">{% for st in studies_of(s) %}<div><a href="/studies/{{ st.id }}" class="text-blue-600 hover:underline">{{ st.title }}</a></div>{% else %}<span class="text-gray-400">—</span>{% endfor %}</td>
           <td class="px-4 py-2 text-gray-600">{{ s.researcher or '—' }}</td>
           <td class="px-4 py-2 text-gray-400 text-xs">{{ s.created_at.strftime('%Y-%m-%d') }}</td>
         </tr>
@@ -254,4 +287,19 @@
   {{ _("No samples match these filters.") }}
 </div>
 {% endif %}
+<script>
+// Keep the ticked samples when searching again: the search form sends them as `sel`
+(function () {
+  const ticked = () => [...new Set([...document.querySelectorAll('.sleeve-box:checked')].map(b => b.value))];
+  const sync = () => setTimeout(() => {   // after the sleeve script has ticked the pieces too
+    const ids = ticked();
+    document.getElementById('kept-selection').innerHTML =
+      ids.map(i => '<input type="hidden" name="sel" value="' + i + '">').join('');
+    document.getElementById('clear-search').href = '/search' + (ids.length ? '?' + ids.map(i => 'sel=' + i).join('&') : '');
+  });
+  document.addEventListener('change', e => {
+    if (e.target.classList.contains('sleeve-box') || e.target.classList.contains('sleeve-all')) sync();
+  });
+})();
+</script>
 {% endblock %}

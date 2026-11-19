@@ -381,7 +381,10 @@ numa caixa) com uma folha que as lista, marque-as na lista \menu{Amostras} ou no
 marca também os pedaços cortados dela, e os pedaços destes, que estejam na
 página, mesmo os escondidos, e desmarcá-la desmarca-os) e carregue em
 \ui{Manifesto}, no topo, ao lado de \ui{Importar} ou de
-\ui{Exportar resultados (CSV)}. Abre-se uma folha A4 com um bloco
+\ui{Exportar resultados (CSV)}. Na pesquisa, as marcas mantêm-se ao pesquisar
+outra vez (e em \ui{Limpar}): as amostras marcadas antes que a nova pesquisa não
+encontra aparecem por cima dos resultados, em \ui{Também selecionadas (de
+pesquisas anteriores)}, ainda marcadas, para juntar amostras de várias pesquisas. Abre-se uma folha A4 com um bloco
 compacto por amostra, por ordem de ID, com os pedaços agrupados sob a
 amostra-mãe (a primeira de que descendem). Se a amostra-mãe está na folha, vem
 primeiro, marcada \ui{Amostra-mãe} e a ocupar as duas colunas (com a cronologia
@@ -935,7 +938,7 @@ com\ldots}, a pessoa, e \ui{Ver} ou \ui{Editar}:
 \end{description}
 
 Para partilhar muitas amostras de uma vez, vá a \menu{Pesquisa}, marque as
-amostras (ou \ui{selecionar todas as minhas}) e use \ui{Partilhar as
+amostras (as mesmas caixas do manifesto; as que não são suas são ignoradas) e use \ui{Partilhar as
 amostras selecionadas com}. Só o responsável ou um administrador pode
 alterar a partilha ou eliminar uma amostra.
 
@@ -1138,7 +1141,9 @@ ficheiros e um \texttt{procedure.json}.
 %=====================================================================
 
 A \menu{Pesquisa} filtra as amostras por texto livre, investigador, tipo de
-amostra, material, técnica e etiqueta, e agrupa os resultados (por
+amostra, material, técnica, etiqueta e estudo (os estudos que pode ver; as
+amostras do próprio estudo, não os pedaços cortados delas; a coluna
+\ui{Estudo} indica-os), e agrupa os resultados (por
 investigador, ano, tipo, material, técnica, etiqueta ou projeto). O texto
 livre procura em IDs, rótulos, descrições, notas, parâmetros e nomes de
 projetos, mas só nas amostras cujos detalhes pode ver.
