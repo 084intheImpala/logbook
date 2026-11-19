@@ -142,4 +142,7 @@ PT = {
     "The {team} team": "A equipa {team}",
     "This sample belongs to the {team} team: its members can edit it and give it to a researcher (Edit → Researcher).":
         "Esta amostra é da equipa {team}: os membros podem editá-la e entregá-la a um investigador (Editar → Investigador(a)).",
+    '"condition_on" and "condition_note" go with "condition"': '"condition_on" e "condition_note" só com "condition"',
+    '"condition" must be one of {values}': '"condition" tem de ser um de {values}',
+    '"condition_on" must be a date as YYYY-MM-DD, not {value}': '"condition_on" tem de ser uma data AAAA-MM-DD, não {value}',
 }

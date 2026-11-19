@@ -105,10 +105,33 @@ async def check_import(
     if not files:
         return _page(request, current_user, problem=t(request, "Choose a .json or .zip file."))
     token, folder = await _keep(files)
+    return await _check(request, db, current_user, token, folder, bool(update), set())
+
+
+@router.post("/{token}/check", response_class=HTMLResponse)
+async def recheck_import(
+    request: Request,
+    token: str,
+    new: list[str] = Form([]),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    """Check the kept upload again, the samples in `new` (matched by label, marked
+    "not the same sample") created as new instead of compared."""
+    folder = _folder(token)
+    if request.session.get("import_token") != token or not folder.is_dir():
+        return _page(request, current_user,
+                     problem=t(request, "That upload has expired or was already imported; upload the file again."))
+    return await _check(request, db, current_user, token, folder, True, set(new))
+
+
+async def _check(request: Request, db: AsyncSession, current_user: User, token: str, folder: Path,
+                 update: bool, new: set[str]):
     # A check never saves anything: rolled back once the page is rendered (a
     # rollback expires everything loaded, the logged-in user included)
     try:
-        report = await run_import(db, current_user, _bundle(folder), dry_run=True, tr=_tr(request), update=bool(update))
+        report = await run_import(db, current_user, _bundle(folder), dry_run=True, tr=_tr(request), update=update,
+                                  new=new)
     except Problem as exc:
         shutil.rmtree(folder, ignore_errors=True)
         response = _page(request, current_user, problem=t(request, exc.text, **exc.values))
@@ -118,8 +141,10 @@ async def check_import(
     if ok:
         request.session["import_token"] = token
     else:
+        request.session.pop("import_token", None)
         shutil.rmtree(folder, ignore_errors=True)
-    response = _page(request, current_user, report=report, token=token if ok else None, update=bool(update))
+    response = _page(request, current_user, report=report, token=token if ok else None, update=update,
+                     new=sorted(new))
     await db.rollback()
     return response
 
@@ -130,6 +155,7 @@ async def do_import(
     token: str,
     update: str = Form(""),
     change: list[str] = Form([]),
+    new: list[str] = Form([]),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_login),
 ):
@@ -140,7 +166,7 @@ async def do_import(
     tr = _tr(request)
     try:
         report = await run_import(db, current_user, _bundle(folder), dry_run=False, tr=tr, update=bool(update),
-                                  ticked=set(change))
+                                  ticked=set(change), new=set(new))
     except Problem as exc:
         response = _page(request, current_user, problem=t(request, exc.text, **exc.values))
         await db.rollback()

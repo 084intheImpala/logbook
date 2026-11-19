@@ -41,6 +41,7 @@
     .block.wide ol.entries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 6mm; }
     .block.wide ol.entries li { align-self: start; }
     .badge.mother { border-color: #111827; color: #111827; }
+    .badge.gone { border-color: #b91c1c; color: #b91c1c; }
     .block { min-width: 0; border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; }
     .block .top { display: flex; gap: 2.5mm; }
     .block .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -111,7 +112,8 @@
         <div><span class="code mono">{{ s.title }}</span>
           {%- if wide %} <span class="badge mother">{{ _("Mother sample") }}</span>{% endif %}
           <span class="badge">{{ _(s.type_label) }}</span>
-          {%- if s.is_reference %}<span class="badge">{{ _("Reference") }}</span>{% endif %}</div>
+          {%- if s.is_reference %}<span class="badge">{{ _("Reference") }}</span>{% endif %}
+          {%- if s.condition %}<span class="badge gone">{{ _(s.condition_label) }}{% if s.condition_on %} {{ s.condition_on.strftime('%Y-%m-%d') }}{% endif %}</span>{% endif %}</div>
         {% if s.label %}<div class="label">{{ s.label }}</div>{% endif %}
         <div class="line">{{ s.researcher or '—' }}
           {%- if b.parent %} <span class="muted">· {{ _("cut from {code}", code=b.parent.title) }}</span>{% endif %}</div>

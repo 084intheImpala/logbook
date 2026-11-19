@@ -290,3 +290,38 @@ def test_unticking_update_imports_again_and_code_picks_among_samples_with_one_la
     # a code without updating, or of no sample, is an error
     assert "code" in _import_check(client, _zip(item | {"code": second.code}, photo), "e.zip", update=False).text
     assert "XX-1999-001" in _import_check(client, _zip(item | {"code": "XX-1999-001"}, photo), "f.zip").text
+
+
+def test_a_sample_matched_only_by_its_label_can_be_imported_as_a_new_one(world):
+    user = world.user("upd-apart")
+    client = world.client(user)
+    sub = world.substrate()
+    assert re.search(r'name="update" value="1">', client.get("/samples/import").text)   # not ticked to start with
+    _confirm(client, _import_check(client, json.dumps({"label": "1", "substrate": sub.name}).encode(), "a.json"))
+    [first] = _samples(label="1")
+    other = {"label": "1", "substrate": sub.name, "timeline": [
+        {"kind": "step", "type": "Annealing", "parameters": {"method": "Furnace", "temperature": 500}}]}
+    item = json.dumps([other, {"label": "APART 2", "substrate": sub.name}]).encode()
+    page = _import_check(client, item, "b.json")
+    assert 'id="import-updates"' in page.text and "data-matched-by-label" in page.text
+    token = re.search(r'formaction="/samples/import/([0-9a-f]+)/check" name="new" value="(f\d+)"', page.text)
+    assert token and token.group(2) == "f0"
+    # a "code" says which sample it is: no such choice
+    coded = _import_check(client, json.dumps({"label": "1", "code": first.code, "substrate": sub.name}).encode(),
+                          "c.json")
+    assert "data-matched-by-label" not in coded.text
+
+    page = _import_check(client, item, "b.json")
+    token = re.search(r'formaction="/samples/import/([0-9a-f]+)/check"', page.text).group(1)
+    again = client.post(f"/samples/import/{token}/check", data={"new": ["f0"], "update": "1"})
+    assert 'id="import-updates"' not in again.text and "Importar 2 amostras" in again.text
+    assert 'name="new" value="f0"' in again.text and len(_samples(label="1")) == 1   # nothing saved yet
+    done = _import_apply_new(client, again)
+    assert "Importação concluída!" in done.text
+    assert len(_samples(label="1")) == 2 and _entries(first.id) == []
+
+
+def _import_apply_new(client, page):
+    token = re.search(r'<form method="post" action="/samples/import/([0-9a-f]+)"', page.text).group(1)
+    new = re.findall(r'type="hidden" name="new" value="([^"]+)"', page.text)
+    return client.post(f"/samples/import/{token}", data={"update": "1", "new": new})

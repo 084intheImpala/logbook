@@ -33,6 +33,7 @@
     <h1 class="text-2xl font-bold text-gray-900 font-mono">{{ sample.title }}
       <span class="align-middle ml-1 font-sans bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded">{{ sample.type_label }}</span>
       {% if sample.is_reference %}<span class="align-middle font-sans bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded">{{ _("Reference") }}</span>{% endif %}
+      {% if sample.condition %}<span class="align-middle font-sans bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded">{{ _(sample.condition_label) }}</span>{% endif %}
     </h1>
     {% if sample.label %}<div class="text-lg text-gray-600">{{ sample.label }}</div>{% endif %}
     {% if sample.previous_codes %}
@@ -126,6 +127,39 @@
     {% endif %}
     {% if can_view and sample.description %}
       <p class="mt-2 text-sm text-gray-600 max-w-2xl">{{ sample.description }}</p>
+    {% endif %}
+    {% if sample.condition %}
+    <div id="condition" class="mt-3 max-w-2xl bg-red-50 border border-red-200 text-red-800 text-sm px-3 py-2 rounded-lg">
+      <b>{{ _(sample.condition_label) }}</b>
+      {%- if sample.condition_on %} {{ _("since {date}", date=sample.condition_on.strftime('%Y-%m-%d')) }}{% endif %}
+      {%- if sample.condition_note %}: <span class="whitespace-pre-line">{{ sample.condition_note }}</span>{% endif %}.
+      {{ _("Its record stays as it was.") }}
+      {% if can_edit %}
+      <form method="post" action="/samples/{{ sample.id }}/condition" class="inline">
+        <button class="ml-1 text-blue-600 hover:underline">{{ _("It's here again") }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if can_edit %}
+    <details class="mt-2 text-sm">
+      <summary class="cursor-pointer text-gray-400 hover:text-gray-600">{% if sample.condition %}{{ _("Change") }}{% else %}{{ _("Missing or destroyed?") }}{% endif %}</summary>
+      <form method="post" action="/samples/{{ sample.id }}/condition" class="mt-2 flex flex-wrap items-end gap-2">
+        <label class="flex flex-col text-xs text-gray-500">{{ _("The sample is") }}
+          <select name="condition" required class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+            {% for value, label in sample_conditions.items() %}
+            <option value="{{ value }}" {% if sample.condition == value %}selected{% endif %}>{{ _(label) }}</option>
+            {% endfor %}
+          </select></label>
+        <label class="flex flex-col text-xs text-gray-500">{{ _("Since") }}
+          <input type="date" name="condition_on" value="{{ (sample.condition_on or today).strftime('%Y-%m-%d') }}"
+                 class="border border-gray-300 rounded px-2 py-1 text-sm"></label>
+        <label class="flex flex-col text-xs text-gray-500 grow min-w-[16rem]">{{ _("Note (what happened, where it was last seen)") }}
+          <input type="text" name="condition_note" value="{{ sample.condition_note or '' }}"
+                 class="border border-gray-300 rounded px-2 py-1 text-sm"></label>
+        <button class="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">{{ _("Save") }}</button>
+      </form>
+    </details>
     {% endif %}
   </div>
   <div class="flex gap-2 shrink-0">

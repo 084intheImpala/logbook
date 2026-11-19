@@ -8,7 +8,7 @@
   changes also go in the README's data model / `sample.json` table (bump `FORMAT` in `backend/sample_backup.py`).
 - Every user-visible string is translated: English in the code/templates, Portuguese in `backend/translations/`.
   In templates, don't put `"` inside a `_("...")` string.
-- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0026`).
+- Schema changes are Alembic migrations in `backend/migrations/versions` (next number: `0027`).
 - Add tests in `tests/` for new behaviour. They run on a throwaway SQLite DB; never touch the real DB or `uploads/`.
   This machine isn't the DB host: say what needs running there (e.g. migrations).
 - Each new feature gets its own branch, always branched from `main`; commit on that branch. Only commit when asked.
@@ -79,8 +79,12 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   `routers/sample_import.py`; `samples/_update_diff.html`): on Import, file samples matching one here (`code`, else
   label, among those the user can edit) are compared instead of created; the sample page's "Update from a file"
   (`samples/update.html`) does it for one. Differences listed with tick boxes (removals unticked); only the ticked
-  are made; change ids are stable between check and apply. Runs link across the whole file.
+  are made; change ids are stable between check and apply. The "update" box starts unticked; a sample matched only by label can be
+  marked "not the same sample" (re-check with `new`, file-order keys `f0`, `f1`…). Runs link across the whole file.
 - **Team-owned samples** (`Sample.owner_team_id`, `auth.in_owner_team`): no owner, a team instead; its members have
   owner rights; code prefix is the team's name. Ownerless samples without a team stay open to all.
+- **Missing / destroyed** (`Sample.condition` `missing`/`destroyed`, `condition_on`, `condition_note`; `POST /samples/{id}/condition`,
+  anyone who can edit): a badge and notice on the page, list, printout and manifesto; the record stays. In `sample.json`,
+  CSV, Import and Update; logged as `sample_condition`.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.
 - **Backup**: each sample's `sample.json` is rewritten next to its files in `uploads/` (`sample_backup.py`).

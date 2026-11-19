@@ -92,6 +92,7 @@
               <a href="/samples/{{ s.id }}" class="font-mono font-semibold text-blue-600 hover:underline">{{ s.title }}</a>
               {% if not can_view(current_user, s) %}<span class="text-xs text-gray-400" title="{{ _("Summary only — ask the owner to share it") }}">🔒</span>{% endif %}
               {% if s.is_reference %}<span class="text-xs text-amber-600">{{ _("reference") }}</span>{% endif %}
+              {% if s.condition %}<span class="text-xs font-semibold text-red-600" {% if s.condition_note %}title="{{ s.condition_note }}"{% endif %}>{{ _(s.condition_label)|lower }}</span>{% endif %}
               {% if s.label %}<div class="text-xs text-gray-600">{{ s.label }}</div>{% endif %}
               {% if s.requested_by_id %}<div class="text-xs text-amber-600">{{ _("awaiting {name}'s confirmation", name=s.researcher) }}</div>{% endif %}
               {% if row.pieces %}

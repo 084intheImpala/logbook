@@ -93,8 +93,12 @@
     <div>
       <h1 class="mono">{{ sample.title }}
         <span class="badge">{{ _(sample.type_label) }}</span>
-        {%- if sample.is_reference %} <span class="badge">{{ _("Reference") }}</span>{% endif %}</h1>
+        {%- if sample.is_reference %} <span class="badge">{{ _("Reference") }}</span>{% endif %}
+        {%- if sample.condition %} <span class="badge">{{ _(sample.condition_label) }}</span>{% endif %}</h1>
       {% if sample.label %}<div class="label">{{ sample.label }}</div>{% endif %}
+      {% if sample.condition %}<div class="label"><b>{{ _(sample.condition_label) }}</b>
+        {%- if sample.condition_on %} {{ _("since {date}", date=sample.condition_on.strftime('%Y-%m-%d')) }}{% endif %}
+        {%- if sample.condition_note %}: {{ sample.condition_note }}{% endif %}</div>{% endif %}
     </div>
     <div class="meta">
       {{ _("Logbook record") }}<br>

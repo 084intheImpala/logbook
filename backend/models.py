@@ -63,6 +63,8 @@ class TeamMember(Base):
 
 
 SAMPLE_TYPES = {"thin_film": "Thin film", "bulk": "Bulk", "project": "Project"}
+# Where a sample is, when it isn't on the shelf any more (None: it's there). See Sample.condition.
+SAMPLE_CONDITIONS = {"missing": "Missing", "destroyed": "Destroyed"}
 # Shown beside each type on the sample form (English msgids, translated with _())
 SAMPLE_TYPE_HELP = {
     "thin_film": "A sample we deposited ourselves.",
@@ -156,6 +158,11 @@ class Sample(Base):
     cut_step_id: Mapped[int | None] = mapped_column(
         ForeignKey("process_steps.id", use_alter=True, name="fk_samples_cut_step_id"), index=True)
     is_reference: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    # Set when the sample can't be found ("missing") or is gone for good ("destroyed",
+    # SAMPLE_CONDITIONS): since when and why. Its record stays as it is; None means it's there.
+    condition: Mapped[str | None] = mapped_column(String(10), index=True)
+    condition_on: Mapped[date | None] = mapped_column(Date)
+    condition_note: Mapped[str | None] = mapped_column(Text)
     visibility: Mapped[str] = mapped_column(String(10), default=DEFAULT_VISIBILITY, server_default=DEFAULT_VISIBILITY, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -188,6 +195,10 @@ class Sample(Base):
     @property
     def type_label(self) -> str:
         return SAMPLE_TYPES.get(self.sample_type, self.sample_type)
+
+    @property
+    def condition_label(self) -> str | None:
+        return SAMPLE_CONDITIONS.get(self.condition, self.condition) if self.condition else None
 
     @property
     def researcher(self) -> str | None:

@@ -3,7 +3,10 @@
 Import (sample_import.py) compares each sample of the file that is already
 here, instead of creating it again: the one whose ID the file gives as
 "code", else the one with the same label (top-level samples the importer can
-edit; several with that label is an error, and "code" says which). The
+edit; several with that label is an error, and "code" says which). A label
+can be shared by different samples, so a sample matched by its label can be
+marked "not the same sample" on the check page: it is then created as new
+(`new`, the file samples' keys, sent back with the form). The
 sample page's "Update from a file" does the same for that one sample (the
 file's only sample, the one with its code, or the one with its label), and
 creates nothing else.
@@ -43,7 +46,7 @@ from backend.activity import log as log_activity
 from backend.auth import can_edit, is_owner
 from backend.choices import FILM_LIST, canonical, remember
 from backend.lineage import CUT_TYPE_NAME, DEVICES_TYPE_NAME
-from backend.models import Analysis, Attachment, ProcessStep, Sample, StudySample
+from backend.models import SAMPLE_CONDITIONS, Analysis, Attachment, ProcessStep, Sample, StudySample
 from backend.sample_ids import piece_codes
 from backend.sample_import import Bundle, Importer, Report, _english, _flat_fields
 from backend.timeline import ordered_entries
@@ -86,6 +89,8 @@ class SampleDiff:
     new_pieces: list[Change] = field(default_factory=list)
     other_pieces: list[Sample] = field(default_factory=list)   # in the logbook, not in the file: left alone
     order: Change | None = None
+    key: str = ""             # the file sample's key (its place in the file), for "not the same sample"
+    by_label: bool = False    # matched by its label only (no "code"): it may be a different sample
 
     def changes(self) -> list[Change]:
         out = list(self.fields)
@@ -116,8 +121,10 @@ class Updater:
     here (all of them that are, or only `only`), compares them, and once the
     new ones are created makes the `ticked` changes."""
 
-    def __init__(self, imp: Importer, only: Sample | None = None, ticked: set[str] | None = None):
+    def __init__(self, imp: Importer, only: Sample | None = None, ticked: set[str] | None = None,
+                 new: set[str] | None = None):
         self.imp, self.only, self.ticked = imp, only, ticked or set()
+        self.new = new or set()   # keys of file samples matched by label that are to be created as new
         self.db, self.user, self.tr, self.report = imp.db, imp.user, imp.tr, imp.report
         self.finishers: list[Callable[[], Awaitable[None]]] = []
         self.depositions: list[tuple[EntryDiff, dict, ProcessStep, str]] = []
@@ -182,23 +189,26 @@ class Updater:
         """Compare the samples already here; give back the ones to create."""
         if self.only is not None:
             p = self._pick(todo)
-            pairs, rest = ([(self.only, p)] if p else []), []
+            pairs, rest = ([(self.only, p, "")] if p else []), []
         else:
             pairs, rest, seen = [], [], {}
-            for p in todo:
-                target = await self._target(p)
+            for n, p in enumerate(todo):
+                key = f"f{n}"
+                target = None if key in self.new and not p["code"] else await self._target(p)
                 if target is None:
                     rest.append(p)
                 elif target.id in seen:
                     self.imp.check.error(p["where"], "{code} is in the file twice", code=target.title)
                 else:
                     seen[target.id] = p
-                    pairs.append((target, p))
+                    pairs.append((target, p, key))
         if self.report.errors:
             return rest
         self.step_names = {t.id: t.name for t in self.imp.look.step_types.values()}
-        for sample, p in pairs:
-            self.report.updates.append(await self._sample(sample, p, top=True))
+        for sample, p, key in pairs:
+            diff = await self._sample(sample, p, top=True)
+            diff.key, diff.by_label = key, bool(key) and not p["code"]
+            self.report.updates.append(diff)
         for p in rest:   # new samples' entries can be in a run with entries already here
             self._new_in_runs(p["timeline"])
         self._placements()
@@ -242,6 +252,30 @@ class Updater:
             await setter(new) if _is_async(setter) else setter(new)
         out.append(Change(cid, self.tr(what), show_old if show_old is not None else self.show(old),
                           show_new if show_new is not None else self.show(new), _kind(old, new), apply))
+
+    def _condition(self, out: list, sid: str, sample: Sample, given: set, new: dict) -> None:
+        """Missing / destroyed, as the file has it: "condition" (an empty one: the sample is there),
+        and "condition_on" / "condition_note" when the file gives them."""
+        if "condition" in given:
+            def condition(value):
+                if value != sample.condition:
+                    log_activity(self.db, self.user, "sample_condition", sample.title, sample.owner_id,
+                                 f"{sample.condition or 'there'} → {value or 'there'}")
+                sample.condition = value
+                if value is None:
+                    sample.condition_on = sample.condition_note = None
+                elif sample.condition_on is None:
+                    sample.condition_on = new["condition_on"]
+            label = lambda v: self.tr(SAMPLE_CONDITIONS[v]) if v in SAMPLE_CONDITIONS else ""
+            self._field(out, f"{sid}.condition", "Missing or destroyed", sample.condition, new["condition"], condition,
+                        label(sample.condition), label(new["condition"]))
+        if new["condition"]:
+            if "condition_on" in given:
+                self._field(out, f"{sid}.condition_on", "Since", sample.condition_on, new["condition_on"],
+                            lambda v: setattr(sample, "condition_on", v))
+            if "condition_note" in given:
+                self._field(out, f"{sid}.condition_note", "Note", sample.condition_note, new["condition_note"],
+                            lambda v: setattr(sample, "condition_note", v))
 
     async def _sample(self, sample: Sample, p: dict, top: bool) -> SampleDiff:
         diff = SampleDiff(sample)
@@ -300,6 +334,7 @@ class Updater:
         if "is_reference" in given:
             self._field(out, f"{sid}.is_reference", "Reference sample", bool(sample.is_reference),
                         p["is_reference"], put("is_reference"))
+        self._condition(out, sid, sample, given, p["fields"] if top else p["condition"])
         if p["studies"]:
             have = set((await self.db.execute(select(StudySample.study_id).where(
                 StudySample.sample_id == sample.id))).scalars())
@@ -613,12 +648,13 @@ def _is_async(fn) -> bool:
 
 
 async def run_import(db: AsyncSession, user, bundle: Bundle, dry_run: bool, tr=_english,
-                     update: bool = True, ticked: set[str] | None = None) -> Report:
+                     update: bool = True, ticked: set[str] | None = None, new: set[str] | None = None) -> Report:
     """Import the file's samples; with `update`, those already here (by "code",
     else label) are compared instead (report.updates) and the `ticked`
-    changes made. The caller commits, or rolls back after a check."""
+    changes made, but those whose keys are in `new` are created as new. The
+    caller commits, or rolls back after a check."""
     imp = Importer(db, user, bundle, dry_run, tr)
-    return await imp.run(Updater(imp, ticked=ticked) if update else None)
+    return await imp.run(Updater(imp, ticked=ticked, new=new) if update else None)
 
 
 async def run_update(db: AsyncSession, user, bundle: Bundle, sample: Sample, dry_run: bool, tr=_english,

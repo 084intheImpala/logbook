@@ -13,10 +13,17 @@
   </span>
 </label>
 {% endmacro %}
-{% macro sample_diff(d, depth=0, link=False) %}
+{% macro sample_diff(d, depth=0, link=False, recheck="") %}
 <div class="{% if depth %}mt-4 ml-4 pl-4 border-l-2 border-gray-200{% endif %}">
   <h2 class="font-semibold text-gray-900">{% if link %}<a href="/samples/{{ d.sample.id }}" class="font-mono text-blue-600 hover:underline">{{ d.sample.title }}</a>{% else %}<span class="font-mono">{{ d.sample.title }}</span>{% endif %}
     {% if d.sample.label %}<span class="text-gray-500 font-normal">· {{ d.sample.label }}</span>{% endif %}</h2>
+  {% if d.by_label and recheck %}
+  <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500" data-matched-by-label>
+    <span>{{ _("Matched only by its label. Different samples can share a label.") }}</span>
+    <button type="submit" formaction="{{ recheck }}" name="new" value="{{ d.key }}"
+            class="text-blue-600 hover:underline">{{ _("Not the same sample: import it as a new one") }}</button>
+  </div>
+  {% endif %}
   {% if d.fields %}
   <div class="mt-1">{% for c in d.fields %}{{ change_row(c) }}{% endfor %}</div>
   {% endif %}

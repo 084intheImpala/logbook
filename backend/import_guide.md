@@ -86,6 +86,7 @@ errors**, so a typo is never silently lost: use exactly the field names below.
 | `project` | A project sample's project, by code or name; a project sample also needs a `description`. |
 | `label`, `film_material`, `substrate_dimensions`, `external_id`, `description`, `tags` (a list), `is_reference` (true/false) | As on the sample form. |
 | `visibility` | `personal`, `team` (default) or `public`. |
+| `condition`, `condition_on`, `condition_note` | Only for a sample that is no longer there: `condition` is `missing` (can't be found) or `destroyed` (used up, broken, thrown away); `condition_on` the date (`YYYY-MM-DD`, default: today); `condition_note` what happened. |
 | `files` | Files attached to the sample itself. |
 | `studies` | Titles of studies to add the sample to; only studies the uploader co-owns (listed below). |
 | `timeline` | Its steps, analyses and cuts, oldest first. |
@@ -105,7 +106,7 @@ errors**, so a typo is never silently lost: use exactly the field names below.
 | `files` | Files for the entry (spectra, photos, reports). |
 | `ref`, `on`, `partial` | Depositions only. `ref` names a deposition so that a later one (on this sample or on a piece cut after it) can sit on it with `"on": "<ref>"`; `"on": "substrate"` puts it on the bare substrate; `"partial": true` means it covers only part (contacts, a mask). This builds the film-stack drawing. |
 | `run` | Entries done together, at the same time, on several samples or pieces (a deposition with several pieces in the chamber, one furnace run, contacts on eight pieces at once): give each the same `"run": "<name>"` and the Logbook links them as one run. They must be of the same type; each keeps its own parameters (e.g. its station), notes and files. A run spans one upload, so samples that share runs go in the same zip. Link steps of the same type on the same date (unless a key parameter such as the temperature or the target differs: those are separate runs); ask about undated ones. |
-| `pieces` | Cuts only; a cut also takes `method`, `performed_at`, `performed_by`, `location`, `notes`, `files`. One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `studies`, `is_reference` (at most one per cut), `owner` or `team` (default: the parent's), and its own `timeline` after the cut, which can hold further cuts. |
+| `pieces` | Cuts only; a cut also takes `method`, `performed_at`, `performed_by`, `location`, `notes`, `files`. One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `studies`, `is_reference` (at most one per cut), `condition` / `condition_on` / `condition_note`, `owner` or `team` (default: the parent's), and its own `timeline` after the cut, which can hold further cuts. |
 
 ### Tips
 

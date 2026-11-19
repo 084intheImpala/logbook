@@ -171,4 +171,18 @@ PT = {
         "ficam pedaços cortados dela (herdam a sua história): selecione-os também, ou elimine-os primeiro",
     "Deleted 1 sample.": "Eliminada 1 amostra.",
     "Deleted {n} samples.": "Eliminadas {n} amostras.",
+    # Missing or destroyed (Sample.condition, samples/detail.html)
+    "Missing": "Desaparecida",
+    "Destroyed": "Destruída",
+    "Missing or destroyed?": "Desaparecida ou destruída?",
+    "Missing or destroyed": "Desaparecida ou destruída",
+    "Marked missing / destroyed": "Marcada como desaparecida / destruída",
+    "The sample is": "A amostra está",
+    "Since": "Desde",
+    "Change": "Alterar",
+    "Note (what happened, where it was last seen)": "Nota (o que aconteceu, onde foi vista pela última vez)",
+    "Its record stays as it was.": "O seu registo fica como estava.",
+    "It's here again": "Voltou a aparecer",
+    "{sample} is marked as {condition}.": "{sample} está marcada como {condition}.",
+    "{sample} is no longer marked as missing or destroyed.": "{sample} já não está marcada como desaparecida ou destruída.",
 }

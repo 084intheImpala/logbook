@@ -7,7 +7,7 @@ from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from backend.database import get_db
-from backend.models import (DEFAULT_VISIBILITY, Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
+from backend.models import (DEFAULT_VISIBILITY, SAMPLE_CONDITIONS, Sample, SampleShare, ProcessStep, ProcessStepType, Analysis, Attachment,
                             Substrate, Project, StudySample, User, Suggestion, SAMPLE_TYPES, SAMPLE_TYPE_HELP, VISIBILITY, AccessRequest)
 from backend.sample_ids import next_code, piece_codes
 from backend import recode
@@ -491,6 +491,7 @@ async def _page(request: Request, db: AsyncSession, sample_id: int, current_user
         "current_user": current_user,
         "can_view": viewable,
         "can_edit": can_edit(current_user, sample),
+        "sample_conditions": SAMPLE_CONDITIONS, "today": date.today(),
         "is_owner": owner,
         "can_propose": can_propose(current_user, sample),
         "pending": pending,
@@ -968,6 +969,37 @@ async def set_visibility(
     sample.visibility = visibility
     await db.commit()
     return RedirectResponse(f"/samples/{sample_id}#sharing", status_code=303)
+
+
+@router.post("/{sample_id}/condition")
+async def set_condition(
+    request: Request,
+    sample_id: int,
+    condition: str = Form(""),
+    condition_on: str = Form(""),
+    condition_note: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_login),
+):
+    """Mark the sample missing or destroyed (with since when and why), or as
+    there again (condition empty). Anyone who can edit it may; its record stays."""
+    sample = await load_sample(db, sample_id, current_user, "edit")
+    condition = condition.strip() or None
+    if condition is not None and condition not in SAMPLE_CONDITIONS:
+        raise HTTPException(status_code=400, detail="Unknown condition")
+    old = sample.condition
+    sample.condition = condition
+    sample.condition_on = (parse_date(condition_on) or date.today()) if condition else None
+    sample.condition_note = (condition_note.strip() or None) if condition else None
+    if old != condition:
+        log_activity(db, current_user, "sample_condition", sample.title, sample.owner_id,
+                     f"{old or 'there'} → {condition or 'there'}")
+    await db.commit()
+    request.session["flash"] = (
+        t(request, "{sample} is marked as {condition}.", sample=sample.title,
+          condition=t(request, SAMPLE_CONDITIONS[condition]).lower()) if condition
+        else t(request, "{sample} is no longer marked as missing or destroyed.", sample=sample.title))
+    return RedirectResponse(f"/samples/{sample_id}", status_code=303)
 
 
 @router.post("/{sample_id}/shares/{share_id}/delete")

@@ -11,7 +11,7 @@ from backend.lineage import Family
 from backend.params import flatten
 
 SAMPLE_COLUMNS = [
-    "sample_id", "previous_ids", "label", "sample_type", "researcher", "created_at", "cut_from", "is_reference", "tags",
+    "sample_id", "previous_ids", "label", "sample_type", "researcher", "created_at", "cut_from", "is_reference", "condition", "condition_on", "tags",
     "project", "institution", "film_material", "substrate", "substrate_material", "substrate_dimensions", "external_id",
     "supplier",
     "description",
@@ -49,7 +49,8 @@ async def samples_csv(db: AsyncSession, samples: list[Sample], family: Family, f
         base = {
             "sample_id": s.title, "previous_ids": ", ".join(s.previous_codes or []) or None, "label": s.label, "sample_type": s.type_label, "researcher": s.researcher,
             "cut_from": parent.title if parent else None,
-            "is_reference": "yes" if s.is_reference else None, "tags": ", ".join(s.tags or []),
+            "is_reference": "yes" if s.is_reference else None,
+            "condition": s.condition, "condition_on": s.condition_on, "tags": ", ".join(s.tags or []),
             "project": s.project.name if s.project else None,
             "institution": s.project.institution if s.project else None,
             "film_material": s.film_material, "substrate": s.substrate.name if s.substrate else None,
