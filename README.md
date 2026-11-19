@@ -1205,7 +1205,10 @@ ticked, so you can gather samples from several searches (query parameter `sel`).
 It opens one A4 page with a compact block per sample, in ID order, pieces
 grouped under their mother sample (their first ancestor). A mother on the sheet
 comes first, marked **Mother sample** and across both columns (her timeline in
-two); if she isn't on the sheet, a heading names her. Each family is set
+two). If only pieces were ticked, their mother comes along anyway (dashed,
+*Not ticked: here for the history its pieces share*, not counted among the
+samples), even when she has been cut up and is no longer there herself: her
+block holds the history the pieces share. Each family is set
 apart with the same space around it; samples on their own share rows. Nothing is
 listed twice: what a piece inherits from a sample that is also on the sheet is
 left to that sample's block, so the piece's timeline starts after its cut.

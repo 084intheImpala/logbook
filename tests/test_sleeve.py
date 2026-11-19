@@ -58,18 +58,18 @@ def test_pieces_are_grouped_under_their_mother_sample(world):
     ids = [other.id, a1.id, b.id, lonely_piece.id, mother.id, a.id]
     html = client.get("/samples/sleeve?" + "&".join(f"ids={i}" for i in ids)).text
     assert "6 amostras" in html
-    # the mother on the sheet: her block takes both columns, marked; no separate heading
+    # a mother on the sheet: her block takes both columns, marked
     assert html.count('class="block wide"') == 1 and 'class="badge mother">Amostra-mãe<' in html
-    # the mother not on the sheet: a heading names her
-    assert html.count('<div class="group-head">') == 1 and "lonely mother" in html
+    # a mother not ticked comes along with her pieces, dashed, not counted
+    assert html.count('class="block wide added"') == 1 and "lonely mother" in html
+    assert "Não marcada: está aqui pela história comum dos pedaços." in html
 
     def at(sample):
         return html.index(f'<span class="code mono">{sample.code}<')
     assert at(mother) < at(a) < at(a1) < at(b)                     # mother first, then its pieces
-    assert html.index("block wide") < at(mother) < html.index('<div class="group-head">') < at(lonely_piece)
-    assert html.index('<div class="group-head">') > at(b)
+    assert html.index("block wide") < at(mother) < html.index("block wide added") < at(lonely) < at(lonely_piece)
     # each family is its own section; samples on their own share one
-    assert at(b) < at(other) < at(lonely_piece)                      # families in their mothers' ID order
+    assert at(b) < at(other) < at(lonely)                            # families in their mothers' ID order
     assert html.count('<div class="grid">') == 3                      # wafer family, unrelated, lonely family
     assert ("grid-template-columns: repeat(2, minmax(0, 1fr))") in html
 
@@ -91,7 +91,27 @@ def test_a_piece_leaves_out_what_its_mother_shows_on_the_same_sheet(world):
     assert lines(both, mother) == 2                          # its step and the Cut
     assert lines(both, piece) == 1                           # only what came after the cut
     alone = client.get(f"/samples/sleeve?ids={piece.id}").text
-    assert lines(alone, piece) == 2                          # mother not on the sheet: inherited step shown
+    assert "1 amostra" in alone                              # the mother comes along, not counted…
+    assert lines(alone, mother) == 2                         # …with the history they share
+    assert lines(alone, piece) == 1
+
+
+def test_pieces_of_a_piece_bring_the_first_mother_only(world):
+    from tests.test_studies import _cut
+    owner = world.user("sleeve-grandmother")
+    client = world.client(owner)
+    wafer = world.sample(owner, label="wafer")
+    world.step(wafer, "on the wafer")
+    half = _cut(wafer, "A")
+    world.step(half, "on the half")
+    quarter = _cut(half, "A")
+    html = client.get(f"/samples/sleeve?ids={quarter.id}").text
+    assert html.count('<section class="block') == 2                 # the wafer, then the quarter
+    assert f'<span class="code mono">{half.code}<' not in html
+    block = html[html.index(f'<span class="code mono">{quarter.code}<'):]
+    block = block[:block.index("</section>")]
+    # what the half did is in the quarter's block (inherited); the wafer's part is in hers
+    assert f'title="de {half.code}"' in block and f'title="de {wafer.code}"' not in block
 
 
 def test_a_timeline_line_shows_the_key_values_in_full(world):

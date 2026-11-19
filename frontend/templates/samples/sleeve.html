@@ -33,13 +33,12 @@
     /* each section (a family, or samples on their own) is its own grid, sections evenly spaced */
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; }
     .grid + .grid { margin-top: 5mm; }
-    .group-head { grid-column: 1 / -1; padding-bottom: 1px; border-bottom: 1px solid #9ca3af;
-                  font-size: 9.5pt; break-after: avoid; }
-    .group-head .k { font-size: 8pt; }
     /* a mother sample with pieces on the sheet takes both columns, her timeline in two, read across */
     .block.wide { grid-column: 1 / -1; }
     .block.wide ol.entries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 6mm; }
     .block.wide ol.entries li { align-self: start; }
+    /* a mother brought along by her pieces, not one of the samples ticked */
+    .block.added { border-style: dashed; }
     .badge.mother { border-color: #111827; color: #111827; }
     .badge.gone { border-color: #b91c1c; color: #b91c1c; }
     .block { min-width: 0; border: 1px solid #9ca3af; border-radius: 3px; padding: 2.5mm; break-inside: avoid; }
@@ -98,15 +97,10 @@
 
   {% for sec in sections %}
   <div class="grid">
-    {% if sec.head %}
-    <div class="group-head"><span class="k">{{ _("Mother sample") }}:</span>
-      <span class="mono"><b>{{ sec.head.title }}</b></span>
-      {%- if sec.head.label %} <span class="muted">· {{ sec.head.label }}</span>{% endif %}</div>
-    {% endif %}
     {% for b in sec.blocks %}
     {% set s = b.sample %}
     {% set wide = b.wide %}
-    <section class="block{{ ' wide' if wide }}">
+    <section class="block{{ ' wide' if wide }}{{ ' added' if b.added }}">
       <div class="top">
       <div class="body">
         <div><span class="code mono">{{ s.title }}</span>
@@ -115,6 +109,7 @@
           {%- if s.is_reference %}<span class="badge">{{ _("Reference") }}</span>{% endif %}
           {%- if s.condition %}<span class="badge gone">{{ _(s.condition_label) }}{% if s.condition_on %} {{ s.condition_on.strftime('%Y-%m-%d') }}{% endif %}</span>{% endif %}</div>
         {% if s.label %}<div class="label">{{ s.label }}</div>{% endif %}
+        {% if b.added %}<div class="line muted">{{ _("Not ticked: here for the history its pieces share.") }}</div>{% endif %}
         <div class="line">{{ s.researcher or '—' }}
           {%- if b.parent %} <span class="muted">· {{ _("cut from {code}", code=b.parent.title) }}</span>{% endif %}</div>
         {% if s.substrate %}

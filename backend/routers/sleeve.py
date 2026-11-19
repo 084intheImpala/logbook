@@ -2,6 +2,7 @@
 (ID, label, type, researcher, substrate, film stack, short timeline), to file with samples kept together in a sleeve.
 Pieces are grouped under their mother sample (the first ancestor), in ID order;
 what a piece inherits from a sample on the sheet is left to that sample's block.
+Pieces whose mother wasn't ticked bring her block along (`added`), for the history they share.
 
 Picked with the tick boxes on the Samples list or the search results;
 /samples/sleeve?ids=1&ids=2… Printed (or saved as PDF) by the browser.
@@ -82,18 +83,15 @@ def _groups(blocks: list[dict]) -> list[dict]:
 
 def _sections(groups: list[dict]) -> list[dict]:
     """The sheet's sections, each laid out on its own, evenly spaced: a family
-    (a mother and/or her pieces), or a run of samples on their own sharing rows.
-    `head` names the mother when she isn't on the sheet herself."""
+    (her mother, then her pieces), or a run of samples on their own sharing rows."""
     sections = []
     for g in groups:
         if g["pieces"]:
-            mother_here = g["blocks"][0]["sample"].id == g["root"].id
-            sections.append({"head": None if mother_here else g["root"], "blocks": [
-                b | {"wide": b["sample"].id == g["root"].id} for b in g["blocks"]]})
+            sections.append({"blocks": [b | {"wide": b["sample"].id == g["root"].id} for b in g["blocks"]]})
         elif sections and sections[-1].get("singles"):
             sections[-1]["blocks"] += g["blocks"]
         else:
-            sections.append({"head": None, "singles": True, "blocks": list(g["blocks"])})
+            sections.append({"singles": True, "blocks": list(g["blocks"])})
     return sections
 
 
@@ -110,19 +108,23 @@ async def sleeve_sheet(
     ids = ids[:MAX_SAMPLES]
     if not ids:
         return RedirectResponse("/samples/", status_code=303)
-    blocks = []
-    for sample_id in ids:
-        if await db.get(Sample, sample_id) is None:
-            continue
+    async def block(sample_id: int, added: bool = False) -> dict:
         page = await _page(request, db, sample_id, current_user)
         entries = _entries(page) if page["can_view"] or any(e["visible"] for e in page["timeline"]) else []
-        blocks.append({
-            "sample": page["sample"], "parent": page["parent"], "root": page["root"], "can_view": page["can_view"],
-            "layers": _layers(page), "entries": entries,
-        })
+        return {"sample": page["sample"], "parent": page["parent"], "root": page["root"],
+                "can_view": page["can_view"], "layers": _layers(page), "entries": entries, "added": added}
+
+    blocks = [await block(i) for i in ids if await db.get(Sample, i) is not None]
+    # Pieces without their mother on the sheet: she comes along (not counted as one of the
+    # samples), so the history they share is written once, in her block
+    count = len(blocks)
+    shown = {b["sample"].id for b in blocks}
+    for root_id in dict.fromkeys(b["root"].id for b in blocks):
+        if root_id not in shown:
+            blocks.append(await block(root_id, added=True))
+            shown.add(root_id)
     # No doubled lines: an entry a piece inherits from a sample that has its own
     # block on the sheet is shown there only, so a piece lists what came after its cut.
-    shown = {b["sample"].id for b in blocks}
     for b in blocks:
         entries = [e for e in b["entries"] if not (e["inherited"] and e["source_id"] in shown)]
         # A long timeline would take a lot of paper: its analyses are summed up in one line. Process
@@ -136,6 +138,6 @@ async def sleeve_sheet(
             b["entries"], b["analyses"] = entries, None
     return templates.TemplateResponse("samples/sleeve.html", {
         "request": request, "current_user": current_user, "sections": _sections(_groups(blocks)),
-        "count": len(blocks), "title": title.strip(), "left_out": left_out, "max_samples": MAX_SAMPLES,
+        "count": count, "title": title.strip(), "left_out": left_out, "max_samples": MAX_SAMPLES,
         "printed_at": datetime.now().replace(microsecond=0),
     })

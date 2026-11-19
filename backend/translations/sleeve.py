@@ -11,6 +11,8 @@ PT = {
     "1 sample": "1 amostra",
     "cut from {code}": "cortada de {code}",
     "Mother sample": "Amostra-mãe",
+    "Not ticked: here for the history its pieces share.":
+        "Não marcada: está aqui pela história comum dos pedaços.",
     "Films": "Filmes",
     "substrate": "substrato",
     "Summary only": "Só o resumo",
