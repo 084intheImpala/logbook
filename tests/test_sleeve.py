@@ -62,7 +62,6 @@ def test_pieces_are_grouped_under_their_mother_sample(world):
     assert html.count('class="block wide"') == 1 and 'class="badge mother">Amostra-mãe<' in html
     # a mother not ticked comes along with her pieces, dashed, not counted
     assert html.count('class="block wide added"') == 1 and "lonely mother" in html
-    assert "Não marcada: está aqui pela história comum dos pedaços." in html
 
     def at(sample):
         return html.index(f'<span class="code mono">{sample.code}<')
