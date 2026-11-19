@@ -13,6 +13,6 @@ PT = {
     "Mother sample": "Amostra-mãe",
     "Films": "Filmes",
     "substrate": "substrato",
-    "+ {n} more": "+ {n} mais",
+    "{n} entries": "{n} entradas",
     "Summary only": "Só o resumo",
 }

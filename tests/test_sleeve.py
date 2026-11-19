@@ -168,3 +168,25 @@ def test_a_big_sleeve_has_every_sample_and_any_over_the_limit_are_reported(world
     html = client.get(f"/samples/sleeve?{query}").text
     assert "90 amostras" in html
     assert "Só as primeiras 90 amostras estão neste manifesto; 2 ficaram de fora." in html
+
+
+def test_a_long_timeline_is_summed_up_by_technique(world):
+    owner = world.user("sleeve-long")
+    client = world.client(owner)
+    short, long = world.sample(owner, label="short"), world.sample(owner, label="long")
+    for _ in range(3):
+        world.step(short, "a step")
+    for _ in range(3):
+        world.step(long, "a step")
+    for _ in range(2):
+        world.step(long, "an analysis", analysis=True)
+    html = client.get(f"/samples/sleeve?ids={short.id}&ids={long.id}").text
+
+    def block(sample):
+        b = html[html.index(f'<span class="code mono">{sample.code}<'):]
+        return b[:b.index("</section>")]
+    assert block(short).count("<li") == 3 and 'class="summary"' not in block(short)   # up to 3: each line
+    summed = block(long)
+    assert "<li" not in summed and 'class="summary"' in summed                          # 4 or more: a summary
+    assert "5 entradas" in summed and "Passos de processo" in summed and "Análises" in summed
+    assert "&nbsp;×3" in summed and "&nbsp;×2" in summed

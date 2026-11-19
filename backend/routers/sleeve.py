@@ -21,7 +21,7 @@ from backend.templating import templates
 router = APIRouter(prefix="/samples/sleeve", tags=["sleeve"])
 
 MAX_SAMPLES = 300      # only a guard against a runaway request; any left out are reported on the sheet
-MAX_ENTRIES = 8        # timeline lines per sample; the rest are counted
+MAX_ENTRIES = 3        # timeline lines per sample; with more, a summary instead (techniques and analyses, counted)
 MAX_VALUES = 5         # parameter values per line (an implantation's ion, energy, fluence…)
 # Values shown on top of the first MAX_VALUES, per step type: what matters most on a sleeve
 ALSO_SHOWN = {"Deposition": ["gas_flow"]}
@@ -51,6 +51,19 @@ def _entries(page: dict) -> list[dict]:
                     "inherited": e["inherited"],
                     "source": e["source"].title, "source_id": e["source"].id, "device": e["device"]})
     return out
+
+
+def _summary(entries: list[dict]) -> dict:
+    """A long timeline in a few lines: how many of each step type and analysis type
+    (in the order first done), and the dates it spans."""
+    counts: dict[str, dict[str, int]] = {"process": {}, "analysis": {}}
+    for e in entries:
+        kind = counts["analysis" if e["kind"] == "analysis" else "process"]
+        kind[e["type"]] = kind.get(e["type"], 0) + 1
+    dates = [e["date"] for e in entries if e["date"]]
+    return {"count": len(entries),
+            "process": list(counts["process"].items()), "analysis": list(counts["analysis"].items()),
+            "first": min(dates) if dates else None, "last": max(dates) if dates else None}
 
 
 def _groups(blocks: list[dict]) -> list[dict]:
@@ -114,7 +127,10 @@ async def sleeve_sheet(
     shown = {b["sample"].id for b in blocks}
     for b in blocks:
         entries = [e for e in b["entries"] if not (e["inherited"] and e["source_id"] in shown)]
-        b["entries"], b["more"] = entries[:MAX_ENTRIES], max(0, len(entries) - MAX_ENTRIES)
+        if len(entries) > MAX_ENTRIES:     # a long timeline would take a lot of paper: summed up instead
+            b["entries"], b["summary"] = [], _summary(entries)
+        else:
+            b["entries"], b["summary"] = entries, None
     return templates.TemplateResponse("samples/sleeve.html", {
         "request": request, "current_user": current_user, "sections": _sections(_groups(blocks)),
         "count": len(blocks), "title": title.strip(), "left_out": left_out, "max_samples": MAX_SAMPLES,

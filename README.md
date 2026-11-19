@@ -1115,14 +1115,16 @@ left to that sample's block, so the piece's timeline starts after its cut.
 Each block has: ID, type,
 label, researcher (or "cut from" for a piece), substrate and dimensions (a
 project sample's project), the film stack from top to substrate (as in the
-layers drawing, thicknesses where known), tags, the first entries of the
-timeline (date, type and up to five parameter values in full, e.g. an
+layers drawing, thicknesses where known), tags, and the
+timeline (planned entries left out): up to three entries are listed line by line (date, type and up to five parameter values in full, e.g. an
 implantation's ion, energy and fluence or an anneal's temperature and time,
-wrapping across the block's full width, and a Deposition's gas flow too;
-planned entries left out). Type a name for the manifesto in the **Title** field
+wrapping across the block's full width, and a Deposition's gas flow too); a
+longer one is summed up to save paper: how many entries and the dates they
+span, then the process steps and the analyses, each type once with how many
+times it was done (e.g. *Annealing ×3, XRD ×4*; `MAX_ENTRIES`). Type a name for the manifesto in the **Title** field
 at the top before printing (it's kept in the address as `title=`, so a reload
 keeps it); the
-**Timelines** tick box hides the timelines for a shorter sheet. About eight
+**Timelines** tick box hides the timelines and summaries for a shorter sheet. About eight
 samples fit on a page; more flow onto the next, up to 300 a sheet
 (`MAX_SAMPLES`; if more are ticked, a notice says how many were left out). Like the printable record,
 each block shows what you can see: without access, the summary only.
