@@ -74,6 +74,11 @@
     <a href="/studies/{{ study.id }}/print" target="_blank"
        title="{{ _("The study's samples, references and notes, laid out to print or save as a PDF") }}"
        class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">🖨 {{ _("Print / PDF") }}</a>
+    {% if samples %}
+    <a href="/samples/sleeve?{{ {'title': study.title}|urlencode }}{% for s in samples %}&amp;ids={{ s.id }}{% endfor %}" target="_blank"
+       title="{{ _("The manifesto of this study's samples: one page listing them, to print or save as a PDF") }}"
+       class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Manifesto") }}</a>
+    {% endif %}
     {% if is_owner %}
     <a href="/studies/{{ study.id }}/edit" class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Edit") }}</a>
     <form method="post" action="/studies/{{ study.id }}/delete"

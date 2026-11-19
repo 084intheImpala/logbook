@@ -739,6 +739,9 @@ record: details, co-owners, the code repository, the samples (only those the
 reader can see), the study's files (photo previews and names), the publications and the references as numbered lists, and the notes in order with photo previews and
 file names. Print it, or choose *Save as PDF* as the printer. A sample's own
 printout lists the studies it is in.
+**Manifesto** next to it opens the [manifesto](#manifesto-several-samples-on-one-page)
+of the study's samples (those the reader can see), titled with the study's name:
+`/samples/sleeve?title=…&ids=…`, as if they had been ticked on the Samples list.
 
 **`study.json`.** Next to its files, `uploads/studies/<id>-<title>/`
 (named when the study is created, and kept if it's renamed) has a

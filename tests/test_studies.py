@@ -296,7 +296,13 @@ def test_the_printable_study(world):
     client.post(f"/studies/{study_id}/notes", data={"noted_on": "2026-05-02", "title": "Idea", "text": "try thinner"},
                 files={"files": ("data.txt", io.BytesIO(b"x"), "text/plain")})
 
-    assert f'href="/studies/{study_id}/print"' in client.get(f"/studies/{study_id}").text
+    page = client.get(f"/studies/{study_id}").text
+    assert f'href="/studies/{study_id}/print"' in page
+    # Manifesto of the study's samples, titled with the study
+    assert "/samples/sleeve?title=Printed+study&amp;ids=" in page
+    assert f"&amp;ids={sample.id}" in page and f"&amp;ids={hidden.id}" in page
+    sheet = client.get(f"/samples/sleeve?title=Printed+study&ids={sample.id}&ids={hidden.id}").text
+    assert sample.code in sheet and hidden.code in sheet and "Printed study" in sheet
     html = client.get(f"/studies/{study_id}/print").text
     assert "Printed study" in html and sample.code in html and "printed film" in html
     assert "A useful page" in html and "see fig 3" in html

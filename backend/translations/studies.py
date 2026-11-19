@@ -123,6 +123,8 @@ PT = {
 
     # Printable study (studies/print.html)
     "Back to the study": "Voltar ao estudo",
+    "The manifesto of this study's samples: one page listing them, to print or save as a PDF":
+        "O manifesto das amostras deste estudo: uma folha que as lista, para imprimir ou guardar em PDF",
     "The study's samples, references and notes, laid out to print or save as a PDF":
         "As amostras, referências e notas do estudo, prontas a imprimir ou guardar em PDF",
     # The study's own files
