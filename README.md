@@ -592,6 +592,7 @@ Unknown fields are errors, so typos don't get lost.
 | `files` | Paths inside the zip, relative to the `.json` file; attached to the sample. |
 | `studies` | Titles of [studies](#studies) to add the sample to, as from the study's page: only studies you co-own (any if you're an admin). A title that matches none of them, or several, is an error. |
 | `timeline` | Its steps, analyses and cuts, in order. |
+| `code` | Only to update a sample already here (see [Updating samples already here](#updating-samples-already-here)): its ID. Not needed when its `label` is unique among the samples you can edit. |
 
 | Timeline entry field | Meaning |
 |---|---|
@@ -610,6 +611,55 @@ Unknown fields are errors, so typos don't get lost.
 Between the check and the import the upload waits in `uploads/.imports/`;
 it's removed once imported, or after a day if it never is (an upload whose
 check found errors is removed straight away).
+
+### Updating samples already here
+
+Samples that are already in the logbook (imported earlier, say, whose records
+have since been put right) are brought up to date from the same kind of file
+(`backend/sample_update.py`):
+
+- **On the Import page**, with **Update samples already here (same label)**
+  ticked (the default), each sample in the file that's already here is
+  compared with it instead of being imported again; the others are imported
+  as usual, all in one go. "Already here" means the top-level sample (not a
+  piece) whose ID the file gives as `code`, else the one with the same
+  `label`, among the samples you can edit. Several with that label is an error:
+  give `code`. Unticked, everything is imported as new, as before (and `code`
+  is an error).
+- **On a sample's page**, **Update from a file** (`/samples/{id}/update`; not on
+  pieces, which come with their parent's file) does the same for that sample
+  only: the file's only sample, the one with its `code`, or the one with its
+  label. Nothing else in the file is created.
+
+Upload the file and the page lists, for each sample already here and its
+pieces, every difference with a tick box. What the file adds or changes starts
+ticked; what it would take away (a value it leaves empty, a parameter, a file,
+an entry it doesn't have) starts unticked. Only the ticked changes are made,
+when you confirm; nothing is saved before.
+
+- **Sample fields:** those the file gives (`label`, `description`,
+  `film_material` / `external_id`, `substrate_dimensions`, `substrate` /
+  `project`, `tags`, `visibility` (owner only), `is_reference`), and studies
+  to add it to. The ID, owner, year and type are never changed (a warning says
+  so if the file differs): Edit does that.
+- **Entries** are matched in order by kind, type and date, then what's left by
+  kind and type (so a new date shows as a change of date). A matched entry
+  shows its changed date, performer, place, notes, procedure, each parameter,
+  files and layer (`on` / `partial`); one that's only in the file can be added
+  (where the file has it); one that's only in the logbook can be deleted (cuts
+  are never deleted). Planned entries, "Devices made" and entries awaiting
+  approval aren't compared. If the file has the matched entries in another
+  order, **Order of the timeline** puts them in the file's.
+- **Files** are compared by content: the same file under another name is the same file.
+- **Pieces** of a matched cut are matched by label (unlabelled ones in order).
+  New pieces can be added (with the next `-A`, `-B`… code, the parent's owner
+  and shares, as from the Cut form); pieces not in the file are left alone.
+- **Runs:** entries the file gives the same `run` become one run, across all
+  the file's samples, new and already here; an entry already in a run keeps it
+  (and the others join it). So put samples that share runs in one file.
+
+As at import, the upload waits in `uploads/.imports/` between the check and
+the changes; the import's Activity log entry lists only the new samples.
 
 ## Studies
 

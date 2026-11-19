@@ -1,0 +1,55 @@
+{# The differences between a file and samples already here, with tick boxes (sample_update.py):
+   used on the Import page and on a sample's Update from a file. #}
+{% macro change_row(c) %}
+<label class="flex items-start gap-2 py-1 text-sm">
+  <input type="checkbox" name="change" value="{{ c.id }}" {% if c.ticked %}checked{% endif %} class="mt-1">
+  <span class="min-w-0">
+    <span class="font-medium text-gray-700">{{ c.what }}</span>
+    {% if c.kind == "add" %}<span class="text-xs text-green-700">+</span>
+    {% elif c.kind == "remove" %}<span class="text-xs text-red-700">−</span>{% endif %}
+    {% if c.old %}<span class="text-red-700 line-through break-words">{{ c.old }}</span>{% endif %}
+    {% if c.old and c.new %}<span class="text-gray-400">→</span>{% endif %}
+    {% if c.new %}<span class="text-green-800 break-words">{{ c.new }}</span>{% endif %}
+  </span>
+</label>
+{% endmacro %}
+{% macro sample_diff(d, depth=0, link=False) %}
+<div class="{% if depth %}mt-4 ml-4 pl-4 border-l-2 border-gray-200{% endif %}">
+  <h2 class="font-semibold text-gray-900">{% if link %}<a href="/samples/{{ d.sample.id }}" class="font-mono text-blue-600 hover:underline">{{ d.sample.title }}</a>{% else %}<span class="font-mono">{{ d.sample.title }}</span>{% endif %}
+    {% if d.sample.label %}<span class="text-gray-500 font-normal">· {{ d.sample.label }}</span>{% endif %}</h2>
+  {% if d.fields %}
+  <div class="mt-1">{% for c in d.fields %}{{ change_row(c) }}{% endfor %}</div>
+  {% endif %}
+  {% if d.order %}<div class="mt-1">{{ change_row(d.order) }}</div>{% endif %}
+  {% set same = d.entries|selectattr("status", "equalto", "same")|list %}
+  <ul class="mt-2 space-y-1">
+  {% for e in d.entries if e.status != "same" %}
+    <li class="rounded-lg border px-3 py-1.5
+      {% if e.status == 'new' %}border-green-200 bg-green-50{% elif e.status in ('gone', 'kept') %}border-red-100 bg-red-50{% else %}border-amber-200 bg-amber-50{% endif %}">
+      <div class="text-sm">
+        <span class="font-medium">{{ e.title }}</span>
+        {% if e.date %}<span class="text-gray-500">{{ e.date }}</span>{% endif %}
+        <span class="text-xs text-gray-500">·
+          {% if e.status == "new" %}{{ _("new in the file") }}{% elif e.status == "gone" %}{{ _("not in the file") }}{% elif e.status == "kept" %}{{ _("not in the file; a cut is kept (its pieces inherit what's before it)") }}{% else %}{{ _("changed") }}{% endif %}</span>
+      </div>
+      {% for c in e.changes %}{{ change_row(c) }}{% endfor %}
+    </li>
+  {% endfor %}
+  </ul>
+  {% if same %}
+  <p class="mt-1 text-xs text-gray-500">{{ _("The same in the file and here:") }}
+    {% for e in same %}{{ e.title }}{% if e.date %} {{ e.date }}{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</p>
+  {% endif %}
+  {% if d.new_pieces %}
+  <div class="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-1.5">
+    <div class="text-sm font-medium">{{ _("New pieces") }}</div>
+    {% for c in d.new_pieces %}{{ change_row(c) }}{% endfor %}
+  </div>
+  {% endif %}
+  {% if d.other_pieces %}
+  <p class="mt-1 text-xs text-gray-500">{{ _("Pieces not in the file, left as they are:") }}
+    {{ d.other_pieces|map(attribute="title")|join(", ") }}</p>
+  {% endif %}
+  {% for p in d.pieces %}{{ sample_diff(p, depth + 1, link) }}{% endfor %}
+</div>
+{% endmacro %}

@@ -850,6 +850,45 @@ inglês; um campo desconhecido é um erro, para que nenhum engano passe.
 
 A descrição completa dos campos está no README, em \emph{Importing samples}.
 
+\subsection{Atualizar amostras que já cá estão}
+\label{sec:update-from-file}
+
+Amostras que já estão no logbook (por exemplo, importadas antes e cujos
+registos foram entretanto corrigidos) põem-se em dia com o mesmo tipo de
+ficheiro, de duas maneiras:
+
+\begin{itemize}
+  \item \textbf{Na página Importar}, com \ui{Atualizar as amostras que já cá
+        estão (mesmo rótulo)} assinalado (é o habitual): cada amostra do
+        ficheiro que já cá está é comparada com ela em vez de ser importada
+        outra vez; as outras são importadas como sempre, tudo de uma vez.
+        ``Já cá está'' quer dizer a amostra (não um pedaço) cujo ID o
+        ficheiro indica em \texttt{code}, ou senão a que tem o mesmo rótulo,
+        entre as que pode editar. Se várias tiverem esse rótulo, é um erro:
+        indique \texttt{code}. Sem esse visto, tudo é importado como novo.
+  \item \textbf{Na página da amostra}, \ui{Atualizar a partir de um ficheiro}
+        (para quem a pode editar; não aparece nos pedaços, que vêm no ficheiro
+        da amostra-mãe) faz o mesmo só para essa amostra: nada mais do
+        ficheiro é criado.
+\end{itemize}
+
+Depois de enviar o ficheiro, a página lista as diferenças entre o ficheiro e
+cada amostra (e os seus pedaços), cada uma com uma caixa: campos da amostra,
+entradas alteradas (data, quem fez, onde, notas, procedimento, cada parâmetro,
+ficheiros, camada), entradas novas, entradas que não estão no ficheiro, pedaços
+novos, e a ordem da cronologia. O que o ficheiro acrescenta ou muda começa
+assinalado; o que retiraria (um valor que deixa vazio, um ficheiro, uma entrada
+que não tem) não. Ao confirmar, só as alterações assinaladas são feitas.
+
+As entradas correspondem-se por tipo e data (e depois só por tipo, para uma
+data alterada aparecer como alteração); os ficheiros pelo conteúdo; os pedaços
+pelo rótulo. O ID, o responsável, o ano e o tipo da amostra nunca mudam
+(\ui{Editar} muda-os); um corte e os pedaços que não estão no ficheiro ficam
+como estão. Os pedaços novos ficam com o responsável e as partilhas da
+amostra-mãe. Entradas com o mesmo \texttt{run} no ficheiro ficam numa execução,
+entre todas as amostras do ficheiro, novas ou já cá: ponha no mesmo ficheiro as
+amostras que partilham execuções.
+
 %=====================================================================
 \section{Partilha e responsabilidade}
 %=====================================================================

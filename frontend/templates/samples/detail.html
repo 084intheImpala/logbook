@@ -135,6 +135,11 @@
     {% if can_edit %}
     <a href="/samples/{{ sample.id }}/edit"
        class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Edit") }}</a>
+    {% if not sample.cut_step_id %}
+    <a href="/samples/{{ sample.id }}/update"
+       title="{{ _("Compare this sample with a .json or .zip file, as for Import, and choose which differences to take") }}"
+       class="text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50">{{ _("Update from a file") }}</a>
+    {% endif %}
     {% if is_owner %}
     <form method="post" action="/samples/{{ sample.id }}/delete"
           onsubmit='return confirm({{ _("Delete this sample and all its data?")|tojson }})'>

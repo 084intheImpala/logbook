@@ -51,7 +51,7 @@ from backend.choices import FILM_LIST, LOCATION_LIST, canonical, remember
 from backend.deposition_rate import DEPOSITION_TYPE_NAME
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
 from backend.models import (DEFAULT_VISIBILITY, SAMPLE_TYPES, VISIBILITY, Analysis, AnalysisType, Procedure,
-                            ProcessStep, ProcessStepType, Project, Sample, StudySample, Substrate, Team, User)
+                            ProcessStep, ProcessStepType, Project, Sample, SampleShare, StudySample, Substrate, Team, User)
 from backend.params import (_coerce, located_lists, located_methods, normalize_duration, option_list,
                             with_equipment)
 from backend.sample_ids import INITIALS_RE, PROJECT_CODE_RE, next_code, piece_codes
@@ -61,7 +61,7 @@ from backend.utils import save_upload
 
 MAX_BUNDLE = 2 * 1024 ** 3   # what a zip may unpack to
 
-SAMPLE_KEYS = {"label", "sample_type", "owner", "team", "year", "substrate", "project", "substrate_dimensions",
+SAMPLE_KEYS = {"code", "label", "sample_type", "owner", "team", "year", "substrate", "project", "substrate_dimensions",
                "film_material", "external_id", "description", "tags", "visibility", "is_reference", "files",
                "studies", "timeline"}
 PIECE_KEYS = {"label", "owner", "team", "substrate_dimensions", "description", "tags", "is_reference", "files",
@@ -95,6 +95,13 @@ class Report:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     handed_over: dict[int, list[Sample]] = field(default_factory=dict)   # owner id → samples awaiting them
+    updates: list = field(default_factory=list)   # samples already here: their differences (sample_update.SampleDiff)
+    changed: int = 0                               # how many of those were made
+
+    @property
+    def changes(self) -> list:
+        """Every difference in `updates`."""
+        return [c for d in self.updates for c in d.changes()]
 
     @property
     def count(self) -> int:
@@ -347,8 +354,9 @@ class Importer:
         self.picked: list[tuple[str, str, str | None, set, dict]] = []   # for remember()
         self.my_teams = {m.team_id for m in user.memberships}
         self.runs: dict[str, tuple] = {}   # "run" name → (kind, type name, run id): entries done together
+        self.pieces_like_parent = False   # an update's new pieces belong to whoever owns the sample
 
-    async def run(self) -> Report:
+    async def run(self, updater=None) -> Report:
         self.look = await Lookups().load(self.db, self.user)
         todo = []
         for name, document in self.bundle.documents:
@@ -369,10 +377,20 @@ class Importer:
                     todo.append(prepared)
         if self.report.errors:
             return self.report
+        if updater is not None:   # samples already here are compared, not created (sample_update.py)
+            todo = await updater.take(todo)
+        else:
+            for p in todo:
+                if p["code"]:
+                    self.check.error(p["where"], '"code" names a sample to update: tick "Update samples already here"')
+        if self.report.errors:
+            return self.report
         # IDs in date order within each prefix and year (stable: file order otherwise)
         todo.sort(key=lambda p: (p["prefix"], p["year"], p["first_date"] or date.max))
         for prepared in todo:
             self.report.samples.append(await self._create(prepared))
+        if updater is not None and not self.dry_run:
+            await updater.apply()
         for list_name, value, location, located, methods in self.picked:
             await remember(self.db, [(list_name, value)], self.user.id, location, located, methods)
         return self.report
@@ -462,7 +480,8 @@ class Importer:
                 return None
         dates = [e["date"] for e in timeline if e["date"]]
         first = min(dates) if dates else None
-        return {"where": where, "owner": owner, "prefix": prefix, "first_date": first,
+        return {"where": where, "given": set(item), "code": c.text(where, item, "code", 60), "owner": owner,
+                "prefix": prefix, "first_date": first,
                 "year": year or (first.year if first else date.today().year),
                 "sample_type": sample_type, "fields": fields, "substrate": substrate, "project": project,
                 "visibility": visibility, "tags": tags, "studies": studies, "files": files,
@@ -522,7 +541,7 @@ class Importer:
         by = c.text(where, entry, "performed_by", 100)
         performer = self.look.user(by) if by else None
         location = c.text(where, entry, "location", 120)
-        return {"date": c.date(where, entry), "performer": performer, "performed_by": None if performer else by,
+        return {"given": set(entry), "date": c.date(where, entry), "performer": performer, "performed_by": None if performer else by,
                 "location": location, "notes": c.text(where, entry, "notes"),
                 "files": c.files(where, entry, self.bundle, base)}
 
@@ -615,7 +634,7 @@ class Importer:
                 c.error(here, '"is_reference" must be true or false')
             piece_owner = self._owner(here, piece, owner or _Owner(user=self.user))
             checked["pieces"].append({
-                "where": here, "owner": piece_owner, "label": c.text(here, piece, "label", 100),
+                "where": here, "given": set(piece), "owner": piece_owner, "label": c.text(here, piece, "label", 100),
                 "substrate_dimensions": c.text(here, piece, "substrate_dimensions", 100),
                 "description": c.text(here, piece, "description"), "tags": self._tags(here, piece),
                 "studies": self._studies(here, piece),
@@ -666,29 +685,38 @@ class Importer:
             summary["files"] += len(e["files"])
             if e["kind"] == "cut":
                 summary["pieces"] += await self._cut_now(sample, e, position)
-                continue
-            model = ProcessStep if e["kind"] == "step" else Analysis
-            row = model(sample_id=sample.id, position=position, parameters=e["params"] or None, notes=e["notes"],
-                        performer_id=e["performer"].id if e["performer"] else None, performed_by=e["performed_by"],
-                        location=e["location"], performed_at=e["date"],
-                        procedure_id=e["procedure"].id if e["procedure"] else None, run_id=e["run"])
-            if e["kind"] == "step":
-                row.step_type_id = e["type"].id
-                row.on_substrate, row.partial = e["on_substrate"], e["partial"]
-                row.on_step_id = e["on"]["row"].id if e["on"] else None
             else:
-                row.analysis_type_id = e["type"].id
-            self.db.add(row)
-            await self.db.flush()
-            e["row"] = row
-            await self._attach(e["files"], e["kind"], row.id)
-            schema = e["schema"]
-            located = located_lists(schema)
-            methods = located_methods(schema, e["params"])
-            self.picked += [(lst, v, e["location"], located, methods) for lst, v in e["picked"]]
-            if e["location"]:
-                self.picked.append((LOCATION_LIST, e["location"], None, set(), {}))
+                await self._entry_now(sample, e, position)
         return summary
+
+    async def _entry_now(self, sample: Sample, e: dict, position: int):
+        """Create a checked step or analysis (e["row"] is then the new row)."""
+        model = ProcessStep if e["kind"] == "step" else Analysis
+        row = model(sample_id=sample.id, position=position, parameters=e["params"] or None, notes=e["notes"],
+                    performer_id=e["performer"].id if e["performer"] else None, performed_by=e["performed_by"],
+                    location=e["location"], performed_at=e["date"],
+                    procedure_id=e["procedure"].id if e["procedure"] else None, run_id=e["run"])
+        if e["kind"] == "step":
+            row.step_type_id = e["type"].id
+            row.on_substrate, row.partial = e["on_substrate"], e["partial"]
+            target = e["on"] and e["on"].get("row")   # (an update may leave the layer below out)
+            row.on_step_id = target.id if target else None
+        else:
+            row.analysis_type_id = e["type"].id
+        self.db.add(row)
+        await self.db.flush()
+        e["row"] = row
+        await self._attach(e["files"], e["kind"], row.id)
+        self.remember_choices(e)
+
+    def remember_choices(self, e: dict):
+        """The entry's dropdown values and location, for the shared lists (saved at the end)."""
+        schema = e["schema"]
+        located = located_lists(schema)
+        methods = located_methods(schema, e["params"])
+        self.picked += [(lst, v, e["location"], located, methods) for lst, v in e["picked"]]
+        if e["location"]:
+            self.picked.append((LOCATION_LIST, e["location"], None, set(), {}))
 
     async def _cut_now(self, parent: Sample, e: dict, position: int) -> list[dict]:
         cut_type = (await self.db.execute(
@@ -703,6 +731,7 @@ class Importer:
                           performed_by=e["performed_by"], location=e["location"], performed_at=e["date"])
         self.db.add(cut)
         await self.db.flush()
+        e["row"] = cut
         await self._attach(e["files"], "step", cut.id)
         if e["method"]:
             self.picked.append(("cut_method", e["method"], None, set(), {}))
@@ -711,22 +740,28 @@ class Importer:
         n_plain = sum(1 for p in e["pieces"] if not p["is_reference"])
         codes, ref_code = await piece_codes(self.db, parent, n_plain, any(p["is_reference"] for p in e["pieces"]))
         codes = iter(codes)
-        out = []
-        for p in e["pieces"]:
-            piece = Sample(code=ref_code if p["is_reference"] else next(codes), label=p["label"],
-                           sample_type=parent.sample_type, substrate_id=parent.substrate_id,
-                           external_id=parent.external_id, project_id=parent.project_id,
-                           film_material=parent.film_material,
-                           substrate_dimensions=p["substrate_dimensions"] or parent.substrate_dimensions,
-                           description=p["description"],
-                           tags=p["tags"] if p["tags"] is not None else (list(parent.tags) if parent.tags else None),
-                           cut_step_id=cut.id, is_reference=p["is_reference"], visibility=parent.visibility)
+        return [await self.piece_now(parent, cut, p, ref_code if p["is_reference"] else next(codes))
+                for p in e["pieces"]]
+
+    async def piece_now(self, parent: Sample, cut: ProcessStep, p: dict, code: str) -> dict:
+        """Create a checked piece of `parent`, cut off by `cut`, with its timeline."""
+        piece = Sample(code=code, label=p["label"],
+                       sample_type=parent.sample_type, substrate_id=parent.substrate_id,
+                       external_id=parent.external_id, project_id=parent.project_id,
+                       film_material=parent.film_material,
+                       substrate_dimensions=p["substrate_dimensions"] or parent.substrate_dimensions,
+                       description=p["description"],
+                       tags=p["tags"] if p["tags"] is not None else (list(parent.tags) if parent.tags else None),
+                       cut_step_id=cut.id, is_reference=p["is_reference"], visibility=parent.visibility)
+        if self.pieces_like_parent:   # as the Cut form does: the parent's owner, and its shares
+            piece.owner_id, piece.owner_team_id = parent.owner_id, parent.owner_team_id
+            piece.shares = [SampleShare(user_id=sh.user_id, can_edit=sh.can_edit) for sh in parent.shares]
+        else:
             self._set_owner(piece, p["owner"])
-            self.db.add(piece)
-            await self.db.flush()
-            await self._attach(p["files"], "sample", piece.id)
-            out.append(await self._fill(piece, p, p["owner"]))
-        return out
+        self.db.add(piece)
+        await self.db.flush()
+        await self._attach(p["files"], "sample", piece.id)
+        return await self._fill(piece, p, p["owner"])
 
     async def _attach(self, files: list[tuple[str, bytes]], entity_type: str, entity_id: int):
         if self.dry_run:

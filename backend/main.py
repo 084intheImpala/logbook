@@ -58,6 +58,7 @@ app.include_router(studies.router)
 app.include_router(procedures.router)
 app.include_router(suggestions.router)
 app.include_router(sample_import.router)   # before samples: /samples/{sample_id} would catch /samples/import
+app.include_router(sample_import.update_router)
 app.include_router(sleeve.router)          # likewise /samples/sleeve
 app.include_router(samples.router, prefix="/samples", tags=["samples"])
 app.include_router(steps.router, prefix="/samples", tags=["steps"])

@@ -89,6 +89,7 @@ errors**, so a typo is never silently lost: use exactly the field names below.
 | `files` | Files attached to the sample itself. |
 | `studies` | Titles of studies to add the sample to; only studies the uploader co-owns (listed below). |
 | `timeline` | Its steps, analyses and cuts, oldest first. |
+| `code` | Only to correct a sample already in the Logbook: its ID (e.g. `ASS-2024-003`). Usually not needed: a sample whose `label` matches one already there is compared with it anyway. |
 
 ### Timeline entries
 
@@ -115,6 +116,9 @@ errors**, so a typo is never silently lost: use exactly the field names below.
 - What doesn't fit anywhere goes in the sample's `description` or the entry's `notes`.
 - Pieces don't repeat the parent's entries from before the cut; they inherit them.
 - The page shows errors (nothing imported until fixed) and warnings (worth a look); fix and upload again.
+- A sample already imported is corrected by importing it again (or with **Update from a file** on its page): the
+  Logbook compares it with the one there and the person ticks the differences to take. Keep its `label` and its
+  pieces' labels as they were, so they are matched; give `code` if several samples share the label.
 
 ## This logbook's names
 

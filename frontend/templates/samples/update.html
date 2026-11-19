@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Update from a file") }} — {{ sample.title }} — Logbook{% endblock %}
+{% block content %}
+{% from "samples/_update_diff.html" import sample_diff with context %}
+<div class="mb-6">
+  <a href="/samples/{{ sample.id }}" class="text-sm text-gray-500 hover:underline">← {{ sample.title }}</a>
+  <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ _("Update {sample} from a file", sample=sample.title) }}</h1>
+  <p class="text-sm text-gray-500 mt-1">{{ _("Upload this sample written up as for Import (a .json file, or a .zip with its photos and files). It is compared with the sample and its pieces, and you choose which differences to take: what the file adds or changes starts ticked, what it would remove doesn't. Nothing is saved until you confirm.") }}</p>
+  <p class="text-sm text-gray-500 mt-1">{{ _("If the file has several samples, the one with this sample's label is used. The ID, owner and type stay as they are.") }}</p>
+</div>
+
+{% if problem %}
+<div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{{ problem }}</div>
+{% endif %}
+
+{% if report %}
+  {% if report.errors %}
+  <div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+    <div class="font-medium mb-1">{{ _("Nothing was changed. Fix these and upload the file again:") }}</div>
+    <ul class="list-disc pl-5 space-y-0.5">{% for e in report.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% elif not report.changes %}
+  <div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg" id="update-same">
+    {{ _("The file and the sample are the same: nothing to change.") }}</div>
+  {% endif %}
+  {% if report.warnings %}
+  <div class="mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
+    <div class="font-medium mb-1">{{ _("Worth a look (these don't stop the update):") }}</div>
+    <ul class="list-disc pl-5 space-y-0.5">{% for w in report.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if token and report.updates %}
+  <form method="post" action="/samples/{{ sample.id }}/update/{{ token }}" data-import-busy
+        class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+    <div class="mb-3 flex flex-wrap items-center gap-3 text-sm">
+      <span class="text-gray-600">{{ _("1 difference:") if report.changes|length == 1 else _("{n} differences:", n=report.changes|length) }}</span>
+      <button type="button" data-tick="all" class="text-blue-600 hover:underline">{{ _("Tick all") }}</button>
+      <button type="button" data-tick="none" class="text-blue-600 hover:underline">{{ _("Untick all") }}</button>
+    </div>
+    {% for d in report.updates %}{{ sample_diff(d) }}{% endfor %}
+    <div class="mt-4 flex flex-wrap items-center gap-3">
+      <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+        {{ _("Make the ticked changes") }}</button>
+      <a href="/samples/{{ sample.id }}/update" class="text-sm text-gray-500 hover:underline">{{ _("Cancel") }}</a>
+      <div class="import-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
+        <progress class="flex-1 h-2"></progress>
+        <span class="import-progress-text">{{ _("Saving the changes and their files. A big zip can take a few minutes.") }}</span>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+{% endif %}
+
+{% if not token %}
+<form method="post" action="/samples/{{ sample.id }}/update/check" enctype="multipart/form-data" data-import-upload
+      class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center gap-3">
+  <input type="file" name="files" multiple accept=".json,.zip,application/json,application/zip" required class="text-sm">
+  <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">{{ _("Compare") }}</button>
+  <div class="import-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
+    <progress class="flex-1 h-2"></progress>
+    <span class="import-progress-text">{{ _("Uploading and comparing. A big zip can take a few minutes.") }}</span>
+  </div>
+</form>
+{% endif %}
+
+<script>
+(function () {
+  document.querySelectorAll("[data-tick]").forEach((button) => button.addEventListener("click", () => {
+    button.closest("form").querySelectorAll('input[name="change"]').forEach((box) => {
+      box.checked = button.dataset.tick === "all";
+    });
+  }));
+  document.querySelectorAll("form[data-import-busy], form[data-import-upload]").forEach((form) => {
+    form.addEventListener("submit", () => {
+      form.querySelector("button:not([type=button])").disabled = true;
+      form.querySelector(".import-progress").classList.remove("hidden");
+    });
+  });
+})();
+</script>
+{% endblock %}

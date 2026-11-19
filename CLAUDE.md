@@ -75,6 +75,11 @@ and English. Pages are server-rendered from `frontend/templates`; routes in `bac
   `ref`/`on`. Messages are English templates put through `tr` (translated in `translations/sample_import.py`).
   The page offers a generated `CLAUDE.md` for an AI assistant preparing the files (`import_guide.py` +
   `import_guide.md`, with this logbook's types/parameter keys/substrates; no people): update it with the format.
+- **Updating samples already here** (`sample_update.py`, an `Updater` plugged into `Importer.run`; routes in
+  `routers/sample_import.py`; `samples/_update_diff.html`): on Import, file samples matching one here (`code`, else
+  label, among those the user can edit) are compared instead of created; the sample page's "Update from a file"
+  (`samples/update.html`) does it for one. Differences listed with tick boxes (removals unticked); only the ticked
+  are made; change ids are stable between check and apply. Runs link across the whole file.
 - **Team-owned samples** (`Sample.owner_team_id`, `auth.in_owner_team`): no owner, a team instead; its members have
   owner rights; code prefix is the team's name. Ownerless samples without a team stay open to all.
 - **Search and CSV export** (`routers/search.py`, `export.py`), suggestions inbox, e-mail notifications.

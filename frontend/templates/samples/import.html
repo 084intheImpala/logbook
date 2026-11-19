@@ -14,6 +14,7 @@
 {% for p in s.pieces %}{{ sample_rows(p, depth + 1) }}{% endfor %}
 {% endmacro %}
 {% block content %}
+{% from "samples/_update_diff.html" import sample_diff with context %}
 <div class="mb-6">
   <a href="/samples/" class="text-sm text-gray-500 hover:underline">← {{ _("Samples") }}</a>
   <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ _("Import samples") }}</h1>
@@ -31,7 +32,11 @@
   {% if done %}
   <div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg" id="import-done">
     <div class="font-semibold text-base mb-1">{{ _("Import complete!") }}</div>
-    {{ _("Imported 1 sample.") if report.count == 1 else _("Imported {n} samples.", n=report.count) }}
+    {% if report.samples %}{{ _("Imported 1 sample.") if report.count == 1 else _("Imported {n} samples.", n=report.count) }}{% endif %}
+    {% if report.updates %}{{ _("Updated 1 sample already here: 1 change made.") if report.updates|length == 1 and report.changed == 1
+      else _("Updated {samples} samples already here: {n} changes made.", samples=report.updates|length, n=report.changed) }}
+      {% for d in report.updates %}<a href="/samples/{{ d.sample.id }}" class="font-mono text-blue-700 hover:underline">{{ d.sample.title }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+    {% endif %}
     {% if report.handed_over %}{{ _("Their owners are asked to confirm them; meanwhile you can edit them.") }}{% endif %}
     <div class="mt-3 flex flex-wrap items-center gap-3">
       <a href="/samples/import" class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Import more samples") }}</a>
@@ -42,6 +47,7 @@
   <div class="mb-6 bg-blue-50 border border-blue-100 text-blue-800 text-sm px-4 py-3 rounded-lg" id="upload-done">
     <span class="font-semibold">{{ _("Upload complete!") }}</span>
     {{ _("Nothing is saved yet: check what would be created below, then click Import.") }}
+    {% if report.updates %}{{ _("Samples already here are compared with the file: tick the changes to make.") }}{% endif %}
   </div>
   {% elif report.errors %}
   <div class="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
@@ -57,6 +63,8 @@
   </div>
   {% endif %}
 
+  {% if token %}<form method="post" action="/samples/import/{{ token }}" data-import-busy>
+  <input type="hidden" name="update" value="{{ '1' if update else '' }}">{% endif %}
   {% if report.samples %}
   <div class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
     {% if not done %}
@@ -73,18 +81,37 @@
       </tr></thead>
       <tbody>{% for s in report.samples %}{{ sample_rows(s) }}{% endfor %}</tbody>
     </table>
-    {% if token %}
-    <form method="post" action="/samples/import/{{ token }}" class="mt-4 flex flex-wrap items-center gap-3" data-import-busy>
-      <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-        {{ _("Import 1 sample") if report.count == 1 else _("Import {n} samples", n=report.count) }}</button>
-      <a href="/samples/import" class="text-sm text-gray-500 hover:underline">{{ _("Cancel") }}</a>
-      <div class="import-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
-        <progress class="flex-1 h-2"></progress>
-        <span class="import-progress-text"></span>
-      </div>
-    </form>
-    {% endif %}
   </div>
+  {% endif %}
+  {% if report.updates and not done %}
+  <div class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4" id="import-updates">
+    <div class="mb-3 flex flex-wrap items-center gap-3 text-sm">
+      <span class="text-gray-600">{{ _("Already here, compared with the file:") }}
+        {{ _("1 difference") if report.changes|length == 1 else _("{n} differences", n=report.changes|length) }}</span>
+      {% if token and report.changes %}
+      <button type="button" data-tick="all" class="text-blue-600 hover:underline">{{ _("Tick all") }}</button>
+      <button type="button" data-tick="none" class="text-blue-600 hover:underline">{{ _("Untick all") }}</button>
+      {% endif %}
+    </div>
+    <div class="space-y-5">{% for d in report.updates %}{{ sample_diff(d, link=True) }}{% endfor %}</div>
+  </div>
+  {% endif %}
+  {% if token %}
+  <div class="mb-6 flex flex-wrap items-center gap-3">
+    <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+      {% if not report.samples %}{{ _("Make the ticked changes") }}
+      {% elif report.changes %}{{ _("Import 1 sample and make the ticked changes") if report.count == 1 else _("Import {n} samples and make the ticked changes", n=report.count) }}
+      {% else %}{{ _("Import 1 sample") if report.count == 1 else _("Import {n} samples", n=report.count) }}{% endif %}</button>
+    <a href="/samples/import" class="text-sm text-gray-500 hover:underline">{{ _("Cancel") }}</a>
+    <div class="import-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
+      <progress class="flex-1 h-2"></progress>
+      <span class="import-progress-text"></span>
+    </div>
+  </div>
+  </form>
+  {% elif report.updates and not report.samples and not report.errors and not done %}
+  <div class="mb-6 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg" id="import-nothing">
+    {{ _("The samples in the file are already here, with no differences: nothing to import or change.") }}</div>
   {% endif %}
 {% endif %}
 
@@ -92,6 +119,9 @@
 <form method="post" action="/samples/import/check" enctype="multipart/form-data" data-import-upload
       class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center gap-3">
   <input type="file" name="files" multiple accept=".json,.zip,application/json,application/zip" required class="text-sm">
+  <label class="text-sm text-gray-700 flex items-center gap-1.5"
+         title="{{ _("A sample in the file whose label (or code) matches a sample here that you can edit is compared with it, and you choose which differences to take, instead of importing it again") }}">
+    <input type="checkbox" name="update" value="1" checked> {{ _("Update samples already here (same label)") }}</label>
   <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">{{ _("Check") }}</button>
   <div class="import-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
     <progress class="flex-1 h-2" max="100" value="0"></progress>
@@ -167,11 +197,17 @@
     });
   }
 
+  document.querySelectorAll("[data-tick]").forEach((button) => button.addEventListener("click", () => {
+    button.closest("form").querySelectorAll('input[name="change"]').forEach((box) => {
+      box.checked = button.dataset.tick === "all";
+    });
+  }));
+
   // Import: an ordinary submit, but say it's working while the page waits for the answer
   const confirm = document.querySelector("form[data-import-busy]");
   if (confirm) {
     confirm.addEventListener("submit", () => {
-      confirm.querySelector("button").disabled = true;
+      confirm.querySelector("button:not([type=button])").disabled = true;
       busy(confirm, say.importing);
     });
   }
