@@ -165,4 +165,15 @@ PT = {
     "Please enter your name.": "Introduza o seu nome.",
     "Initials must be 2 to 4 letters (A–Z).": "As iniciais têm de ter 2 a 4 letras (A–Z).",
     "The initials {initials} are already used by {name}.": "As iniciais {initials} já são usadas por {name}.",
+    # Accounts without an email, for people who have left (accounts.py)
+    "Give a username.": "Indique um nome de utilizador.",
+    "An admin needs an email address.": "Um administrador precisa de um endereço de email.",
+    "Without an email, give the person's name and initials: {error}":
+        "Sem email, indique o nome e as iniciais da pessoa: {error}",
+    "User '{username}' created without an email: they can't log in. Give them samples from each sample's Edit page.":
+        "Utilizador '{username}' criado sem email: não pode entrar. Atribua-lhe amostras na página Editar de cada amostra.",
+    "optional; they choose them on first login": "opcional; escolhe-as ao entrar pela primeira vez",
+    "Initials (needed without an email)": "Iniciais (necessárias sem email)",
+    "No email: for someone who has left but still has samples. Give their full name and initials; the account has no password anyone knows, so nobody logs in to it. Give them samples from each sample's Edit page.":
+        "Sem email: para quem já saiu mas ainda tem amostras. Indique o nome completo e as iniciais; a conta não tem uma palavra-passe que alguém conheça, por isso ninguém entra com ela. Atribua-lhe amostras na página Editar de cada amostra.",
 }

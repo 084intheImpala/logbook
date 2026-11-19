@@ -851,7 +851,7 @@ admin input, in three tiers:
 | | Can do |
 |---|---|
 | **Admin** | Everything. Only admins create, rename and delete teams, appoint and remove **coordinators**, move people between teams, change sample IDs, edit entry types and dropdown lists, and make other admins. |
-| **Coordinator** (of one team) | Has the **owner's rights on every sample owned by a member of their team**: view, edit, share, change visibility, delete, and hand to another member of the team (straight away, no confirmation). Sees their members' studies, even personal ones (not their personal procedures). Answers proposals and access requests (below). On the **My team** page: adds people who have no team, removes members (not coordinators), creates accounts for new members (they join the team and get the usual welcome email) and resets members' passwords. |
+| **Coordinator** (of one team) | Has the **owner's rights on every sample owned by a member of their team**: view, edit, share, change visibility, delete, and hand to another member of the team (straight away, no confirmation). Sees their members' studies, even personal ones (not their personal procedures). Answers proposals and access requests (below). On the **My team** page: adds people who have no team, removes members (not coordinators), creates accounts for new members (they join the team and get the usual welcome email; or, without an email, an account for someone who has left, see below) and resets members' passwords. |
 | **Member** | Their own samples, anything shared with them, what a sample's visibility shows them, and *proposing* entries on teammates' samples. |
 
 Admins manage teams under *Configurations → Teams*. When an admin creates an account
@@ -863,6 +863,14 @@ each team they coordinate. Management actions (deleting or handing over
 samples, sharing, approvals, accounts, team changes) are recorded in the
 **Activity log**, which admins see in full and a team's coordinators see for
 their own members. Ordinary editing isn't logged.
+
+**People who have left.** Leave *Email* empty when creating an account (admins or coordinators, `accounts.py`) to
+make one for someone who has left but still has samples: it needs their full name and **initials** (the form has an
+*Initials* field; with an email it's optional and the person picks them on first login). No password is shown or sent,
+the stored one is random, so nobody logs in to it. An admin, or a coordinator for their own team, then gives them
+samples on each sample's *Edit* page (straight away, no confirmation), and Import can name them as `owner` by username.
+Proposals and access requests on their samples go to the team's coordinators, as for an owner who is away. If they
+come back, resetting their password shows a temporary one on screen. An admin account needs an email.
 
 ### What a share gives
 

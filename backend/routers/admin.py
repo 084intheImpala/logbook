@@ -83,18 +83,20 @@ async def create_user(
     request: Request,
     username: str = Form(...),
     name: str = Form(""),
-    email: str = Form(...),
+    email: str = Form(""),
+    initials: str = Form(""),
     is_admin: str = Form(""),
     team_id: str = Form(""),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """A new account, straight into the team chosen (if any)."""
+    """A new account, straight into the team chosen (if any). Without an email,
+    one nobody logs in to, for someone who has left (see accounts.py)."""
     team = await db.get(Team, int(team_id)) if team_id.isdigit() else None
     if team_id.isdigit() and team is None:
         raise HTTPException(status_code=404, detail="Team not found")
     await accounts.create_account(request, db, username, name, email, is_admin=(is_admin == "on"), team=team,
-                                  actor=admin)
+                                  actor=admin, initials=initials)
     return RedirectResponse("/admin/", status_code=303)
 
 

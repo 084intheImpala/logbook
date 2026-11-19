@@ -1,5 +1,11 @@
 """Creating accounts and resetting passwords, used by admins (routers/admin.py)
-and by team coordinators for their own team (routers/team.py)."""
+and by team coordinators for their own team (routers/team.py).
+
+An account can be made without an email, for someone who has left but still
+has samples: it gets initials (for its samples' IDs) and a password nobody is
+told, so nobody logs in as them; admins and their team's coordinators give
+them samples from each sample's Edit page. If they come back, resetting the
+password gives them one."""
 import re
 import secrets
 import string
@@ -15,6 +21,7 @@ from backend.config import settings
 from backend.email_utils import send_welcome_email
 from backend.i18n import t
 from backend.models import Team, TeamMember, User
+from backend.sample_ids import normalize_initials
 
 
 def _generate_password(length: int = 12) -> str:
@@ -32,29 +39,46 @@ def _generate_login_token(user, expires_hours: int = 72) -> str:
 
 async def create_account(request: Request, db: AsyncSession, username: str, name: str, email: str,
                          is_admin: bool = False, team: Team | None = None,
-                         actor: User | None = None) -> User | None:
+                         actor: User | None = None, initials: str = "") -> User | None:
     """Create a user with a temporary password and email them their credentials
     (or show the password in the flash message if email isn't set up). They join
-    `team` if given. Returns the user, or None after flashing why not."""
+    `team` if given. With no `email`, an account nobody logs in to (see above):
+    it needs a name and initials. Returns the user, or None after flashing why not."""
+    from backend.routers.auth import validate_profile   # (routers.auth is imported after this module)
     username = username.strip()
     email = email.strip().lower()
+    initials = normalize_initials(initials)
 
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+    if not username:
+        request.session["flash_error"] = t(request, "Give a username.")
+        return None
+    if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         request.session["flash_error"] = t(request, "Invalid email address: {email}", email=email)
         return None
     if (await db.execute(select(User).where(User.username == username))).scalar_one_or_none():
         request.session["flash_error"] = t(request, "Username '{username}' already exists.", username=username)
         return None
-    if (await db.execute(select(User).where(User.email == email))).scalar_one_or_none():
+    if email and (await db.execute(select(User).where(User.email == email))).scalar_one_or_none():
         request.session["flash_error"] = t(request, "Email '{email}' is already registered to another user.", email=email)
         return None
+    if not email and is_admin:
+        request.session["flash_error"] = t(request, "An admin needs an email address.")
+        return None
+    if initials or not email:   # without an email they never log in to set them, so they are needed now
+        error = await validate_profile(request, db, User(), name, initials)
+        if error:
+            request.session["flash_error"] = (
+                t(request, "Without an email, give the person's name and initials: {error}", error=error)
+                if not email else error)
+            return None
 
     temp_password = _generate_password()
     new_user = User(
         username=username,
         name=name.strip() or None,
-        email=email,
-        hashed_password=hash_password(temp_password),
+        email=email or None,
+        initials=initials or None,
+        hashed_password=hash_password(temp_password if email else secrets.token_urlsafe(32)),
         is_admin=is_admin,
         must_change_password=True,
     )
@@ -62,8 +86,17 @@ async def create_account(request: Request, db: AsyncSession, username: str, name
     await db.flush()  # get new_user.id
     if team is not None:
         db.add(TeamMember(team_id=team.id, user_id=new_user.id))
+    details = [f"team: {team.name}"] if team else []
+    if not email:
+        details.append("no email, no login")
+        log_activity(db, actor, "user_created", username, new_user, ", ".join(details))
+        await db.commit()
+        request.session["flash"] = t(
+            request, "User '{username}' created without an email: they can't log in. Give them samples from each "
+                     "sample's Edit page.", username=username)
+        return new_user
     magic_token = _generate_login_token(new_user)
-    log_activity(db, actor, "user_created", username, new_user, f"team: {team.name}" if team else None)
+    log_activity(db, actor, "user_created", username, new_user, ", ".join(details) or None)
     await db.commit()
 
     email_sent = False

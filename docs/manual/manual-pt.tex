@@ -232,11 +232,20 @@ sem intervenção dos administradores, em três níveis:
         procedimentos pessoais), e responde às propostas e pedidos de acesso. Em
         \menu{A minha equipa} junta pessoas sem equipa, retira membros (não
         coordenadores), cria contas para novos membros (que ficam na equipa e
-        recebem o email de boas-vindas) e repõe as palavras-passe dos membros.
+        recebem o email de boas-vindas; ou, sem email, uma conta para quem já
+        saiu, ver abaixo) e repõe as palavras-passe dos membros.
   \item \textbf{Membro:} as suas amostras, o que lhe foi partilhado, o que a
         visibilidade lhe mostra, e \emph{propor} entradas nas amostras dos
         colegas.
 \end{itemize}
+\paragraph{Quem já saiu.} Para alguém que já saiu do laboratório mas ainda tem
+amostras, um administrador ou um coordenador cria uma conta \emph{sem email}:
+deixe o \ui{Email} vazio e indique o nome completo e as \ui{Iniciais} (usadas nos
+IDs das amostras). Não é enviada nem mostrada nenhuma palavra-passe, por isso
+ninguém entra com essa conta. Depois, na página \ui{Editar} de cada amostra, um
+administrador ou um coordenador da equipa passa-lhe a amostra (logo, sem
+confirmação). Se a pessoa voltar, repor a palavra-passe dá-lhe uma.
+
 As ações de gestão (apagar ou passar amostras, partilha, aprovações, contas,
 alterações às equipas) ficam no \menu{Registo de atividade}: os administradores
 veem tudo e os coordenadores veem o que diz respeito à sua equipa. A edição
@@ -980,6 +989,11 @@ do estudo só mostra a cada pessoa as amostras que ela pode ver (as outras são
 apenas contadas). Uma amostra pode estar em vários estudos; eliminá-la tira-a
 deles.
 
+\paragraph{Ficheiros.} Fotografias e ficheiros do estudo no seu todo, e não
+de uma nota ou referência: um rascunho do artigo, uma figura-resumo, uma
+tabela de dados. Os coproprietários acrescentam-nos em
+\ui{+ Adicionar ficheiros} e podem removê-los; quem vê o estudo pode abri-los.
+
 \paragraph{Referências.} Cole um DOI (\texttt{10.1063/\ldots},
 \texttt{doi:\ldots} ou um link \texttt{doi.org}) ou qualquer link, com uma
 nota opcional sobre porque é interessante. Com um DOI, o título, os autores,
@@ -989,11 +1003,6 @@ título que escreveu. \emph{Qualquer pessoa que veja o estudo pode acrescentar
 uma referência}; os coproprietários e quem a acrescentou podem alterá-la em
 \ui{Editar} (DOI ou link, título, autores, revista, ano e a nota, por exemplo
 para lhe acrescentar algo depois de ler o artigo; um DOI novo é procurado,
-\paragraph{Ficheiros.} Fotografias e ficheiros do estudo no seu todo, e não
-de uma nota ou referência: um rascunho do artigo, uma figura-resumo, uma
-tabela de dados. Os coproprietários acrescentam-nos em
-\ui{+ Adicionar ficheiros} e podem removê-los; quem vê o estudo pode abri-los.
-
 preenchendo só o que ficou vazio) ou removê-la. Uma referência pode ter
 \emph{ficheiros}, por exemplo o PDF com os seus sublinhados (acrescentados
 com ela ou em \ui{Editar}); quem vê o estudo pode abri-los, e quem pode editar
@@ -1167,7 +1176,8 @@ As \menu{Configurações} têm três partes.
   \item[Utilizadores] Criar contas (a palavra-passe temporária é enviada
     por email, ou mostrada no ecrã se o email não estiver configurado; em
     \ui{Equipa} escolhe-se a equipa onde a pessoa entra logo, já escolhida
-    quando só há uma),
+    quando só há uma; sem email, uma conta para quem já saiu, com nome e
+    iniciais, em que ninguém entra),
     repor palavras-passe, tornar ou deixar de ser administrador, alterar o
     nome ou as iniciais de alguém, eliminar utilizadores.
   \item[Tipos de passo de processo / Tipos de análise] Acrescentar, editar

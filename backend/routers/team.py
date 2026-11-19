@@ -2,7 +2,8 @@
 
 They add people who have no team yet, remove members (not coordinators:
 appointing and removing coordinators, and creating or deleting teams, is for
-admins), create accounts for new members and reset their passwords. Admins can
+admins), create accounts for new members (or, without an email, for people who
+have left but still have samples) and reset their passwords. Admins can
 use these routes for any team too.
 """
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -91,10 +92,10 @@ async def remove_member(request: Request, team_id: int, user_id: int, db: AsyncS
 
 @router.post("/{team_id}/users/new")
 async def create_member(request: Request, team_id: int, username: str = Form(...), name: str = Form(""),
-                        email: str = Form(...), db: AsyncSession = Depends(get_db),
+                        email: str = Form(""), initials: str = Form(""), db: AsyncSession = Depends(get_db),
                         current_user: User = Depends(require_login)):
     team = await _my_team(db, current_user, team_id)
-    await accounts.create_account(request, db, username, name, email, team=team, actor=current_user)
+    await accounts.create_account(request, db, username, name, email, team=team, actor=current_user, initials=initials)
     return RedirectResponse(BACK, status_code=303)
 
 

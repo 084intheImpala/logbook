@@ -65,7 +65,9 @@
         <h3 class="text-sm font-medium text-gray-700">{{ _("Create an account for a new member") }}</h3>
         <input name="username" required placeholder="{{ _("Username") }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
         <input name="name" placeholder="{{ _("Full name") }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-        <input name="email" type="email" required placeholder="{{ _("Email (credentials are sent here)") }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+        <input name="email" type="email" placeholder="{{ _("Email (credentials are sent here)") }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+        <input name="initials" maxlength="4" placeholder="{{ _("Initials (needed without an email)") }}" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm uppercase">
+        <p class="text-xs text-gray-400">{{ _("No email: for someone who has left but still has samples. Give their full name and initials; the account has no password anyone knows, so nobody logs in to it. Give them samples from each sample's Edit page.") }}</p>
         <button class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">{{ _("Create user") }}</button>
       </form>
     </div>

@@ -137,3 +137,51 @@ def test_an_admin_creates_an_account_straight_into_a_team(lab):
     members = memberships(team)
     assert run(find("newcomer-b")).id in members and members[run(find("newcomer-b")).id] is False
     assert run(find("newcomer-c")).id not in members and run(find("newcomer-d")) is None
+
+
+def _user(username):
+    async def find():
+        async with AsyncSessionLocal() as db:
+            return (await db.execute(select(User).where(User.username == username))).scalar_one_or_none()
+    return run(find())
+
+
+def test_an_account_without_email_for_someone_who_has_left(world):
+    coord, mate, admin = world.user("left-coord"), world.user("left-mate"), world.user("left-admin", admin=True)
+    team = world.team("left-team", members=[mate], coordinators=[coord])
+    c = world.client(coord)
+
+    # Without an email, a name and initials are needed (nobody logs in to set them later)
+    c.post(f"/team/{team.id}/users/new", data={"username": "gone-a", "name": "Gone A"})
+    assert _user("gone-a") is None
+    c.post(f"/team/{team.id}/users/new", data={"username": "gone-a", "initials": "QXZ"})
+    assert _user("gone-a") is None
+    r = c.post(f"/team/{team.id}/users/new", data={"username": "gone-a", "name": "Gone A", "email": "", "initials": "qxz"})
+    assert r.status_code == 303
+    gone = _user("gone-a")
+    assert gone is not None and gone.email is None and gone.initials == "QXZ" and gone.id in memberships(team)
+    page = c.get("/team").text
+    assert "Gone A" in page and "palavra-passe temporária" not in page.lower() and "password:" not in page.lower()
+    # Initials already taken are refused, as on the profile page
+    c.post(f"/team/{team.id}/users/new", data={"username": "gone-b", "name": "Gone B", "initials": "QXZ"})
+    assert _user("gone-b") is None
+
+    # The coordinator gives a member's sample to them, straight away (no confirmation)
+    sample = world.sample(mate, sample_type="thin_film", substrate_id=world.substrate().id)
+    r = c.post(f"/samples/{sample.id}/edit", data={"sample_type": "thin_film", "label": "old film", "substrate_id": str(sample.substrate_id),
+                                                   "owner_id": str(gone.id)})
+    assert r.status_code == 303
+
+    async def owner():
+        from backend.models import Sample
+        async with AsyncSessionLocal() as db:
+            s = await db.get(Sample, sample.id)
+            return s.owner_id, s.requested_by_id
+    assert run(owner()) == (gone.id, None)
+
+    # Admins can make one too, but not an admin without an email
+    a = world.client(admin)
+    a.post("/admin/users/new", data={"username": "gone-c", "name": "Gone C", "initials": "QXY", "is_admin": "on"})
+    assert _user("gone-c") is None
+    assert a.post("/admin/users/new", data={"username": "gone-c", "name": "Gone C", "initials": "QXY"}).status_code == 303
+    assert _user("gone-c").email is None and not _user("gone-c").memberships
