@@ -61,10 +61,11 @@
     ol.entries .s { color: #374151; }
     ol.entries .inherited { color: #6b7280; }
     ol.entries .inherited .t { font-weight: 400; }
-    /* a long timeline summed up: how many of each technique and analysis */
-    .summary { margin-top: 3px; padding-top: 2px; border-top: 1px solid #e5e7eb; overflow-wrap: anywhere; }
-    .summary .t { font-weight: 600; }
-    .no-timelines ol.entries, .no-timelines .summary { display: none; }
+    /* a long timeline's analyses summed up in one line, under its process steps */
+    .analyses { margin-top: 3px; padding-top: 2px; border-top: 1px solid #e5e7eb; overflow-wrap: anywhere; }
+    ol.entries + .analyses { margin-top: 1px; padding-top: 0; border-top: none; }
+    .analyses .t { font-weight: 600; }
+    .no-timelines ol.entries, .no-timelines .analyses { display: none; }
     @media print {
       body { background: #fff; }
       .toolbar { display: none; }
@@ -147,16 +148,12 @@
           </li>
           {% endfor %}
         </ol>
-        {% elif b.summary %}
-        {% set m = b.summary %}
-        <div class="summary">
-          <div class="muted">{{ _("{n} entries", n=m.count) }}
-            {%- if m.first %} · {{ m.first.strftime('%Y-%m-%d') }}{% if m.last != m.first %} → {{ m.last.strftime('%Y-%m-%d') }}{% endif %}{% endif %}</div>
-          {% for kind, label in [("process", _("Process steps")), ("analysis", _("Analyses"))] if m[kind] %}
-          <div><span class="k">{{ label }}:</span>
-            {% for name, n in m[kind] %}<span class="t">{{ name }}</span>{% if n > 1 %}&nbsp;×{{ n }}{% endif %}{{ ", " if not loop.last }}{% endfor %}</div>
-          {% endfor %}
-        </div>
+        {% endif %}
+        {% if b.analyses %}
+        {% set m = b.analyses %}
+        <div class="analyses"><span class="k">{{ _("Analyses") }} ({{ m.count }})
+          {%- if m.first %}, {{ m.first.strftime('%Y-%m-%d') }}{% if m.last != m.first %} → {{ m.last.strftime('%Y-%m-%d') }}{% endif %}{% endif %}:</span>
+          {% for name, n in m.types %}<span class="t">{{ name }}</span>{% if n > 1 %}&nbsp;×{{ n }}{% endif %}{{ ", " if not loop.last }}{% endfor %}</div>
         {% endif %}
     </section>
     {% endfor %}

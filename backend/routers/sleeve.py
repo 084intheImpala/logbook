@@ -21,7 +21,7 @@ from backend.templating import templates
 router = APIRouter(prefix="/samples/sleeve", tags=["sleeve"])
 
 MAX_SAMPLES = 300      # only a guard against a runaway request; any left out are reported on the sheet
-MAX_ENTRIES = 3        # timeline lines per sample; with more, a summary instead (techniques and analyses, counted)
+MAX_ENTRIES = 3        # timeline lines per sample; with more, the analyses are summed up (process steps always listed)
 MAX_VALUES = 5         # parameter values per line (an implantation's ion, energy, fluence…)
 # Values shown on top of the first MAX_VALUES, per step type: what matters most on a sleeve
 ALSO_SHOWN = {"Deposition": ["gas_flow"]}
@@ -53,16 +53,14 @@ def _entries(page: dict) -> list[dict]:
     return out
 
 
-def _summary(entries: list[dict]) -> dict:
-    """A long timeline in a few lines: how many of each step type and analysis type
-    (in the order first done), and the dates it spans."""
-    counts: dict[str, dict[str, int]] = {"process": {}, "analysis": {}}
+def _analyses(entries: list[dict]) -> dict:
+    """Analyses in one line: how many, the dates they span, and each analysis type once
+    (in the order first done) with how many times it was done."""
+    counts: dict[str, int] = {}
     for e in entries:
-        kind = counts["analysis" if e["kind"] == "analysis" else "process"]
-        kind[e["type"]] = kind.get(e["type"], 0) + 1
+        counts[e["type"]] = counts.get(e["type"], 0) + 1
     dates = [e["date"] for e in entries if e["date"]]
-    return {"count": len(entries),
-            "process": list(counts["process"].items()), "analysis": list(counts["analysis"].items()),
+    return {"count": len(entries), "types": list(counts.items()),
             "first": min(dates) if dates else None, "last": max(dates) if dates else None}
 
 
@@ -127,10 +125,15 @@ async def sleeve_sheet(
     shown = {b["sample"].id for b in blocks}
     for b in blocks:
         entries = [e for e in b["entries"] if not (e["inherited"] and e["source_id"] in shown)]
-        if len(entries) > MAX_ENTRIES:     # a long timeline would take a lot of paper: summed up instead
-            b["entries"], b["summary"] = [], _summary(entries)
+        # A long timeline would take a lot of paper: its analyses are summed up in one line. Process
+        # steps stay listed in full, as they're what tells samples apart (pieces annealed or
+        # implanted differently).
+        analyses = [e for e in entries if e["kind"] == "analysis"]
+        if len(entries) > MAX_ENTRIES and analyses:
+            b["entries"] = [e for e in entries if e["kind"] != "analysis"]
+            b["analyses"] = _analyses(analyses)
         else:
-            b["entries"], b["summary"] = entries, None
+            b["entries"], b["analyses"] = entries, None
     return templates.TemplateResponse("samples/sleeve.html", {
         "request": request, "current_user": current_user, "sections": _sections(_groups(blocks)),
         "count": len(blocks), "title": title.strip(), "left_out": left_out, "max_samples": MAX_SAMPLES,
