@@ -1,0 +1,312 @@
+{
+ "analysis: Photoconductivity": [
+  {
+   "key": "measurements",
+   "label": "Measurements",
+   "type": "modes",
+   "list": "photo_measurement",
+   "fields": [
+    {
+     "key": "voltage",
+     "label": "Voltage / sweep",
+     "type": "text",
+     "placeholder": "e.g. -10 to 10 V, or -8 V"
+    },
+    {
+     "key": "duration",
+     "label": "Duration",
+     "type": "number",
+     "unit": "s"
+    }
+   ]
+  },
+  {
+   "key": "light_source",
+   "label": "Light source",
+   "type": "choice",
+   "list": "light_source"
+  },
+  {
+   "key": "wavelength",
+   "label": "Wavelength",
+   "type": "number",
+   "unit": "nm"
+  },
+  {
+   "key": "light_power",
+   "label": "Light power density",
+   "type": "number",
+   "unit": "mW/cm²"
+  },
+  {
+   "key": "bias",
+   "label": "Bias",
+   "type": "number",
+   "unit": "V"
+  },
+  {
+   "key": "dark_current",
+   "label": "Dark current",
+   "type": "number",
+   "unit": "A",
+   "placeholder": "e.g. 5e-8"
+  },
+  {
+   "key": "light_current",
+   "label": "Light current",
+   "type": "number",
+   "unit": "A",
+   "placeholder": "e.g. 4.7e-7"
+  },
+  {
+   "key": "on_off_ratio",
+   "label": "On/off ratio",
+   "type": "number"
+  },
+  {
+   "key": "rise_time",
+   "label": "Rise time",
+   "type": "number",
+   "unit": "s"
+  },
+  {
+   "key": "decay_time",
+   "label": "Decay time",
+   "type": "number",
+   "unit": "s"
+  },
+  {
+   "key": "description",
+   "label": "Description",
+   "type": "longtext",
+   "placeholder": "Contacts used, fits, problems, …"
+  }
+ ],
+ "analysis: Spectral response": [
+  {
+   "key": "light_source",
+   "label": "Light source",
+   "type": "choice",
+   "list": "light_source"
+  },
+  {
+   "key": "wavelength_range",
+   "label": "Wavelength range",
+   "type": "text",
+   "placeholder": "e.g. 200–400 nm"
+  },
+  {
+   "key": "wavelength_step",
+   "label": "Wavelength step",
+   "type": "number",
+   "unit": "nm"
+  },
+  {
+   "key": "bias",
+   "label": "Bias",
+   "type": "number",
+   "unit": "V"
+  },
+  {
+   "key": "calibration",
+   "label": "Lamp calibrated",
+   "type": "check",
+   "fields": [
+    {
+     "key": "calibration_details",
+     "label": "Calibration details",
+     "type": "longtext",
+     "placeholder": "Reference detector, when"
+    }
+   ]
+  },
+  {
+   "key": "peak_wavelength",
+   "label": "Peak wavelength",
+   "type": "number",
+   "unit": "nm"
+  },
+  {
+   "key": "peak_responsivity",
+   "label": "Peak responsivity",
+   "type": "number",
+   "unit": "A/W"
+  },
+  {
+   "key": "description",
+   "label": "Description",
+   "type": "longtext"
+  }
+ ],
+ "step: Lift-off": [
+  {
+   "key": "solvent",
+   "label": "Solvent",
+   "type": "choice",
+   "list": "liftoff_solvent",
+   "default": "Microstrip 3001"
+  },
+  {
+   "key": "temperature",
+   "label": "Temperature",
+   "type": "number",
+   "unit": "°C",
+   "default": 65
+  },
+  {
+   "key": "time",
+   "label": "Time",
+   "type": "duration",
+   "unit": "min:s"
+  },
+  {
+   "key": "ultrasonic",
+   "label": "Ultrasonic bath",
+   "type": "check",
+   "fields": [
+    {
+     "key": "ultrasonic_time",
+     "label": "Ultrasonic time",
+     "type": "duration",
+     "unit": "min:s"
+    }
+   ]
+  },
+  {
+   "key": "description",
+   "label": "Description",
+   "type": "longtext"
+  }
+ ],
+ "analysis: Transmittance": [
+  {
+   "key": "setup",
+   "label": "Set-up",
+   "type": "variant",
+   "options": [
+    {
+     "value": "Spectrophotometer",
+     "fields": [
+      {
+       "key": "wavelength_step",
+       "label": "Wavelength step",
+       "type": "number",
+       "unit": "nm",
+       "placeholder": "e.g. 1"
+      },
+      {
+       "key": "scan_speed",
+       "label": "Scan speed",
+       "type": "text",
+       "placeholder": "e.g. Medium"
+      }
+     ]
+    },
+    {
+     "value": "Ellipsometer",
+     "fields": [
+      {
+       "key": "spot",
+       "label": "Pre-focus / spot",
+       "type": "number",
+       "unit": "µm",
+       "placeholder": "e.g. 600"
+      },
+      {
+       "key": "attenuator",
+       "label": "Attenuator",
+       "type": "number"
+      },
+      {
+       "key": "integration",
+       "label": "Integration time",
+       "type": "number"
+      },
+      {
+       "key": "points",
+       "label": "Points measured",
+       "type": "number",
+       "placeholder": "e.g. 5"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "wavelength_range",
+   "label": "Wavelength range",
+   "type": "text",
+   "placeholder": "e.g. 200–1000 nm"
+  },
+  {
+   "key": "reference",
+   "label": "Reference taken",
+   "type": "check",
+   "fields": [
+    {
+     "key": "reference_details",
+     "label": "Reference details",
+     "type": "longtext",
+     "placeholder": "What was used as reference (bare substrate, air, …) and when it was taken"
+    }
+   ]
+  },
+  {
+   "key": "band_gap",
+   "label": "Optical band gap",
+   "type": "number",
+   "unit": "eV"
+  },
+  {
+   "key": "description",
+   "label": "Description",
+   "type": "longtext",
+   "placeholder": "Saturation, how the piece was held, band-gap fit (Tauc, direct/indirect), …"
+  }
+ ],
+ "analysis: PIXE": [
+  {
+   "key": "ion",
+   "label": "Ion",
+   "type": "choice",
+   "list": "ion_beam",
+   "default": "H+"
+  },
+  {
+   "key": "energy",
+   "label": "Beam energy",
+   "type": "number",
+   "unit": "MeV"
+  },
+  {
+   "key": "acquisition_time",
+   "label": "Acquisition time",
+   "type": "duration",
+   "unit": "min:s"
+  },
+  {
+   "key": "charge",
+   "label": "Charge",
+   "type": "number",
+   "unit": "µC"
+  },
+  {
+   "key": "detector",
+   "label": "Detector and filter",
+   "type": "longtext",
+   "placeholder": "Detector type and angle, absorber/filter"
+  },
+  {
+   "key": "elements",
+   "label": "Elements detected",
+   "type": "text",
+   "placeholder": "e.g. Al, Ga, Fe, Cr, Ni, Cu"
+  },
+  {
+   "key": "description",
+   "label": "Description",
+   "type": "longtext",
+   "placeholder": "Contamination, peaks identified, problems, …"
+  }
+ ]
+}
