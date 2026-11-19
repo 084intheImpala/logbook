@@ -187,7 +187,8 @@ def test_the_form_puts_a_deposition_on_part_of_a_layer(world):
 
     # Editing keeps it; only a layer below the deposition can be picked
     edit = client.get(f"/samples/{sample.id}/steps/{au.id}/edit").text
-    assert f'value="{ni.id}" selected' in edit and f'value="{ti.id}"' not in edit
+    layer_on = edit[edit.index('name="layer_on"'):edit.index("</select>", edit.index('name="layer_on"'))]
+    assert f'value="{ni.id}" selected' in layer_on and f'value="{ti.id}"' not in layer_on   # (step type ids share the page)
     other = _steps(twin.id)[0]
     _put(client, sample, "2026-02-05", target="Cr", thickness="5", layer_on=str(other.id))
     assert _steps(sample.id)[-1].on_step_id is None
