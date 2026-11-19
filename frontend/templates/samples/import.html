@@ -64,7 +64,8 @@
   {% endif %}
 
   {% if token %}<form method="post" action="/samples/import/{{ token }}" data-import-busy>
-  <input type="hidden" name="update" value="{{ '1' if update else '' }}">{% endif %}
+  <input type="hidden" name="update" value="{{ '1' if update else '' }}">
+  {% for key in new or [] %}<input type="hidden" name="new" value="{{ key }}">{% endfor %}{% endif %}
   {% if report.samples %}
   <div class="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
     {% if not done %}
@@ -93,12 +94,12 @@
       <button type="button" data-tick="none" class="text-blue-600 hover:underline">{{ _("Untick all") }}</button>
       {% endif %}
     </div>
-    <div class="space-y-5">{% for d in report.updates %}{{ sample_diff(d, link=True) }}{% endfor %}</div>
+    <div class="space-y-5">{% for d in report.updates %}{{ sample_diff(d, link=True, recheck="/samples/import/" ~ token ~ "/check" if token else "") }}{% endfor %}</div>
   </div>
   {% endif %}
   {% if token %}
   <div class="mb-6 flex flex-wrap items-center gap-3">
-    <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+    <button data-import-go class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">
       {% if not report.samples %}{{ _("Make the ticked changes") }}
       {% elif report.changes %}{{ _("Import 1 sample and make the ticked changes") if report.count == 1 else _("Import {n} samples and make the ticked changes", n=report.count) }}
       {% else %}{{ _("Import 1 sample") if report.count == 1 else _("Import {n} samples", n=report.count) }}{% endif %}</button>
@@ -121,7 +122,7 @@
   <input type="file" name="files" multiple accept=".json,.zip,application/json,application/zip" required class="text-sm">
   <label class="text-sm text-gray-700 flex items-center gap-1.5"
          title="{{ _("A sample in the file whose label (or code) matches a sample here that you can edit is compared with it, and you choose which differences to take, instead of importing it again") }}">
-    <input type="checkbox" name="update" value="1" checked> {{ _("Update samples already here (same label)") }}</label>
+    <input type="checkbox" name="update" value="1"> {{ _("Update samples already here (same label)") }}</label>
   <button class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">{{ _("Check") }}</button>
   <div class="import-progress hidden w-full flex items-center gap-3 text-sm text-gray-600">
     <progress class="flex-1 h-2" max="100" value="0"></progress>
@@ -206,8 +207,12 @@
   // Import: an ordinary submit, but say it's working while the page waits for the answer
   const confirm = document.querySelector("form[data-import-busy]");
   if (confirm) {
-    confirm.addEventListener("submit", () => {
-      confirm.querySelector("button:not([type=button])").disabled = true;
+    confirm.addEventListener("submit", (event) => {
+      if (event.submitter && event.submitter.name === "new") {   // "not the same sample": checked again
+        busy(confirm, say.checking);
+        return;
+      }
+      confirm.querySelector("[data-import-go]").disabled = true;
       busy(confirm, say.importing);
     });
   }

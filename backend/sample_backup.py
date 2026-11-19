@@ -36,7 +36,7 @@ from backend.utils import _safe, procedure_folder, study_folder
 log = logging.getLogger("uvicorn.error")
 
 FILE_NAME = "sample.json"
-FORMAT = 10   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries; 10: owner_team
+FORMAT = 11   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries; 10: owner_team; 11: condition, condition_on, condition_note (missing / destroyed)
 
 STUDY_FILE_NAME = "study.json"
 STUDY_FORMAT = 5   # 2: references have an id; a note can be about one; 3: status, and files on references;
@@ -135,7 +135,9 @@ def _document(sample: Sample, parent: tuple | None, attachments: dict, studies: 
         "format": FORMAT,
         "written_at": datetime.now().replace(microsecond=0),
         "id": sample.id, "code": sample.code, "previous_codes": sample.previous_codes, "label": sample.label, "sample_type": sample.sample_type,
-        "is_reference": sample.is_reference, "visibility": sample.visibility, "tags": sample.tags, "description": sample.description,
+        "is_reference": sample.is_reference,
+        "condition": sample.condition, "condition_on": sample.condition_on, "condition_note": sample.condition_note,
+        "visibility": sample.visibility, "tags": sample.tags, "description": sample.description,
         "film_material": sample.film_material, "substrate_dimensions": sample.substrate_dimensions,
         "external_id": sample.external_id, "supplier": sample.supplier, "created_at": sample.created_at,
         "owner": _person(sample.owner), "owner_team": sample.owner_team.name if sample.owner_team else None,

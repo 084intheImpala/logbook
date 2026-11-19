@@ -140,7 +140,8 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 Substrate         (shared library: material, orientation, thickness, polishing, spec files)
 Project           (collaboration or commercial supplier: name, institution or company, code used in its samples' IDs, contact)
-Sample            (generated ID, type, optional label and tags; belongs to a researcher, or to a team)
+Sample            (generated ID, type, optional label and tags; belongs to a researcher, or to a team;
+                   can be marked missing or destroyed)
  ├── ProcessStep  (can repeat types, e.g. two annealings; planned or done)
  │    └── Attachment (uploaded files)
  ├── Device       (D1, D2, …; made by a "Devices made" step)
@@ -217,6 +218,23 @@ those samples, and the old *Collaboration* ones, into *Project*. Commercial
 samples keep their ID, supplier and spec sheet, and have no project yet: the
 next time one is edited it asks for one (the ID keeps its initials until an
 admin changes it, see above).
+
+### Missing or destroyed samples
+
+A sample that can't be found, or is gone for good (used up in an analysis,
+broken, thrown away), is marked so on its page: **Missing or destroyed?**
+under its details (anyone who can edit the sample) asks whether it's
+*Missing* or *Destroyed*, since when (default today) and a note (what
+happened, where it was last seen). Nothing else changes: its record, pieces,
+studies and files stay, and entries can still be added (e.g. an analysis
+whose data came later). The sample then shows a red badge and notice on its
+page, on the Samples list (with the note on hover), on its printable record
+and on the manifesto; **It's here again** in the notice clears it. Marking
+and clearing go to the Activity log (`sample_condition`). In the database
+(`Sample.condition`, migration `0026`): `condition` is `missing`,
+`destroyed` or empty, with `condition_on` and `condition_note`; the CSV
+export has `condition` and `condition_on` columns, and `sample.json`, Import
+and Update from a file carry all three (`POST /samples/{id}/condition`).
 
 ### Substrate library
 
@@ -403,10 +421,11 @@ indented, so it can be read without the app. Top level:
 
 | Key | Meaning |
 |---|---|
-| `format` | Version of this layout (currently 10: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr; 8 adds `studies`; 9 adds `procedure` on entries; 10 adds `owner_team`). |
+| `format` | Version of this layout (currently 11: adds `visibility`, `previous_codes`, per-entry `status`/`proposed_by` and `devices`; older files lack them. 4 replaces the types `commercial` and `collaboration` with `project`; 5 adds `planned` on entries; 6 adds `on_step_id`, `on_substrate` and `partial` on steps; 7: a Deposition's `base_pressure` is in 10⁻⁶ Torr, not mTorr; 8 adds `studies`; 9 adds `procedure` on entries; 10 adds `owner_team`; 11 adds `condition`, `condition_on`, `condition_note`). |
 | `written_at` | When the file was last written. |
 | `id`, `code`, `previous_codes` | Database id, the sample ID, and any IDs it had before an admin changed it. |
 | `label`, `sample_type`, `is_reference`, `visibility`, `tags`, `description`, `film_material`, `substrate_dimensions`, `external_id`, `supplier`, `created_at` | The sample's own details. `sample_type` is `thin_film`, `bulk` or `project`; `visibility` is `personal`, `team` or `public`. |
+| `condition`, `condition_on`, `condition_note` | `missing` or `destroyed` with since when and why, or `null` while the sample is there ([Missing or destroyed samples](#missing-or-destroyed-samples)). |
 | `owner`, `requested_by` | `{username, name, initials}` or `null`. |
 | `owner_team` | The name of the team the sample belongs to when it has no owner (see [Samples owned by a team](#samples-owned-by-a-team)), else `null`. |
 | `shared_with` | List of `{username, name, initials, can_edit}`. |
@@ -589,6 +608,7 @@ Unknown fields are errors, so typos don't get lost.
 | `substrate` | A thin film or bulk sample's substrate, by its name in the Substrates library (add missing ones there first). |
 | `project` | A project sample's project, by code or name; a project sample also needs a `description`. |
 | `label`, `film_material`, `substrate_dimensions`, `external_id`, `description`, `tags`, `visibility`, `is_reference` | As on the sample form. `visibility` is `personal`, `team` (default) or `public`. |
+| `condition`, `condition_on`, `condition_note` | Only for a sample that is no longer there: `missing` or `destroyed`, the date (default today) and what happened. |
 | `files` | Paths inside the zip, relative to the `.json` file; attached to the sample. |
 | `studies` | Titles of [studies](#studies) to add the sample to, as from the study's page: only studies you co-own (any if you're an admin). A title that matches none of them, or several, is an error. |
 | `timeline` | Its steps, analyses and cuts, in order. |
@@ -606,7 +626,7 @@ Unknown fields are errors, so typos don't get lost.
 | `files` | Files for the entry, as for the sample. |
 | `ref`, `on`, `partial` | Depositions only: `ref` names a deposition so a later one (on this sample or a piece cut after it) can sit on it with `"on": "<ref>"`; `"on": "substrate"` puts it on the bare substrate; `partial` makes it cover only part (see [Layers](#layers)). |
 | `run` | Entries done together on several samples or pieces (e.g. contacts deposited on eight pieces at once): give them the same `"run": "<name>"` and they become one [run](#one-step-or-analysis-on-several-samples), as if added to several samples on the form. The entries of a run must be of one type; a run spans one import (all its files), so put samples that share runs in the same zip. Each keeps its own parameters, notes and files. |
-| `pieces` | Cuts only, with `method`, `performed_at`, `performed_by`, `location`, `notes` and `files` (photos of the pieces). One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `studies`, `is_reference` (at most one), `owner` or `team` (default: the parent's) and its own `timeline` after the cut, which can hold further cuts. Pieces get the usual `-A`, `-B`, `-REF` IDs and inherit the parent's timeline up to the cut. |
+| `pieces` | Cuts only, with `method`, `performed_at`, `performed_by`, `location`, `notes` and `files` (photos of the pieces). One object per piece: `label`, `substrate_dimensions`, `description`, `tags`, `files`, `studies`, `is_reference` (at most one), `condition` / `condition_on` / `condition_note`, `owner` or `team` (default: the parent's) and its own `timeline` after the cut, which can hold further cuts. Pieces get the usual `-A`, `-B`, `-REF` IDs and inherit the parent's timeline up to the cut. |
 
 Between the check and the import the upload waits in `uploads/.imports/`;
 it's removed once imported, or after a day if it never is (an upload whose
@@ -619,13 +639,17 @@ have since been put right) are brought up to date from the same kind of file
 (`backend/sample_update.py`):
 
 - **On the Import page**, with **Update samples already here (same label)**
-  ticked (the default), each sample in the file that's already here is
+  ticked (it starts unticked), each sample in the file that's already here is
   compared with it instead of being imported again; the others are imported
   as usual, all in one go. "Already here" means the top-level sample (not a
   piece) whose ID the file gives as `code`, else the one with the same
   `label`, among the samples you can edit. Several with that label is an error:
-  give `code`. Unticked, everything is imported as new, as before (and `code`
-  is an error).
+  give `code`. Different samples can share a label (two sets both numbered 1,
+  2, 3…), so a sample matched only by its label has **Not the same sample:
+  import it as a new one**: the file is checked again with that sample created
+  as new (`POST /samples/import/{token}/check` with `new`, the file samples'
+  keys `f0`, `f1`… in file order). Unticked, everything is imported as new
+  (and `code` is an error).
 - **On a sample's page**, **Update from a file** (`/samples/{id}/update`; not on
   pieces, which come with their parent's file) does the same for that sample
   only: the file's only sample, the one with its `code`, or the one with its
@@ -639,7 +663,8 @@ when you confirm; nothing is saved before.
 
 - **Sample fields:** those the file gives (`label`, `description`,
   `film_material` / `external_id`, `substrate_dimensions`, `substrate` /
-  `project`, `tags`, `visibility` (owner only), `is_reference`), and studies
+  `project`, `tags`, `visibility` (owner only), `is_reference`, `condition`
+  (and `condition_on` / `condition_note` when given)), and studies
   to add it to. The ID, owner, year and type are never changed (a warning says
   so if the file differs): Edit does that.
 - **Entries** are matched in order by kind, type and date, then what's left by

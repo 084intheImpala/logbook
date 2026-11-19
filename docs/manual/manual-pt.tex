@@ -335,8 +335,22 @@ pode:
   \item criar \ui{Dispositivos} (Secção~\ref{sec:devices});
   \item reordenar a cronologia (Secção~\ref{sec:timeline});
   \item ver as camadas de um filme fino, por cima da cronologia;
-  \item \ui{Imprimir / PDF}: o registo da amostra para imprimir.
+  \item \ui{Imprimir / PDF}: o registo da amostra para imprimir;
+  \item marcá-la como desaparecida ou destruída (ver abaixo).
 \end{itemize}
+
+\textbf{Amostras desaparecidas ou destruídas.} Uma amostra que não se encontra,
+ou que já não existe (gasta numa análise, partida, deitada fora), marca-se na
+sua página: \ui{Desaparecida ou destruída?}, por baixo dos dados (para quem a
+pode editar), pergunta se está \ui{Desaparecida} ou \ui{Destruída}, desde
+quando (por omissão, hoje) e uma nota (o que aconteceu, onde foi vista pela
+última vez). Nada mais muda: o registo, os pedaços, os estudos e os ficheiros
+ficam, e pode continuar a acrescentar entradas (por exemplo uma análise cujos
+dados chegaram depois). A amostra passa a ter uma etiqueta vermelha e um aviso
+na sua página, na lista de amostras (com a nota ao passar o rato), no registo
+impresso e no manifesto; \ui{Voltou a aparecer}, no aviso, desfaz a marca.
+Marcar e desmarcar ficam no registo de atividade. A exportação CSV tem as
+colunas \texttt{condition} e \texttt{condition\_on}.
 
 \textbf{Imprimir o registo da amostra.} \ui{Imprimir / PDF}, no topo da
 página, abre o registo da amostra arrumado numa folha A4, para imprimir e
@@ -833,9 +847,13 @@ inglês; um campo desconhecido é um erro, para que nenhum engano passe.
         \texttt{performed\_at}, \texttt{performed\_by}, \texttt{location},
         \texttt{parameters}, \texttt{notes}, \texttt{procedure} e
         \texttt{files}. Uma data que não se sabe deixa-se de fora.
+  \item \textbf{Desaparecida ou destruída:} \texttt{condition}
+        (\texttt{missing} ou \texttt{destroyed}), com \texttt{condition\_on}
+        (a data; por omissão, hoje) e \texttt{condition\_note} (o que
+        aconteceu); só para amostras que já cá não estão.
   \item \textbf{Cortes:} \texttt{pieces} tem um objeto por pedaço, com
         \texttt{label}, \texttt{substrate\_dimensions}, \texttt{studies}, \texttt{is\_reference}
-        (no máximo um), \texttt{owner} ou \texttt{team} (por omissão, os da
+        (no máximo um), \texttt{condition}, \texttt{owner} ou \texttt{team} (por omissão, os da
         amostra-mãe) e a sua própria \texttt{timeline} depois do corte, que pode
         ter mais cortes. Os pedaços recebem os IDs habituais (\sid{-A},
         \sid{-B}, \sid{-REF}) e herdam a cronologia até ao corte.
@@ -868,13 +886,17 @@ ficheiro, de duas maneiras:
 
 \begin{itemize}
   \item \textbf{Na página Importar}, com \ui{Atualizar as amostras que já cá
-        estão (mesmo rótulo)} assinalado (é o habitual): cada amostra do
+        estão (mesmo rótulo)} assinalado (de início não está): cada amostra do
         ficheiro que já cá está é comparada com ela em vez de ser importada
         outra vez; as outras são importadas como sempre, tudo de uma vez.
         ``Já cá está'' quer dizer a amostra (não um pedaço) cujo ID o
         ficheiro indica em \texttt{code}, ou senão a que tem o mesmo rótulo,
         entre as que pode editar. Se várias tiverem esse rótulo, é um erro:
-        indique \texttt{code}. Sem esse visto, tudo é importado como novo.
+        indique \texttt{code}. Amostras diferentes podem ter o mesmo rótulo
+        (dois conjuntos numerados 1, 2, 3\ldots): uma amostra encontrada só
+        pelo rótulo tem \ui{Não é a mesma amostra: importá-la como nova}, que
+        volta a verificar o ficheiro com essa amostra criada como nova. Sem
+        esse visto, tudo é importado como novo.
   \item \textbf{Na página da amostra}, \ui{Atualizar a partir de um ficheiro}
         (para quem a pode editar; não aparece nos pedaços, que vêm no ficheiro
         da amostra-mãe) faz o mesmo só para essa amostra: nada mais do

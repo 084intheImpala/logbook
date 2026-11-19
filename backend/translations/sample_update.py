@@ -111,4 +111,7 @@ PT = {
     'several samples are labelled {label} ({codes}): add "code" with the ID of the one to update':
         'várias amostras têm o rótulo {label} ({codes}): acrescente "code" com o ID da que quer atualizar',
     "{code} is in the file twice": "{code} está duas vezes no ficheiro",
+    "Matched only by its label. Different samples can share a label.":
+        "Encontrada só pelo rótulo. Amostras diferentes podem ter o mesmo rótulo.",
+    "Not the same sample: import it as a new one": "Não é a mesma amostra: importá-la como nova",
 }

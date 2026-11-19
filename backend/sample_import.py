@@ -50,7 +50,7 @@ from backend.auth import can_view_shared
 from backend.choices import FILM_LIST, LOCATION_LIST, canonical, remember
 from backend.deposition_rate import DEPOSITION_TYPE_NAME
 from backend.lineage import CUT_TYPE_NAME, SPECIAL_STEP_TYPES
-from backend.models import (DEFAULT_VISIBILITY, SAMPLE_TYPES, VISIBILITY, Analysis, AnalysisType, Procedure,
+from backend.models import (DEFAULT_VISIBILITY, SAMPLE_CONDITIONS, SAMPLE_TYPES, VISIBILITY, Analysis, AnalysisType, Procedure,
                             ProcessStep, ProcessStepType, Project, Sample, SampleShare, StudySample, Substrate, Team, User)
 from backend.params import (_coerce, located_lists, located_methods, normalize_duration, option_list,
                             with_equipment)
@@ -63,9 +63,9 @@ MAX_BUNDLE = 2 * 1024 ** 3   # what a zip may unpack to
 
 SAMPLE_KEYS = {"code", "label", "sample_type", "owner", "team", "year", "substrate", "project", "substrate_dimensions",
                "film_material", "external_id", "description", "tags", "visibility", "is_reference", "files",
-               "studies", "timeline"}
+               "studies", "timeline", "condition", "condition_on", "condition_note"}
 PIECE_KEYS = {"label", "owner", "team", "substrate_dimensions", "description", "tags", "is_reference", "files",
-              "studies", "timeline"}
+              "studies", "timeline", "condition", "condition_on", "condition_note"}
 ENTRY_KEYS = {"kind", "type", "performed_at", "performed_by", "location", "parameters", "notes", "files",
               "procedure", "ref", "on", "partial", "run"}
 CUT_KEYS = {"kind", "performed_at", "performed_by", "location", "method", "notes", "files", "pieces"}
@@ -238,6 +238,24 @@ class Checker:
         if max_len and len(value) > max_len:
             self.error(where, '"{key}" is longer than {n} characters', key=key, n=max_len)
         return value or None
+
+    def condition(self, where: str, obj: dict) -> dict:
+        """A sample's "condition" ("missing" / "destroyed"), with "condition_on" (a date, default
+        today) and "condition_note": the Sample fields, all None while the sample is there."""
+        condition = obj.get("condition")
+        if condition in (None, ""):
+            if obj.get("condition_on") or obj.get("condition_note"):
+                self.error(where, '"condition_on" and "condition_note" go with "condition"')
+            return {"condition": None, "condition_on": None, "condition_note": None}
+        if condition not in SAMPLE_CONDITIONS:
+            self.error(where, '"condition" must be one of {values}', values=", ".join(SAMPLE_CONDITIONS))
+        since = obj.get("condition_on")
+        try:
+            since = date.fromisoformat(str(since)) if since not in (None, "") else date.today()
+        except ValueError:
+            self.error(where, '"condition_on" must be a date as YYYY-MM-DD, not {value}', value=repr(since))
+            since = None
+        return {"condition": condition, "condition_on": since, "condition_note": self.text(where, obj, "condition_note")}
 
     def date(self, where: str, obj: dict) -> date | None:
         value = obj.get("performed_at")
@@ -430,7 +448,7 @@ class Importer:
         owner = self._owner(where, item, _Owner(user=self.user))
         fields = {k: c.text(where, item, k, n) for k, n in (
             ("label", 100), ("substrate_dimensions", 100), ("film_material", 100), ("external_id", 100),
-            ("description", None))}
+            ("description", None))} | c.condition(where, item)
         substrate = project = None
         if sample_type in ("thin_film", "bulk"):
             name = c.text(where, item, "substrate")
@@ -637,7 +655,7 @@ class Importer:
                 "where": here, "given": set(piece), "owner": piece_owner, "label": c.text(here, piece, "label", 100),
                 "substrate_dimensions": c.text(here, piece, "substrate_dimensions", 100),
                 "description": c.text(here, piece, "description"), "tags": self._tags(here, piece),
-                "studies": self._studies(here, piece),
+                "studies": self._studies(here, piece), "condition": c.condition(here, piece),
                 "is_reference": piece.get("is_reference") is True, "files": c.files(here, piece, self.bundle, base),
                 # pieces can put layers on the parent's depositions before the cut, not on each other's
                 "timeline": self._timeline(here, piece, base, dict(refs), piece_owner)})
@@ -752,7 +770,8 @@ class Importer:
                        substrate_dimensions=p["substrate_dimensions"] or parent.substrate_dimensions,
                        description=p["description"],
                        tags=p["tags"] if p["tags"] is not None else (list(parent.tags) if parent.tags else None),
-                       cut_step_id=cut.id, is_reference=p["is_reference"], visibility=parent.visibility)
+                       cut_step_id=cut.id, is_reference=p["is_reference"], visibility=parent.visibility,
+                       **p["condition"])
         if self.pieces_like_parent:   # as the Cut form does: the parent's owner, and its shares
             piece.owner_id, piece.owner_team_id = parent.owner_id, parent.owner_team_id
             piece.shares = [SampleShare(user_id=sh.user_id, can_edit=sh.can_edit) for sh in parent.shares]
