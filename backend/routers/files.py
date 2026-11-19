@@ -13,7 +13,7 @@ from backend.config import settings
 from backend.auth import require_login, load_sample, can_view, can_edit, can_edit_entry
 from backend.lineage import can_view_entry
 from backend.routers.substrates import can_edit_substrate
-from backend.studies import NOTE_FILES, REFERENCE_FILES, is_study_owner, load_study
+from backend.studies import NOTE_FILES, REFERENCE_FILES, STUDY_FILES, is_study_owner, load_study
 from backend.procedures import FILES as PROCEDURE_FILES, load_procedure
 from backend.utils import save_upload, delete_attachment, chosen_files, ensure_thumbnail
 
@@ -100,6 +100,9 @@ async def _readable_attachment(db: AsyncSession, attachment_id: int, user: User)
     if attachment.entity_type == "substrate":
         await _substrate(db, attachment.entity_id)   # library specs are visible to everyone
         return attachment
+    if attachment.entity_type == STUDY_FILES:
+        await load_study(db, attachment.entity_id, user)
+        return attachment
     if attachment.entity_type == NOTE_FILES:
         await load_study(db, await _note_study_id(db, attachment.entity_id), user)
         return attachment
@@ -164,6 +167,9 @@ async def delete_file(attachment_id: int, db: AsyncSession = Depends(get_db),
         if not can_edit_substrate(current_user, substrate):
             raise HTTPException(status_code=403, detail="You can't change this substrate's files.")
         back = f"/substrates/{substrate.id}"
+    elif attachment.entity_type == STUDY_FILES:
+        study = await load_study(db, attachment.entity_id, current_user, "owner")
+        back = f"/studies/{study.id}#files"
     elif attachment.entity_type == NOTE_FILES:
         study = await load_study(db, await _note_study_id(db, attachment.entity_id), current_user, "owner")
         back = f"/studies/{study.id}#note-{attachment.entity_id}"

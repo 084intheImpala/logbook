@@ -209,6 +209,27 @@
   {% endif %}
 </section>
 
+<!-- The study's own files -->
+{% if study_photos or study_files or is_owner %}
+<section id="files" class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-700 mb-2">{{ _("Files") }} · {{ study_photos|length + study_files|length }}</h2>
+  <p class="text-xs text-gray-400 -mt-1 mb-2">{{ _("Files of the study as a whole: a draft, a summary figure, a data table. A note or a reference can have its own.") }}</p>
+  {{ attachment_list(study_photos, study_files, is_owner) }}
+  {% if is_owner %}
+  <details class="mt-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+    <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ _("Add files") }}</summary>
+    <form method="post" action="/studies/{{ study.id }}/files" enctype="multipart/form-data" class="px-4 pb-4 space-y-3">
+      <label class="block text-xs text-gray-600">📷 {{ _("Photos") }}
+        <input type="file" name="photos" multiple accept="image/*" class="block text-xs mt-1"></label>
+      <label class="block text-xs text-gray-600">📎 {{ _("Files") }}
+        <input type="file" name="files" multiple class="block text-xs mt-1"></label>
+      <button class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">{{ _("Add") }}</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
 {% macro paper_item(r) %}{% set can_change = is_owner or r.added_by_id == current_user.id %}
     <li id="reference-{{ r.id }}" class="px-4 py-3 text-sm flex items-start gap-3">
       <div class="flex-1 min-w-0 break-words">
@@ -282,7 +303,7 @@
     {% for r in papers %}{{ paper_item(r) }}{% endfor %}
   </ul>
   {% endif %}
-  <details class="mt-3 bg-white rounded-xl border border-gray-200 shadow-sm" {% if not papers and not published %}open{% endif %}>
+  <details class="mt-3 bg-white rounded-xl border border-gray-200 shadow-sm">
     <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ add_label }}</summary>
     <form method="post" action="/studies/{{ study.id }}/references" enctype="multipart/form-data" class="px-4 pb-4 space-y-3">
       {% if published %}<input type="hidden" name="published" value="true">{% endif %}
@@ -361,7 +382,7 @@
   {% endif %}
 
   {% if is_owner %}
-  <details class="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm" {% if not notes %}open{% endif %}>
+  <details class="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm">
     <summary class="px-4 py-2.5 text-sm font-medium text-blue-600 cursor-pointer">+ {{ _("Add a note") }}</summary>
     <form method="post" action="/studies/{{ study.id }}/notes" enctype="multipart/form-data" class="px-4 pb-4 space-y-3">
       {% set note, about = None, None %}

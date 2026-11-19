@@ -122,6 +122,16 @@
   <p class="muted small">{{ _("and 1 sample you can't see") if hidden_samples == 1 else _("and {n} samples you can't see", n=hidden_samples) }}</p>
   {% endif %}
 
+  {% if study_photos or study_files %}
+  <h2>{{ _("Files") }} <span class="muted small">({{ study_photos|length + study_files|length }})</span></h2>
+  {% if study_photos %}
+  <div class="photos">{% for att in study_photos %}<img src="/files/{{ att.id }}/thumb" alt="{{ att.original_filename }}" title="{{ att.original_filename }}">{% endfor %}</div>
+  {% endif %}
+  {% if study_files %}
+  <ul class="files">{% for att in study_files %}<li>{{ att.original_filename }} <span class="muted">({{ (att.file_size / 1024)|round(1) }} KB)</span></li>{% endfor %}</ul>
+  {% endif %}
+  {% endif %}
+
   <h2>{{ _("Publications") }} <span class="muted small">({{ publications|length }})</span></h2>
   {% if publications %}
   <ol class="refs">

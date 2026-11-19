@@ -3,8 +3,16 @@ import io
 import json
 import re
 
+from PIL import Image
+
 from backend import doi
 from backend.config import settings
+
+
+def _png() -> bytes:
+    out = io.BytesIO()
+    Image.new("RGB", (40, 30), "red").save(out, "PNG")
+    return out.getvalue()
 
 
 def _study(client, title="Contacts on Ga2O3", visibility="team") -> int:
@@ -250,7 +258,7 @@ def test_study_json_is_kept_next_to_the_notes_files(world):
     client = world.client(owner)
     study_id = _study(client, "Backup study")
     data = _study_json(study_id)
-    assert data["format"] == 4 and data["title"] == "Backup study" and data["owners"][0]["username"] == owner.username
+    assert data["format"] == 5 and data["title"] == "Backup study" and data["owners"][0]["username"] == owner.username
 
     sample = world.sample(owner, label="film A")
     step_id, _ = world.step(sample, "annealed")
@@ -569,6 +577,41 @@ def test_a_reference_can_have_files(world):
     assert client.get(f"/files/{other_id}").status_code == 404
 
 
+def test_the_study_itself_can_have_files(world):
+    owner, mate, stranger = (world.user(f"stfile-{n}") for n in ("owner", "mate", "stranger"))
+    world.team("stfile-team", members=[owner, mate])
+    client = world.client(owner)
+    study_id = _study(client, "Own files")
+    assert client.post(f"/studies/{study_id}/files").status_code == 303            # nothing chosen: a message
+    assert "Escolha um ficheiro para adicionar." in client.get(f"/studies/{study_id}").text   # pages are in Portuguese
+    r = client.post(f"/studies/{study_id}/files",
+                    files=[("files", ("draft.docx", io.BytesIO(b"draft"), "application/octet-stream")),
+                           ("photos", ("summary.png", io.BytesIO(_png()), "image/png"))])
+    assert r.status_code == 303 and r.headers["location"].endswith("#files")
+    page = client.get(f"/studies/{study_id}").text
+    assert "draft.docx" in page and 'id="files"' in page
+    file_id = int(re.search(r'href="/files/(\d+)" class="text-blue-600', page).group(1))
+    assert (settings.UPLOAD_DIR / f"studies/{study_id}-Own-files/draft.docx").is_file()
+    assert {f["original_name"] for f in _study_json(study_id)["files"]} == {"draft.docx", "summary.png"}
+    assert "draft.docx" in client.get(f"/studies/{study_id}/print").text
+
+    # Anyone who sees the study gets them; only the co-owners add or remove them
+    assert world.client(mate).get(f"/files/{file_id}").content == b"draft"
+    assert world.client(stranger).get(f"/files/{file_id}").status_code == 403
+    assert world.client(mate).post(f"/studies/{study_id}/files",
+                                   files={"files": ("x.txt", io.BytesIO(b"x"), "text/plain")}).status_code == 403
+    assert world.client(mate).post(f"/files/{file_id}/delete").status_code == 403
+    assert 'action="/studies/%d/files"' % study_id not in world.client(mate).get(f"/studies/{study_id}").text
+    assert client.post(f"/files/{file_id}/delete").status_code == 303
+    assert client.get(f"/files/{file_id}").status_code == 404
+    assert [f["original_name"] for f in _study_json(study_id)["files"]] == ["summary.png"]
+
+    # Deleting the study deletes them
+    photo_id = int(re.search(r'href="/files/(\d+)"', client.get(f"/studies/{study_id}").text).group(1))
+    client.post(f"/studies/{study_id}/delete")
+    assert client.get(f"/files/{photo_id}").status_code == 404
+
+
 def test_a_study_is_to_do_ongoing_or_concluded(world):
     owner, mate = world.user("status-owner"), world.user("status-mate")
     world.team("status-team", members=[owner, mate])
@@ -625,7 +668,7 @@ def test_a_study_has_a_code_repository_and_publications(world, monkeypatch):
     # A note can be about a publication; the study.json and the printout have both
     client.post(f"/studies/{study_id}/notes", data={"text": "submitted", "about": f"reference:{pub_id}"})
     data = _study_json(study_id)
-    assert data["format"] == 4 and data["repo_url"] == "https://github.com/lab/ga2o3-analysis"
+    assert data["format"] == 5 and data["repo_url"] == "https://github.com/lab/ga2o3-analysis"
     assert {r["title"]: r["published"] for r in data["references"]} == {"Our Ga2O3 paper": True, "Background": False}
     html = client.get(f"/studies/{study_id}/print").text
     assert html.index("Publications") < html.index("Our Ga2O3 paper") < html.index("Background")

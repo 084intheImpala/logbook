@@ -132,7 +132,7 @@ async def upload_folder(db: AsyncSession, entity_type: str, entity_id: int, fall
     analysis or substrate: the sample's ID, plus <date>_<technique> for a step
     or analysis (the entry's date, or `fallback_day` if it has none), e.g.
     ASS-2026-001/2026-10-22_XRD-HRXRD. Substrates: substrates/<name>; a
-    study's notes and references: studies/<id>-<title>; a procedure: procedures/<id>-<title>
+    study's own files, notes and references: studies/<id>-<title>; a procedure: procedures/<id>-<title>
     (see record_folder)."""
     if entity_type == "substrate":
         name = (await db.execute(select(Substrate.name).where(Substrate.id == entity_id))).scalar_one_or_none()
@@ -140,6 +140,9 @@ async def upload_folder(db: AsyncSession, entity_type: str, entity_id: int, fall
     if entity_type == "procedure":
         title = (await db.execute(select(Procedure.title).where(Procedure.id == entity_id))).scalar_one_or_none()
         return procedure_folder(entity_id, title or "")
+    if entity_type == "study":
+        title = (await db.execute(select(Study.title).where(Study.id == entity_id))).scalar_one_or_none()
+        return study_folder(entity_id, title or "")
     if entity_type in ("study_note", "study_reference"):
         model = StudyNote if entity_type == "study_note" else StudyReference
         row = (await db.execute(select(Study.id, Study.title).join(model, model.study_id == Study.id)

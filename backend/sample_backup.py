@@ -39,8 +39,9 @@ FILE_NAME = "sample.json"
 FORMAT = 10   # 2: adds visibility, previous_codes, and status / proposed_by on entries; 3: devices; 4: sample_type "project" replaces "commercial" and "collaboration"; 5: planned on entries; 6: on_step_id / on_substrate / partial on steps; 7: a Deposition's base_pressure is in 10⁻⁶ Torr, not mTorr; 8: studies; 9: procedure on entries; 10: owner_team
 
 STUDY_FILE_NAME = "study.json"
-STUDY_FORMAT = 4   # 2: references have an id; a note can be about one; 3: status, and files on references;
-                   # 4: repo_url, and `published` on references (the study's publications)
+STUDY_FORMAT = 5   # 2: references have an id; a note can be about one; 3: status, and files on references;
+                   # 4: repo_url, and `published` on references (the study's publications);
+                   # 5: `files`, the study's own files
 PROCEDURE_FILE_NAME = "procedure.json"
 PROCEDURE_FORMAT = 1
 
@@ -89,7 +90,7 @@ def _note_other(obj):
         _pending.add(("study", obj.study_id))
     elif isinstance(obj, ProcedureOwner):
         _pending.add(("procedure", obj.procedure_id))
-    elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis", "study_note", "study_reference",
+    elif isinstance(obj, Attachment) and obj.entity_type in ("sample", "step", "analysis", "study", "study_note", "study_reference",
                                                                   "procedure"):
         _pending.add((obj.entity_type, obj.entity_id))
 
@@ -212,7 +213,7 @@ async def _write_samples(db, sample_ids: list[int] | None) -> int:
 
 
 def _study_document(study: Study, notes_files: dict[int, list[Attachment]], codes: dict[int, str],
-                    reference_files: dict[int, list[Attachment]]) -> dict:
+                    reference_files: dict[int, list[Attachment]], study_files: list[Attachment]) -> dict:
     def about(note: StudyNote) -> dict | None:
         if note.reference_id:   # by its id in `references`
             return {"kind": "reference", "id": note.reference_id}
@@ -235,6 +236,7 @@ def _study_document(study: Study, notes_files: dict[int, list[Attachment]], code
         "owners": [_person(o.user) for o in study.owners],
         "samples": [{"id": l.sample.id, "code": l.sample.code, "label": l.sample.label, "added_at": l.created_at}
                     for l in study.sample_links if l.sample is not None],
+        "files": [_attachment(a) for a in study_files],   # the study's own, not a note's or a reference's
         "references": [{"id": r.id, "doi": r.doi, "url": r.url, "title": r.title, "authors": r.authors, "journal": r.journal,
                         "year": r.year, "note": r.note, "published": r.published, "added_by": _person(r.added_by), "created_at": r.created_at,
                         "files": [_attachment(a) for a in reference_files.get(r.id, [])]}
@@ -257,7 +259,9 @@ async def _write_studies(db, study_ids: list[int] | None) -> int:
     ref_ids = [r.id for st in studies for r in st.references]
     files: dict[int, list[Attachment]] = {}
     ref_files: dict[int, list[Attachment]] = {}
-    for kind, ids, into in (("study_note", note_ids, files), ("study_reference", ref_ids, ref_files)):
+    own_files: dict[int, list[Attachment]] = {}
+    for kind, ids, into in (("study_note", note_ids, files), ("study_reference", ref_ids, ref_files),
+                            ("study", [st.id for st in studies], own_files)):
         if ids:
             for att in (await db.execute(select(Attachment).where(
                     Attachment.entity_type == kind, Attachment.entity_id.in_(ids)).order_by(Attachment.id))).scalars():
@@ -266,7 +270,7 @@ async def _write_studies(db, study_ids: list[int] | None) -> int:
     codes = dict((await db.execute(select(Sample.id, Sample.code).where(Sample.id.in_(note_sample_ids)))).all()) \
         if note_sample_ids else {}
     for st in studies:
-        _write(study_folder(st.id, st.title), _study_document(st, files, codes, ref_files), STUDY_FILE_NAME)
+        _write(study_folder(st.id, st.title), _study_document(st, files, codes, ref_files, own_files.get(st.id, [])), STUDY_FILE_NAME)
     return len(studies)
 
 

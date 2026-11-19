@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.auth import can_view_shared, coordinates_user, is_co_owner
 from backend.models import Study, StudyNote, StudyOwner, StudySample, User
 
-NOTE_FILES = "study_note"            # Attachment.entity_type of a note's files
+STUDY_FILES = "study"               # Attachment.entity_type of the study's own files (a draft, a summary figure)
+NOTE_FILES = "study_note"            # ... of a note's files
 REFERENCE_FILES = "study_reference"  # ... and of a reference's (e.g. the PDF with your highlights)
 
 

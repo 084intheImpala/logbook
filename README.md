@@ -330,7 +330,7 @@ uploads/
   studies/
     3-Contacts-on-Ga2O3/                   ← a study (<id>-<title>, kept if it's renamed)
       study.json                           ← the study's record (see below)
-      paper.pdf                            ← files on its notes
+      paper.pdf                            ← its files, and those on its notes and references
   procedures/
     5-My-XRD-2th-om-scan/                  ← a procedure (<id>-<title>, kept if it's renamed)
       procedure.json                       ← the procedure's record (see Procedures)
@@ -670,7 +670,7 @@ title, a description, an optional **code repository** (a link, e.g. the
 GitHub repository with the analysis code; `github.com/…` gets `https://`, and
 the study's page links to it), a **status** (*To do*, *Ongoing*, the default, or
 *Concluded*: set on its form, or by co-owners from the list next to its title;
-the Studies list shows it and filters by it) and three parts:
+the Studies list shows it and filters by it) and four parts:
 
 - **Samples.** **+ Add samples** on the study's page lists every sample you
   can see that isn't in the study yet; type in its box to narrow the list
@@ -681,6 +681,11 @@ the Studies list shows it and filters by it) and three parts:
   you can see can be added, and a study's page lists only the samples the
   viewer can see ("and 2 samples you can't see" for the rest). A sample can be
   in several studies; deleting a sample takes it out of them.
+- **Files.** Photos and files of the study as a whole, not of one note or
+  reference: a draft of the paper, a summary figure, a data table. Co-owners
+  add them under **+ Add files** and can remove them; anyone who sees the
+  study can open them. They are attachments with `entity_type` `study`
+  (`entity_id` the study's id), stored with the notes' files.
 - **References.** Paste a DOI (bare, `doi:…` or a `doi.org` link) or any
   link, with an optional note on why it matters. For a DOI the title, authors,
   journal and year are looked up at doi.org (`backend/doi.py`); if that fails
@@ -713,7 +718,7 @@ the Studies list shows it and filters by it) and three parts:
   the study, with your note and files, not to the paper's website), or to any of the
   samples, pieces, steps and analyses the *About* list offers (searchable,
   e.g. `[TST-2026-001-A · Annealing](/samples/12#step-34)`). What concerns a single step (its parameters,
-  results, files) still belongs on the step. Note and reference files are
+  results, files) still belongs on the step. The study's, its notes' and its references' files are
   stored under `uploads/studies/<id>-<title>/`.
 
 **Co-owners.** Whoever creates a study is its first co-owner and can add
@@ -731,16 +736,17 @@ a co-owner. The tables are `studies`, `study_owners`,
 **Printing.** **🖨 Print / PDF** on a study's page opens it laid out for A4
 (`/studies/{id}/print`, `studies/print.html`), like a sample's printable
 record: details, co-owners, the code repository, the samples (only those the
-reader can see), the publications and the references as numbered lists, and the notes in order with photo previews and
+reader can see), the study's files (photo previews and names), the publications and the references as numbered lists, and the notes in order with photo previews and
 file names. Print it, or choose *Save as PDF* as the printer. A sample's own
 printout lists the studies it is in.
 
-**`study.json`.** Next to its notes' files, `uploads/studies/<id>-<title>/`
+**`study.json`.** Next to its files, `uploads/studies/<id>-<title>/`
 (named when the study is created, and kept if it's renamed) has a
 `study.json`, written like `sample.json`: after every change and for every
-study at start-up. Keys: `format` (currently 4), `written_at`, `id`, `title`,
+study at start-up. Keys: `format` (currently 5; 5 adds `files`), `written_at`, `id`, `title`,
 `description`, `repo_url`, `visibility`, `status` (`todo`, `ongoing` or `concluded`), `created_at`, `created_by`, `owners`
 (`{username, name, initials}`), `samples` (`{id, code, label, added_at}`),
+`files` (the study's own, as in `sample.json`),
 `references` (`id`, `doi`, `url`, `title`, `authors`, `journal`, `year`, `note`,
 `published` (true for the study's publications), `added_by`, `created_at`, `files` as in `sample.json`) and `notes`, in order (`id`, `position`, `noted_on`,
 `title`, `text`, `author`, `created_at`, `files` as in `sample.json`, and

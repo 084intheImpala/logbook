@@ -16,7 +16,7 @@ from backend.i18n import t
 from backend.models import (DEFAULT_STUDY_STATUS, STUDY_STATUS, VISIBILITY, Attachment, ProcessStep, Sample, Study, StudyNote, StudyOwner, StudyReference, StudySample, User)
 from backend.lineage import Family, load_samples_full_by_id, own_items
 from backend.params import parse_date
-from backend.studies import (NOTE_FILES, REFERENCE_FILES, can_view_study, is_study_owner, load_study, move_note,
+from backend.studies import (NOTE_FILES, REFERENCE_FILES, STUDY_FILES, can_view_study, is_study_owner, load_study, move_note,
                              ordered_notes, place_note, visible_studies)
 from backend.templating import templates
 from backend.utils import chosen_files, delete_attachment, save_upload
@@ -271,6 +271,9 @@ async def delete_study(request: Request, study_id: int, db: AsyncSession = Depen
             for attachment in (await db.execute(select(Attachment).where(
                     Attachment.entity_type == kind, Attachment.entity_id.in_(ids)))).scalars().all():
                 await delete_attachment(attachment, db)
+    for attachment in (await db.execute(select(Attachment).where(
+            Attachment.entity_type == STUDY_FILES, Attachment.entity_id == study.id))).scalars().all():
+        await delete_attachment(attachment, db)
     title = study.title
     await db.delete(study)
     await db.commit()
@@ -316,6 +319,9 @@ async def _page(request: Request, db: AsyncSession, study_id: int, current_user:
             "photos": [a for a in attachments[n.id] if _is_image(a)],
             "files": [a for a in attachments[n.id] if not _is_image(a)],
         })
+    study_files = (await db.execute(select(Attachment).where(
+        Attachment.entity_type == STUDY_FILES, Attachment.entity_id == study.id)
+        .order_by(Attachment.uploaded_at))).scalars().all()
     taken = {o.user_id for o in study.owners}
     return {
         "request": request, "current_user": current_user, "study": study, "is_owner": owner,
@@ -324,6 +330,8 @@ async def _page(request: Request, db: AsyncSession, study_id: int, current_user:
         "references": [r for r in references if not r.published],
         "publications": [r for r in references if r.published], "papers": references,
         "notes_on": notes_on, "reference_files": reference_files,
+        "study_photos": [a for a in study_files if _is_image(a)],
+        "study_files": [a for a in study_files if not _is_image(a)],
         "notes": note_rows, "entries": entries, "today": date.today(),
         "owner_candidates": [u for u in (await db.execute(
             select(User).order_by(User.name, User.username))).scalars() if u.id not in taken] if owner else [],
@@ -441,6 +449,23 @@ async def remove_sample(study_id: int, sample_id: int, db: AsyncSession = Depend
     return _back(study, "#samples")
 
 
+# ── The study's own files ────────────────────────────────────────────────────
+
+@router.post("/{study_id}/files")
+async def add_files(request: Request, study_id: int, photos: list[UploadFile | str] = File([]),
+                    files: list[UploadFile | str] = File([]), db: AsyncSession = Depends(get_db),
+                    current_user: User = Depends(require_login)):
+    """Files of the study as a whole, not of one note or reference (a draft
+    of the paper, a summary figure, a data table): the co-owners add them."""
+    study = await load_study(db, study_id, current_user, "owner")
+    if not (chosen_files(photos) or chosen_files(files)):
+        request.session["flash_error"] = t(request, "Choose a file to add.")
+        return _back(study, "#files")
+    await _save_files(db, current_user, STUDY_FILES, study.id, photos, files)
+    await db.commit()
+    return _back(study, "#files")
+
+
 # ── References ───────────────────────────────────────────────────────────────
 
 @router.post("/{study_id}/references")
@@ -533,7 +558,7 @@ async def delete_reference(study_id: int, reference_id: int, db: AsyncSession = 
 # ── Notes ────────────────────────────────────────────────────────────────────
 
 async def _save_files(db, current_user, entity_type: str, entity_id: int, photos, files):
-    """Save a note's (or a reference's) photos and files."""
+    """Save the photos and files of a note, a reference or the study itself."""
     photos, files = chosen_files(photos), chosen_files(files)
     for f in photos + files:
         if f.size is not None and f.size > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:

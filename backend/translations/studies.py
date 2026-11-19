@@ -125,4 +125,8 @@ PT = {
     "Back to the study": "Voltar ao estudo",
     "The study's samples, references and notes, laid out to print or save as a PDF":
         "As amostras, referências e notas do estudo, prontas a imprimir ou guardar em PDF",
+    # The study's own files
+    "Files of the study as a whole: a draft, a summary figure, a data table. A note or a reference can have its own.":
+        "Ficheiros do estudo no seu todo: um rascunho, uma figura-resumo, uma tabela de dados. Uma nota ou uma referência pode ter os seus.",
+    "Choose a file to add.": "Escolha um ficheiro para adicionar.",
 }
