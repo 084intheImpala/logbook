@@ -222,7 +222,7 @@ async def forgot_password(
 ):
     from datetime import timedelta
     from backend.email_utils import send_password_reset_email
-    from backend.routers.admin import _generate_login_token  # reuse helper
+    from backend.accounts import _generate_login_token
 
     # Always show the "check your email" page — don't reveal whether the
     # address exists in the system.
