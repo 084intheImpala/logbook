@@ -141,10 +141,6 @@ PT = {
     "This login link is no longer valid. Ask your administrator to reset your password and send a new one.":
         "Esta ligação de acesso já não é válida. Peça ao administrador que reponha a sua palavra-passe e envie uma nova ligação.",
     "Go to login": "Ir para o início de sessão",
-    "Register": "Registar",
-    "Create account": "Criar conta",
-    "Confirm password": "Confirmar palavra-passe",
-    "Already have an account?": "Já tem conta?",
     "Invalid username or password.": "Nome de utilizador ou palavra-passe inválidos.",
     "Current password is incorrect.": "A palavra-passe atual está incorreta.",
     "New password must be at least 8 characters.": "A nova palavra-passe tem de ter pelo menos 8 caracteres.",
